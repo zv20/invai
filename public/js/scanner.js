@@ -5,12 +5,14 @@
 
 let html5QrcodeScanner = null;
 let isScanning = false;
+let scannerContext = 'search'; // 'search' or 'product-form'
 
 /* ==========================================================================
    Scanner Modal Management
    ========================================================================== */
 
-function openScanner() {
+function openScanner(context = 'search') {
+    scannerContext = context;
     document.getElementById('scannerModal').classList.add('active');
     document.getElementById('scannerResult').classList.remove('show');
     if (!isScanning) startScanner();
@@ -50,8 +52,17 @@ function startScanner() {
 function onScanSuccess(decodedText) {
     document.getElementById('scannedCode').textContent = decodedText;
     document.getElementById('scannerResult').classList.add('show');
-    document.getElementById('productSearch').value = decodedText;
-    loadProducts();
+    
+    if (scannerContext === 'product-form') {
+        // Fill the barcode field in the product form
+        document.getElementById('prodBarcode').value = decodedText;
+        document.getElementById('prodBarcode').focus();
+    } else {
+        // Fill the search field and search
+        document.getElementById('productSearch').value = decodedText;
+        loadProducts();
+    }
+    
     setTimeout(() => closeScanner(), 1500);
 }
 
