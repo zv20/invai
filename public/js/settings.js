@@ -187,6 +187,7 @@ async function loadBackups() {
                     </div>
                 </div>
                 <div class="backup-actions">
+                    <button onclick="restoreBackup('${backup.filename}')" class="btn-small btn-primary">♻️ Restore</button>
                     <button onclick="downloadBackup('${backup.filename}')" class="btn-small btn-primary">⬇️ Download</button>
                     <button onclick="deleteBackup('${backup.filename}')" class="btn-small btn-danger">🗑️ Delete</button>
                 </div>
@@ -195,6 +196,30 @@ async function loadBackups() {
     } catch (error) {
         console.error('Error loading backups:', error);
         list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">✗ Failed to load backups</div>';
+    }
+}
+
+async function restoreBackup(filename) {
+    if (!confirm(`⚠️ RESTORE DATABASE FROM BACKUP?\n\nRestore from: ${filename}\n\n✓ A safety backup will be created first\n✓ Current data will be replaced\n✓ Page will reload after restore\n\nContinue?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/backup/restore/${filename}`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`✓ Database Restored!\n\nRestored from: ${data.restoredFrom}\nSafety backup: ${data.safetyBackup}\n\nPage will now reload.`);
+            location.reload();
+        } else {
+            showNotification(`✗ Restore failed: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Restore error:', error);
+        showNotification('✗ Failed to restore backup', 'error');
     }
 }
 
@@ -224,6 +249,50 @@ async function deleteBackup(filename) {
     } catch (error) {
         console.error('Delete error:', error);
         showNotification('✗ Failed to delete backup', 'error');
+    }
+}
+
+function triggerUploadRestore() {
+    document.getElementById('backupUploadInput').click();
+}
+
+async function handleUploadRestore(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.db')) {
+        showNotification('⚠️ Please select a valid .db file', 'error');
+        event.target.value = '';
+        return;
+    }
+    
+    if (!confirm(`⚠️ RESTORE DATABASE FROM UPLOAD?\n\nFile: ${file.name}\nSize: ${formatFileSize(file.size)}\n\n✓ A safety backup will be created first\n✓ Current data will be replaced\n✓ Page will reload after restore\n\nContinue?`)) {
+        event.target.value = '';
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('backup', file);
+    
+    try {
+        const response = await fetch(`${API_URL}/api/backup/upload`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`✓ Database Restored!\n\nRestored from: ${data.originalFilename}\nSafety backup: ${data.safetyBackup}\n\nPage will now reload.`);
+            location.reload();
+        } else {
+            showNotification(`✗ Upload restore failed: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Upload restore error:', error);
+        showNotification('✗ Failed to restore from upload', 'error');
+    } finally {
+        event.target.value = '';
     }
 }
 

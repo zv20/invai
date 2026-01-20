@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const multer = require('multer');
 
 const packageJson = require('./package.json');
 const app = express();
@@ -13,10 +14,28 @@ const GITHUB_REPO = 'zv20/invai';
 const BACKUP_DIR = path.join(__dirname, 'backups');
 const MAX_BACKUPS = 10;
 
-// Ensure backups directory exists
+// Configure multer for file uploads
+const upload = multer({
+  dest: path.join(__dirname, 'temp'),
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max
+  fileFilter: (req, file, cb) => {
+    if (file.originalname.endsWith('.db')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .db files are allowed'));
+    }
+  }
+});
+
+// Ensure directories exist
 if (!fs.existsSync(BACKUP_DIR)) {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
   console.log('Created backups directory');
+}
+
+if (!fs.existsSync(path.join(__dirname, 'temp'))) {
+  fs.mkdirSync(path.join(__dirname, 'temp'), { recursive: true });
+  console.log('Created temp directory');
 }
 
 app.use(cors());
@@ -53,7 +72,7 @@ app.get('/', (req, res) => {
   res.send(html);
 });
 
-const db = new sqlite3.Database('./inventory.db', (err) => {
+let db = new sqlite3.Database('./inventory.db', (err) => {
   if (err) {
     console.error('Error opening database:', err);
   } else {
@@ -303,391 +322,106 @@ app.delete('/api/backup/delete/:filename', (req, res) => {
   }
 });
 
-// ========== EXISTING API ENDPOINTS ==========
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', version: VERSION, timestamp: new Date().toISOString() });
-});
-
-app.get('/api/version', async (req, res) => {
+// Restore from existing backup
+app.post('/api/backup/restore/:filename', async (req, res) => {
+  const filename = req.params.filename;
+  
+  if (!filename.startsWith('backup_') || !filename.endsWith('.db')) {
+    return res.status(400).json({ error: 'Invalid backup filename' });
+  }
+  
+  const backupPath = path.join(BACKUP_DIR, filename);
+  if (!fs.existsSync(backupPath)) {
+    return res.status(404).json({ error: 'Backup file not found' });
+  }
+  
   try {
-    const updateInfo = await checkGitHubVersion();
-    res.json(updateInfo);
-  } catch (error) {
-    console.error('Error checking GitHub version:', error.message);
-    res.json({
-      latestVersion: VERSION,
-      currentVersion: VERSION,
-      updateAvailable: false,
-      error: 'Could not check for updates'
-    });
-  }
-});
-
-app.get('/api/products', (req, res) => {
-  const { search } = req.query;
-  let query = 'SELECT * FROM products WHERE 1=1';
-  const params = [];
-  if (search) {
-    query += ' AND (name LIKE ? OR barcode LIKE ? OR brand LIKE ? OR supplier LIKE ? OR inhouse_number LIKE ?)';
-    const searchTerm = `%${search}%`;
-    params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
-  }
-  query += ' ORDER BY name';
-  db.all(query, params, (err, rows) => {
-    if (err) res.status(500).json({ error: err.message });
-    else res.json(rows);
-  });
-});
-
-app.get('/api/products/:id', (req, res) => {
-  db.get('SELECT * FROM products WHERE id = ?', [req.params.id], (err, row) => {
-    if (err) res.status(500).json({ error: err.message });
-    else if (!row) res.status(404).json({ error: 'Product not found' });
-    else res.json(row);
-  });
-});
-
-app.post('/api/products', (req, res) => {
-  const { name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes } = req.body;
-  if (!name) return res.status(400).json({ error: 'Product name is required' });
-  db.run(
-    `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, inhouse_number || null, barcode || null, brand || null, supplier || null,
-     items_per_case || null, cost_per_case || 0, category || '', notes || ''],
-    function(err) {
-      if (err) {
-        if (err.message.includes('UNIQUE constraint')) {
-          res.status(409).json({ error: 'A product with this barcode already exists' });
-        } else {
-          res.status(500).json({ error: err.message });
-        }
-      } else {
-        res.json({ id: this.lastID, message: 'Product added successfully' });
-      }
-    }
-  );
-});
-
-app.put('/api/products/:id', (req, res) => {
-  const { name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes } = req.body;
-  db.run(
-    `UPDATE products
-     SET name = ?, inhouse_number = ?, barcode = ?, brand = ?, supplier = ?,
-         items_per_case = ?, cost_per_case = ?, category = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
-    [name, inhouse_number || null, barcode || null, brand || null, supplier || null,
-     items_per_case || null, cost_per_case || 0, category || '', notes || '', req.params.id],
-    function(err) {
-      if (err) res.status(500).json({ error: err.message });
-      else if (this.changes === 0) res.status(404).json({ error: 'Product not found' });
-      else res.json({ message: 'Product updated successfully' });
-    }
-  );
-});
-
-app.delete('/api/products/:id', (req, res) => {
-  db.run('DELETE FROM products WHERE id = ?', [req.params.id], function(err) {
-    if (err) res.status(500).json({ error: err.message });
-    else if (this.changes === 0) res.status(404).json({ error: 'Product not found' });
-    else res.json({ message: 'Product deleted successfully' });
-  });
-});
-
-app.get('/api/inventory/summary', (req, res) => {
-  const { search, category } = req.query;
-  let query = `
-    SELECT p.*, COALESCE(SUM(ib.total_quantity), 0) as total_quantity,
-           COUNT(ib.id) as batch_count, MIN(ib.expiry_date) as earliest_expiry
-    FROM products p
-    LEFT JOIN inventory_batches ib ON p.id = ib.product_id
-    WHERE 1=1
-  `;
-  const params = [];
-  if (search) {
-    query += ' AND (p.name LIKE ? OR p.barcode LIKE ? OR p.brand LIKE ? OR p.supplier LIKE ? OR p.inhouse_number LIKE ?)';
-    const searchTerm = `%${search}%`;
-    params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
-  }
-  if (category && category !== 'all') {
-    query += ' AND p.category = ?';
-    params.push(category);
-  }
-  query += ' GROUP BY p.id ORDER BY p.name';
-  db.all(query, params, (err, rows) => {
-    if (err) res.status(500).json({ error: err.message });
-    else res.json(rows);
-  });
-});
-
-app.get('/api/inventory/value', (req, res) => {
-  const query = `
-    SELECT 
-      COUNT(DISTINCT p.id) as total_products,
-      COALESCE(SUM(ib.total_quantity), 0) as total_items,
-      COALESCE(SUM((p.cost_per_case / NULLIF(p.items_per_case, 0)) * ib.total_quantity), 0) as total_value
-    FROM products p
-    LEFT JOIN inventory_batches ib ON p.id = ib.product_id
-  `;
-  db.get(query, [], (err, row) => {
-    if (err) res.status(500).json({ error: err.message });
-    else res.json(row);
-  });
-});
-
-app.get('/api/products/:id/batches', (req, res) => {
-  db.all(
-    'SELECT * FROM inventory_batches WHERE product_id = ? ORDER BY expiry_date, received_date',
-    [req.params.id],
-    (err, rows) => {
-      if (err) res.status(500).json({ error: err.message });
-      else res.json(rows);
-    }
-  );
-});
-
-app.get('/api/inventory/batches/:id', (req, res) => {
-  db.get('SELECT * FROM inventory_batches WHERE id = ?', [req.params.id], (err, row) => {
-    if (err) res.status(500).json({ error: err.message });
-    else if (!row) res.status(404).json({ error: 'Batch not found' });
-    else res.json(row);
-  });
-});
-
-app.post('/api/inventory/batches', (req, res) => {
-  const { product_id, case_quantity, expiry_date, location, notes } = req.body;
-  if (!product_id || !case_quantity) {
-    return res.status(400).json({ error: 'Product ID and case quantity are required' });
-  }
-  db.get('SELECT items_per_case FROM products WHERE id = ?', [product_id], (err, product) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!product) return res.status(404).json({ error: 'Product not found' });
-    const itemsPerCase = product.items_per_case || 1;
-    const totalQuantity = case_quantity * itemsPerCase;
-    db.run(
-      `INSERT INTO inventory_batches (product_id, case_quantity, total_quantity, expiry_date, location, notes)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [product_id, case_quantity, totalQuantity, expiry_date || null, location || '', notes || ''],
-      function(err) {
-        if (err) res.status(500).json({ error: err.message });
-        else res.json({ id: this.lastID, total_quantity: totalQuantity, message: 'Batch added successfully' });
-      }
-    );
-  });
-});
-
-app.put('/api/inventory/batches/:id', (req, res) => {
-  const { case_quantity, total_quantity, expiry_date, location, notes } = req.body;
-  db.run(
-    `UPDATE inventory_batches
-     SET case_quantity = ?, total_quantity = ?, expiry_date = ?, location = ?, notes = ?
-     WHERE id = ?`,
-    [case_quantity, total_quantity, expiry_date || null, location || '', notes || '', req.params.id],
-    function(err) {
-      if (err) res.status(500).json({ error: err.message });
-      else if (this.changes === 0) res.status(404).json({ error: 'Batch not found' });
-      else res.json({ message: 'Batch updated successfully' });
-    }
-  );
-});
-
-app.delete('/api/inventory/batches/:id', (req, res) => {
-  db.run('DELETE FROM inventory_batches WHERE id = ?', [req.params.id], function(err) {
-    if (err) res.status(500).json({ error: err.message });
-    else if (this.changes === 0) res.status(404).json({ error: 'Batch not found' });
-    else res.json({ message: 'Batch deleted successfully' });
-  });
-});
-
-app.post('/api/database/reset', (req, res) => {
-  db.run('DELETE FROM inventory_batches', (err) => {
-    if (err) return res.status(500).json({ error: 'Failed to delete batches: ' + err.message });
-    db.run('DELETE FROM products', (err) => {
-      if (err) return res.status(500).json({ error: 'Failed to delete products: ' + err.message });
-      db.run('DELETE FROM sqlite_sequence WHERE name="products" OR name="inventory_batches"', (err) => {
-        if (err) console.error('Failed to reset autoincrement:', err);
-        console.log('Database reset completed');
-        res.json({ message: 'Database reset successful. All data has been deleted.', timestamp: new Date().toISOString() });
+    // Create safety backup before restore
+    const safetyBackup = await createBackup();
+    console.log(`Safety backup created: ${safetyBackup.filename}`);
+    
+    // Close database connection
+    await new Promise((resolve, reject) => {
+      db.close((err) => {
+        if (err) reject(err);
+        else resolve();
       });
     });
-  });
-});
-
-app.get('/api/export/inventory', (req, res) => {
-  const query = `
-    SELECT p.name, p.inhouse_number, p.barcode, p.brand, p.supplier, p.items_per_case, p.cost_per_case, p.category,
-           ib.case_quantity, ib.total_quantity, ib.expiry_date, ib.location, ib.received_date,
-           ib.notes as batch_notes, p.notes as product_notes
-    FROM products p
-    LEFT JOIN inventory_batches ib ON p.id = ib.product_id
-    ORDER BY p.name, ib.expiry_date
-  `;
-  db.all(query, [], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    const headers = [
-      'Product Name', 'In-House Number', 'Barcode', 'Brand', 'Supplier',
-      'Items Per Case', 'Cost Per Case', 'Category', 'Case Quantity', 'Total Quantity',
-      'Expiration Date', 'Location', 'Received Date', 'Batch Notes', 'Product Notes'
-    ];
-    let csv = headers.join(',') + '\n';
-    rows.forEach(row => {
-      const rowData = [
-        escapeCSV(row.name), escapeCSV(row.inhouse_number), escapeCSV(row.barcode),
-        escapeCSV(row.brand), escapeCSV(row.supplier), escapeCSV(row.items_per_case),
-        escapeCSV(row.cost_per_case), escapeCSV(row.category), escapeCSV(row.case_quantity),
-        escapeCSV(row.total_quantity), escapeCSV(row.expiry_date), escapeCSV(row.location),
-        escapeCSV(row.received_date), escapeCSV(row.batch_notes), escapeCSV(row.product_notes)
-      ];
-      csv += rowData.join(',') + '\n';
-    });
-    const filename = `inventory_export_${new Date().toISOString().split('T')[0]}.csv`;
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(csv);
-  });
-});
-
-function escapeCSV(field) {
-  if (field === null || field === undefined) return '';
-  const stringField = String(field);
-  if (stringField.includes(',') || stringField.includes('"') || stringField.includes('\n')) {
-    return `"${stringField.replace(/"/g, '""')}"`;
-  }
-  return stringField;
-}
-
-app.post('/api/import/inventory', async (req, res) => {
-  try {
-    const csvText = req.body;
-    const lines = csvText.split('\n').filter(line => line.trim());
-    if (lines.length < 2) {
-      return res.status(400).json({ error: 'CSV file is empty or invalid' });
-    }
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    const rows = lines.slice(1);
-    let productsCreated = 0, productsUpdated = 0, batchesCreated = 0, errors = 0;
-    const parseField = (field) => {
-      if (!field) return null;
-      field = field.trim();
-      if (field.startsWith('"') && field.endsWith('"')) {
-        field = field.slice(1, -1).replace(/""/g, '"');
-      }
-      return field || null;
-    };
-    for (const row of rows) {
-      try {
-        const fields = row.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g) || [];
-        const data = {};
-        headers.forEach((header, index) => { data[header] = parseField(fields[index]); });
-        const productName = data['Product Name'];
-        if (!productName) { errors++; continue; }
-        const existingProduct = await new Promise((resolve, reject) => {
-          if (data['Barcode']) {
-            db.get('SELECT * FROM products WHERE barcode = ?', [data['Barcode']], (err, row) => {
-              if (err) reject(err); else resolve(row);
-            });
-          } else {
-            db.get('SELECT * FROM products WHERE name = ?', [productName], (err, row) => {
-              if (err) reject(err); else resolve(row);
-            });
-          }
-        });
-        let productId;
-        if (existingProduct) {
-          await new Promise((resolve, reject) => {
-            db.run(
-              `UPDATE products SET inhouse_number = COALESCE(?, inhouse_number),
-               brand = COALESCE(?, brand), supplier = COALESCE(?, supplier),
-               items_per_case = COALESCE(?, items_per_case), cost_per_case = COALESCE(?, cost_per_case),
-               category = COALESCE(?, category), notes = COALESCE(?, notes), updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-              [data['In-House Number'], data['Brand'], data['Supplier'], 
-               data['Items Per Case'], data['Cost Per Case'] || 0, data['Category'], data['Product Notes'], existingProduct.id],
-              (err) => { if (err) reject(err); else resolve(); }
-            );
-          });
-          productId = existingProduct.id;
-          productsUpdated++;
-        } else {
-          productId = await new Promise((resolve, reject) => {
-            db.run(
-              `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [productName, data['In-House Number'], data['Barcode'], data['Brand'], 
-               data['Supplier'], data['Items Per Case'] || 1, data['Cost Per Case'] || 0, data['Category'] || '', data['Product Notes'] || ''],
-              function(err) { if (err) reject(err); else resolve(this.lastID); }
-            );
-          });
-          productsCreated++;
-        }
-        if (data['Case Quantity'] && parseInt(data['Case Quantity']) > 0) {
-          await new Promise((resolve, reject) => {
-            db.run(
-              `INSERT INTO inventory_batches (product_id, case_quantity, total_quantity, expiry_date, location, notes, received_date)
-               VALUES (?, ?, ?, ?, ?, ?, ?)`,
-              [productId, data['Case Quantity'], data['Total Quantity'] || data['Case Quantity'], 
-               data['Expiration Date'], data['Location'] || '', data['Batch Notes'] || '', 
-               data['Received Date'] || new Date().toISOString()],
-              function(err) { if (err) reject(err); else resolve(); }
-            );
-          });
-          batchesCreated++;
-        }
-      } catch (rowError) {
-        console.error('Error processing row:', rowError);
-        errors++;
-      }
-    }
-    res.json({ message: 'Import completed', productsCreated, productsUpdated, batchesCreated, errors, totalRows: rows.length });
-  } catch (error) {
-    console.error('Import error:', error);
-    res.status(500).json({ error: 'Failed to import CSV: ' + error.message });
-  }
-});
-
-app.get('/api/categories', (req, res) => {
-  db.all('SELECT DISTINCT category FROM products WHERE category != "" ORDER BY category', (err, rows) => {
-    if (err) res.status(500).json({ error: err.message });
-    else res.json(rows.map(row => row.category));
-  });
-});
-
-app.get('/api/suppliers', (req, res) => {
-  db.all('SELECT DISTINCT supplier FROM products WHERE supplier != "" AND supplier IS NOT NULL ORDER BY supplier', (err, rows) => {
-    if (err) res.status(500).json({ error: err.message });
-    else res.json(rows.map(row => row.supplier));
-  });
-});
-
-app.listen(PORT, () => {
-  console.log(`Grocery Inventory Management v${VERSION}`);
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Access at http://localhost:${PORT}`);
-  console.log('✨ Cache busting enabled');
-  console.log('💰 Product-level pricing enabled');
-  console.log(`💾 Backup system enabled - Max ${MAX_BACKUPS} backups retained`);
-  console.log('Checking for updates from GitHub...');
-  checkGitHubVersion()
-    .then(info => {
-      if (info.updateAvailable) {
-        console.log(`\n⚠️  UPDATE AVAILABLE!`);
-        console.log(`   Current: ${info.currentVersion}`);
-        console.log(`   Latest:  ${info.latestVersion}`);
-        console.log(`   Run 'update' command to upgrade\n`);
+    
+    // Replace database file
+    const dbPath = path.join(__dirname, 'inventory.db');
+    fs.copyFileSync(backupPath, dbPath);
+    console.log(`Database restored from: ${filename}`);
+    
+    // Reopen database
+    db = new sqlite3.Database(dbPath, (err) => {
+      if (err) {
+        console.error('Error reopening database:', err);
       } else {
-        console.log(`✓ Running latest version (${VERSION})`);
+        console.log('Database reconnected after restore');
       }
-    })
-    .catch(err => { console.log(`Could not check for updates: ${err.message}`); });
+    });
+    
+    res.json({ 
+      message: 'Database restored successfully', 
+      restoredFrom: filename,
+      safetyBackup: safetyBackup.filename
+    });
+  } catch (error) {
+    console.error('Restore error:', error);
+    res.status(500).json({ error: 'Failed to restore backup: ' + error.message });
+  }
 });
 
-process.on('SIGINT', () => {
-  db.close((err) => {
-    if (err) console.error('Error closing database:', err);
-    else console.log('Database connection closed');
-    process.exit(0);
-  });
+// Upload and restore from file
+app.post('/api/backup/upload', upload.single('backup'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+  
+  try {
+    // Create safety backup before restore
+    const safetyBackup = await createBackup();
+    console.log(`Safety backup created: ${safetyBackup.filename}`);
+    
+    // Close database connection
+    await new Promise((resolve, reject) => {
+      db.close((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    
+    // Replace database file with uploaded file
+    const dbPath = path.join(__dirname, 'inventory.db');
+    fs.copyFileSync(req.file.path, dbPath);
+    console.log(`Database restored from uploaded file: ${req.file.originalname}`);
+    
+    // Delete temp file
+    fs.unlinkSync(req.file.path);
+    
+    // Reopen database
+    db = new sqlite3.Database(dbPath, (err) => {
+      if (err) {
+        console.error('Error reopening database:', err);
+      } else {
+        console.log('Database reconnected after restore');
+      }
+    });
+    
+    res.json({ 
+      message: 'Database restored from upload successfully', 
+      originalFilename: req.file.originalname,
+      safetyBackup: safetyBackup.filename
+    });
+  } catch (error) {
+    console.error('Upload restore error:', error);
+    // Try to delete temp file on error
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: 'Failed to restore from upload: ' + error.message });
+  }
 });
+
+// ========== EXISTING API ENDPOINTS ==========
