@@ -157,7 +157,12 @@
                 <div class="settings-section">
                     <h3>Database Backups</h3>
                     <p style="margin-bottom: 15px;">Create and manage database backups. System automatically keeps the last 10 backups.</p>
-                    <button onclick="createBackup()" style="margin-bottom: 20px;">💾 Create Backup Now</button>
+                    <div class="btn-group">
+                        <button onclick="createBackup()">💾 Create Backup Now</button>
+                        <button class="btn-import" onclick="triggerUploadRestore()">♻️ Upload & Restore</button>
+                    </div>
+                    <input type="file" id="backupUploadInput" accept=".db" onchange="handleUploadRestore(event)" style="display: none;">
+                    <div class="help-text" style="margin-top: 10px;">Create new backups or upload an existing backup file to restore</div>
                     
                     <h4 style="margin-top: 25px; margin-bottom: 15px;">Backup History</h4>
                     <div id="backupList" class="backup-list">
@@ -179,11 +184,12 @@
             <!-- About Subtab -->
             <div id="settings-about" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>🛒 Grocery Inventory v0.2.1</h3>
+                    <h3>🛒 Grocery Inventory v0.2.2</h3>
                     <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
                     
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Latest Changes</h4>
                     <ul class="changelog-list">
+                        <li>♻️ <strong>v0.2.2</strong> - Backup restore functionality with upload support</li>
                         <li>✨ <strong>v0.2.1</strong> - Settings submenu with Backups, Updates, and About sections</li>
                         <li>💾 <strong>v0.2.0</strong> - Comprehensive backup system with server-side storage</li>
                         <li>💰 <strong>v0.1.0</strong> - Product pricing system with inventory value tracking</li>
@@ -196,6 +202,7 @@
                         <li>📋 Batch inventory tracking</li>
                         <li>📷 Barcode scanning</li>
                         <li>💾 Automated backups with retention</li>
+                        <li>♻️ Backup restore with safety snapshots</li>
                         <li>📊 CSV import/export</li>
                         <li>💰 Real-time pricing and inventory value</li>
                     </ul>
