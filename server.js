@@ -7,7 +7,7 @@ const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VERSION = '0.0.1';
+const VERSION = '0.1.0';
 const GITHUB_REPO = 'zv20/invai';
 
 app.use(cors());
@@ -16,12 +16,12 @@ app.use(express.text({ limit: '10mb', type: 'text/csv' }));
 
 // Serve static files with cache busting
 app.use('/css', express.static(path.join(__dirname, 'public/css'), {
-  maxAge: 0, // Disable caching
+  maxAge: 0,
   etag: false
 }));
 
 app.use('/js', express.static(path.join(__dirname, 'public/js'), {
-  maxAge: 0, // Disable caching
+  maxAge: 0,
   etag: false
 }));
 
@@ -35,7 +35,6 @@ app.get('/', (req, res) => {
   const indexPath = path.join(__dirname, 'public', 'index.html');
   let html = fs.readFileSync(indexPath, 'utf8');
   
-  // Inject version into CSS and JS file paths
   html = html.replace(/href="css\/styles\.css"/g, `href="css/styles.css?v=${VERSION}"`);
   html = html.replace(/src="js\/(\w+)\.js"/g, `src="js/$1.js?v=${VERSION}"`);
   
@@ -64,13 +63,23 @@ function initDatabase() {
       brand TEXT,
       supplier TEXT,
       items_per_case INTEGER,
+      cost_per_case REAL DEFAULT 0,
       category TEXT,
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `, (err) => {
-    if (err) console.error('Error creating products table:', err);
+    if (err) {
+      console.error('Error creating products table:', err);
+    } else {
+      // Add cost_per_case column to existing databases
+      db.run(`ALTER TABLE products ADD COLUMN cost_per_case REAL DEFAULT 0`, (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+          console.error('Error adding cost_per_case column:', err);
+        }
+      });
+    }
   });
 
   db.run(`
@@ -232,14 +241,14 @@ app.get('/api/products/:id', (req, res) => {
 });
 
 app.post('/api/products', (req, res) => {
-  const { name, inhouse_number, barcode, brand, supplier, items_per_case, category, notes } = req.body;
+  const { name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes } = req.body;
   if (!name) return res.status(400).json({ error: 'Product name is required' });
 
   db.run(
-    `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, category, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [name, inhouse_number || null, barcode || null, brand || null, supplier || null,
-     items_per_case || null, category || '', notes || ''],
+     items_per_case || null, cost_per_case || 0, category || '', notes || ''],
     function(err) {
       if (err) {
         if (err.message.includes('UNIQUE constraint')) {
@@ -255,14 +264,14 @@ app.post('/api/products', (req, res) => {
 });
 
 app.put('/api/products/:id', (req, res) => {
-  const { name, inhouse_number, barcode, brand, supplier, items_per_case, category, notes } = req.body;
+  const { name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes } = req.body;
   db.run(
     `UPDATE products
      SET name = ?, inhouse_number = ?, barcode = ?, brand = ?, supplier = ?,
-         items_per_case = ?, category = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+         items_per_case = ?, cost_per_case = ?, category = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,
     [name, inhouse_number || null, barcode || null, brand || null, supplier || null,
-     items_per_case || null, category || '', notes || '', req.params.id],
+     items_per_case || null, cost_per_case || 0, category || '', notes || '', req.params.id],
     function(err) {
       if (err) res.status(500).json({ error: err.message });
       else if (this.changes === 0) res.status(404).json({ error: 'Product not found' });
@@ -303,6 +312,23 @@ app.get('/api/inventory/summary', (req, res) => {
   db.all(query, params, (err, rows) => {
     if (err) res.status(500).json({ error: err.message });
     else res.json(rows);
+  });
+});
+
+// New endpoint for inventory value statistics
+app.get('/api/inventory/value', (req, res) => {
+  const query = `
+    SELECT 
+      COUNT(DISTINCT p.id) as total_products,
+      COALESCE(SUM(ib.total_quantity), 0) as total_items,
+      COALESCE(SUM((p.cost_per_case / NULLIF(p.items_per_case, 0)) * ib.total_quantity), 0) as total_value
+    FROM products p
+    LEFT JOIN inventory_batches ib ON p.id = ib.product_id
+  `;
+  
+  db.get(query, [], (err, row) => {
+    if (err) res.status(500).json({ error: err.message });
+    else res.json(row);
   });
 });
 
@@ -389,7 +415,7 @@ app.post('/api/database/reset', (req, res) => {
 
 app.get('/api/export/inventory', (req, res) => {
   const query = `
-    SELECT p.name, p.inhouse_number, p.barcode, p.brand, p.supplier, p.items_per_case, p.category,
+    SELECT p.name, p.inhouse_number, p.barcode, p.brand, p.supplier, p.items_per_case, p.cost_per_case, p.category,
            ib.case_quantity, ib.total_quantity, ib.expiry_date, ib.location, ib.received_date,
            ib.notes as batch_notes, p.notes as product_notes
     FROM products p
@@ -405,7 +431,7 @@ app.get('/api/export/inventory', (req, res) => {
     
     const headers = [
       'Product Name', 'In-House Number', 'Barcode', 'Brand', 'Supplier',
-      'Items Per Case', 'Category', 'Case Quantity', 'Total Quantity',
+      'Items Per Case', 'Cost Per Case', 'Category', 'Case Quantity', 'Total Quantity',
       'Expiration Date', 'Location', 'Received Date', 'Batch Notes', 'Product Notes'
     ];
     
@@ -414,9 +440,9 @@ app.get('/api/export/inventory', (req, res) => {
       const rowData = [
         escapeCSV(row.name), escapeCSV(row.inhouse_number), escapeCSV(row.barcode),
         escapeCSV(row.brand), escapeCSV(row.supplier), escapeCSV(row.items_per_case),
-        escapeCSV(row.category), escapeCSV(row.case_quantity), escapeCSV(row.total_quantity),
-        escapeCSV(row.expiry_date), escapeCSV(row.location), escapeCSV(row.received_date),
-        escapeCSV(row.batch_notes), escapeCSV(row.product_notes)
+        escapeCSV(row.cost_per_case), escapeCSV(row.category), escapeCSV(row.case_quantity),
+        escapeCSV(row.total_quantity), escapeCSV(row.expiry_date), escapeCSV(row.location),
+        escapeCSV(row.received_date), escapeCSV(row.batch_notes), escapeCSV(row.product_notes)
       ];
       csv += rowData.join(',') + '\n';
     });
@@ -487,10 +513,10 @@ app.post('/api/import/inventory', async (req, res) => {
             db.run(
               `UPDATE products SET inhouse_number = COALESCE(?, inhouse_number),
                brand = COALESCE(?, brand), supplier = COALESCE(?, supplier),
-               items_per_case = COALESCE(?, items_per_case), category = COALESCE(?, category),
-               notes = COALESCE(?, notes), updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+               items_per_case = COALESCE(?, items_per_case), cost_per_case = COALESCE(?, cost_per_case),
+               category = COALESCE(?, category), notes = COALESCE(?, notes), updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
               [data['In-House Number'], data['Brand'], data['Supplier'], 
-               data['Items Per Case'], data['Category'], data['Product Notes'], existingProduct.id],
+               data['Items Per Case'], data['Cost Per Case'] || 0, data['Category'], data['Product Notes'], existingProduct.id],
               (err) => { if (err) reject(err); else resolve(); }
             );
           });
@@ -499,10 +525,10 @@ app.post('/api/import/inventory', async (req, res) => {
         } else {
           productId = await new Promise((resolve, reject) => {
             db.run(
-              `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, category, notes)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [productName, data['In-House Number'], data['Barcode'], data['Brand'], 
-               data['Supplier'], data['Items Per Case'] || 1, data['Category'] || '', data['Product Notes'] || ''],
+               data['Supplier'], data['Items Per Case'] || 1, data['Cost Per Case'] || 0, data['Category'] || '', data['Product Notes'] || ''],
               function(err) { if (err) reject(err); else resolve(this.lastID); }
             );
           });
@@ -554,6 +580,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Access at http://localhost:${PORT}`);
   console.log('✨ Cache busting enabled - updates will always load fresh CSS/JS files');
+  console.log('💰 Product-level pricing enabled');
   console.log('Checking for updates from GitHub...');
   
   checkGitHubVersion()
