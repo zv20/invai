@@ -7,7 +7,7 @@ const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VERSION = '2.0.2';
+const VERSION = '2.0.3';
 const GITHUB_REPO = 'zv20/invai'; // GitHub repo to check for updates
 
 // Middleware
@@ -359,6 +359,19 @@ app.get('/api/products/:id/batches', (req, res) => {
       }
     }
   );
+});
+
+// Get single inventory batch
+app.get('/api/inventory/batches/:id', (req, res) => {
+  db.get('SELECT * FROM inventory_batches WHERE id = ?', [req.params.id], (err, row) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+    } else if (!row) {
+      res.status(404).json({ error: 'Batch not found' });
+    } else {
+      res.json(row);
+    }
+  });
 });
 
 // Add inventory batch
