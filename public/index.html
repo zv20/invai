@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Management</title>
+    <title>Grocery Inventory Management</title>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         * {
@@ -150,6 +150,12 @@
             font-size: 0.9em;
         }
 
+        .help-text {
+            font-size: 0.8em;
+            color: #9ca3af;
+            margin-top: 3px;
+        }
+
         .barcode-input-group {
             position: relative;
         }
@@ -280,7 +286,7 @@
             background: white;
             border-radius: 15px;
             padding: 30px;
-            max-width: 700px;
+            max-width: 800px;
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
@@ -461,9 +467,19 @@
             color: #1e40af;
         }
 
+        .item-supplier {
+            background: #fce7f3;
+            color: #9f1239;
+        }
+
         .item-inhouse {
             background: #d1fae5;
             color: #065f46;
+        }
+
+        .item-case {
+            background: #ffedd5;
+            color: #9a3412;
         }
 
         .item-expiry {
@@ -556,7 +572,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📦 Inventory Management</h1>
+            <h1>🛒 Grocery Inventory</h1>
             <div id="status" class="status disconnected">Connecting...</div>
         </div>
 
@@ -572,12 +588,19 @@
                 <div class="form-row">
                     <div>
                         <label>Item Name *</label>
-                        <input type="text" id="itemName" placeholder="Enter item name" required>
+                        <input type="text" id="itemName" placeholder="e.g., Coca Cola 2L" required>
                     </div>
                     <div>
-                        <label>In-House Number</label>
-                        <input type="text" id="itemInhouse" placeholder="Internal ID/SKU">
+                        <label>Brand / Manufacturer</label>
+                        <input type="text" id="itemBrand" placeholder="e.g., Coca-Cola">
                     </div>
+                    <div>
+                        <label>Supplier</label>
+                        <input type="text" id="itemSupplier" list="supplierList" placeholder="e.g., Sysco, US Foods">
+                        <datalist id="supplierList"></datalist>
+                    </div>
+                </div>
+                <div class="form-row">
                     <div>
                         <label>Barcode / UPC</label>
                         <div class="barcode-input-group">
@@ -585,29 +608,40 @@
                             <button type="button" class="scan-btn" onclick="openScanner('barcode')" title="Scan Barcode">📷</button>
                         </div>
                     </div>
+                    <div>
+                        <label>In-House Number</label>
+                        <input type="text" id="itemInhouse" placeholder="Internal SKU">
+                    </div>
+                    <div>
+                        <label>Category</label>
+                        <input type="text" id="itemCategory" placeholder="e.g., Beverages, Dairy">
+                    </div>
                 </div>
                 <div class="form-row">
                     <div>
-                        <label>Brand / Manufacturer</label>
-                        <input type="text" id="itemBrand" placeholder="e.g., Samsung, Nestle">
+                        <label>Case Quantity</label>
+                        <input type="number" id="itemCaseQty" placeholder="# of cases" min="0" onchange="calculateTotal()">
+                        <div class="help-text">How many cases received?</div>
                     </div>
                     <div>
-                        <label>Quantity *</label>
-                        <input type="number" id="itemQuantity" placeholder="0" required>
+                        <label>Items Per Case</label>
+                        <input type="number" id="itemPerCase" placeholder="Items in each case" min="1" onchange="calculateTotal()">
+                        <div class="help-text">e.g., 12 bottles per case</div>
                     </div>
+                    <div>
+                        <label>Total Quantity *</label>
+                        <input type="number" id="itemQuantity" placeholder="Total items" required min="0">
+                        <div class="help-text" id="autoCalc"></div>
+                    </div>
+                </div>
+                <div class="form-row">
                     <div>
                         <label>Expiration Date</label>
                         <input type="date" id="itemExpiry">
                     </div>
-                </div>
-                <div class="form-row">
-                    <div>
-                        <label>Category</label>
-                        <input type="text" id="itemCategory" placeholder="e.g., Electronics, Food">
-                    </div>
                     <div>
                         <label>Location</label>
-                        <input type="text" id="itemLocation" placeholder="e.g., Shelf A, Warehouse B">
+                        <input type="text" id="itemLocation" placeholder="e.g., Aisle 3, Cooler">
                     </div>
                 </div>
                 <div class="form-row">
@@ -628,7 +662,7 @@
             <div id="importResults" class="import-results"></div>
             
             <div class="controls">
-                <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Search by name, barcode, brand, in-house #...">
+                <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Search by name, barcode, supplier...">
                 <button type="button" class="action-btn quick-scan-btn" onclick="openScanner('search')">
                     <span>📷</span>
                     <span>Scan</span>
@@ -675,9 +709,15 @@
                         <input type="text" id="editName" placeholder="Enter item name" required>
                     </div>
                     <div>
-                        <label>In-House Number</label>
-                        <input type="text" id="editInhouse" placeholder="Internal ID/SKU">
+                        <label>Brand / Manufacturer</label>
+                        <input type="text" id="editBrand" placeholder="e.g., Coca-Cola">
                     </div>
+                    <div>
+                        <label>Supplier</label>
+                        <input type="text" id="editSupplier" list="supplierList" placeholder="e.g., Sysco">
+                    </div>
+                </div>
+                <div class="form-row">
                     <div>
                         <label>Barcode / UPC</label>
                         <div class="barcode-input-group">
@@ -685,29 +725,38 @@
                             <button type="button" class="scan-btn" onclick="openScanner('edit')" title="Scan Barcode">📷</button>
                         </div>
                     </div>
+                    <div>
+                        <label>In-House Number</label>
+                        <input type="text" id="editInhouse" placeholder="Internal SKU">
+                    </div>
+                    <div>
+                        <label>Category</label>
+                        <input type="text" id="editCategory" placeholder="e.g., Beverages">
+                    </div>
                 </div>
                 <div class="form-row">
                     <div>
-                        <label>Brand / Manufacturer</label>
-                        <input type="text" id="editBrand" placeholder="e.g., Samsung, Nestle">
+                        <label>Case Quantity</label>
+                        <input type="number" id="editCaseQty" placeholder="# of cases" min="0" onchange="calculateEditTotal()">
                     </div>
                     <div>
-                        <label>Quantity *</label>
-                        <input type="number" id="editQuantity" placeholder="0" required>
+                        <label>Items Per Case</label>
+                        <input type="number" id="editPerCase" placeholder="Items per case" min="1" onchange="calculateEditTotal()">
                     </div>
+                    <div>
+                        <label>Total Quantity *</label>
+                        <input type="number" id="editQuantity" placeholder="Total items" required min="0">
+                        <div class="help-text" id="editAutoCalc"></div>
+                    </div>
+                </div>
+                <div class="form-row">
                     <div>
                         <label>Expiration Date</label>
                         <input type="date" id="editExpiry">
                     </div>
-                </div>
-                <div class="form-row">
-                    <div>
-                        <label>Category</label>
-                        <input type="text" id="editCategory" placeholder="e.g., Electronics, Food">
-                    </div>
                     <div>
                         <label>Location</label>
-                        <input type="text" id="editLocation" placeholder="e.g., Shelf A, Warehouse B">
+                        <input type="text" id="editLocation" placeholder="e.g., Aisle 3">
                     </div>
                 </div>
                 <div class="form-row">
@@ -751,7 +800,57 @@
         let editingItemId = null;
         let html5QrcodeScanner = null;
         let isScanning = false;
-        let scannerMode = 'barcode'; // 'barcode', 'search', or 'edit'
+        let scannerMode = 'barcode';
+
+        // Auto-calculate total from cases
+        function calculateTotal() {
+            const caseQty = parseInt(document.getElementById('itemCaseQty').value) || 0;
+            const perCase = parseInt(document.getElementById('itemPerCase').value) || 0;
+            const autoCalc = document.getElementById('autoCalc');
+            
+            if (caseQty > 0 && perCase > 0) {
+                const total = caseQty * perCase;
+                document.getElementById('itemQuantity').value = total;
+                autoCalc.textContent = `Auto: ${caseQty} cases × ${perCase} = ${total} items`;
+                autoCalc.style.color = '#059669';
+            } else {
+                autoCalc.textContent = '';
+            }
+        }
+
+        function calculateEditTotal() {
+            const caseQty = parseInt(document.getElementById('editCaseQty').value) || 0;
+            const perCase = parseInt(document.getElementById('editPerCase').value) || 0;
+            const autoCalc = document.getElementById('editAutoCalc');
+            
+            if (caseQty > 0 && perCase > 0) {
+                const total = caseQty * perCase;
+                document.getElementById('editQuantity').value = total;
+                autoCalc.textContent = `Auto: ${caseQty} cases × ${perCase} = ${total} items`;
+                autoCalc.style.color = '#059669';
+            } else {
+                autoCalc.textContent = '';
+            }
+        }
+
+        // Load suppliers for autocomplete
+        async function loadSuppliers() {
+            try {
+                const response = await fetch(`${API_URL}/api/suppliers`);
+                const suppliers = await response.json();
+                
+                const datalist = document.getElementById('supplierList');
+                datalist.innerHTML = '';
+                
+                suppliers.forEach(supplier => {
+                    const option = document.createElement('option');
+                    option.value = supplier;
+                    datalist.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading suppliers:', error);
+            }
+        }
 
         // Export to CSV
         function exportToCSV() {
@@ -768,13 +867,11 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            // Validate file type
             if (!file.name.endsWith('.csv')) {
                 showImportResults('error', 'Please select a CSV file');
                 return;
             }
 
-            // Read file
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const csvData = e.target.result;
@@ -785,7 +882,6 @@
             };
             reader.readAsText(file);
 
-            // Reset file input
             event.target.value = '';
         }
 
@@ -814,8 +910,8 @@
                         showImportResults('success', message);
                     }
 
-                    // Reload inventory
                     await loadInventory();
+                    await loadSuppliers();
                 } else {
                     showImportResults('error', result.error || 'Import failed');
                 }
@@ -831,16 +927,14 @@
             resultsDiv.className = `import-results ${type}`;
             resultsDiv.innerHTML = message;
 
-            // Auto-hide after 10 seconds
             setTimeout(() => {
                 resultsDiv.className = 'import-results';
                 resultsDiv.innerHTML = '';
             }, 10000);
         }
 
-        // Tab Switching - FIXED VERSION
+        // Tab Switching
         function switchTab(tabName) {
-            // Update tab buttons
             document.querySelectorAll('.tab').forEach(tab => {
                 if (tab.getAttribute('data-tab') === tabName) {
                     tab.classList.add('active');
@@ -849,7 +943,6 @@
                 }
             });
 
-            // Update tab content
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
             if (tabName === 'add') {
@@ -921,31 +1014,26 @@
         }
 
         function onScanSuccess(decodedText, decodedResult) {
-            // Show result
             document.getElementById('scannedCode').textContent = decodedText;
             document.getElementById('scannerResult').classList.add('show');
             
             if (scannerMode === 'barcode') {
-                // Fill barcode field in Add form
                 document.getElementById('itemBarcode').value = decodedText;
                 checkExistingBarcode(decodedText);
             } else if (scannerMode === 'edit') {
-                // Fill barcode field in Edit form
                 document.getElementById('editBarcode').value = decodedText;
             } else {
-                // Search in inventory
                 document.getElementById('searchInput').value = decodedText;
                 loadInventory();
             }
             
-            // Auto-close after 1.5 seconds
             setTimeout(() => {
                 closeScanner();
             }, 1500);
         }
 
         function onScanError(errorMessage) {
-            // Ignore scan errors (too noisy)
+            // Ignore scan errors
         }
 
         // Check if barcode already exists
@@ -1066,6 +1154,14 @@
                 const cardClass = expiryStatus ? `item-card ${expiryStatus.status}` : 'item-card';
                 const expiryBadgeClass = expiryStatus ? `item-badge item-expiry ${expiryStatus.status}` : 'item-badge item-expiry';
                 
+                // Build case info display
+                let caseInfo = '';
+                if (item.case_quantity && item.items_per_case) {
+                    caseInfo = `<span class="item-badge item-case">📦 ${item.case_quantity} cases × ${item.items_per_case} = ${item.quantity}</span>`;
+                } else if (item.case_quantity) {
+                    caseInfo = `<span class="item-badge item-case">📦 ${item.case_quantity} cases</span>`;
+                }
+                
                 return `
                     <div class="${cardClass}">
                         <div class="item-header">
@@ -1073,8 +1169,10 @@
                             <div class="item-quantity">${item.quantity}</div>
                         </div>
                         <div class="item-meta">
+                            ${item.supplier ? `<span class="item-badge item-supplier">🚚 ${escapeHtml(item.supplier)}</span>` : ''}
                             ${item.brand ? `<span class="item-badge item-brand">🏭 ${escapeHtml(item.brand)}</span>` : ''}
                             ${item.category ? `<span class="item-badge item-category">📚 ${escapeHtml(item.category)}</span>` : ''}
+                            ${caseInfo}
                             ${item.inhouse_number ? `<span class="item-badge item-inhouse">#${escapeHtml(item.inhouse_number)}</span>` : ''}
                             ${item.barcode ? `<span class="item-badge item-barcode">🏷️ ${escapeHtml(item.barcode)}</span>` : ''}
                             ${expiryStatus ? `<span class="${expiryBadgeClass}">⏰ ${expiryStatus.text}</span>` : ''}
@@ -1099,7 +1197,7 @@
             return div.innerHTML;
         }
 
-        // Add item (from Add tab)
+        // Add item
         document.getElementById('itemForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -1108,7 +1206,10 @@
                 inhouse_number: document.getElementById('itemInhouse').value,
                 barcode: document.getElementById('itemBarcode').value,
                 brand: document.getElementById('itemBrand').value,
+                supplier: document.getElementById('itemSupplier').value,
                 quantity: parseInt(document.getElementById('itemQuantity').value),
+                case_quantity: parseInt(document.getElementById('itemCaseQty').value) || null,
+                items_per_case: parseInt(document.getElementById('itemPerCase').value) || null,
                 expiry_date: document.getElementById('itemExpiry').value,
                 category: document.getElementById('itemCategory').value,
                 location: document.getElementById('itemLocation').value,
@@ -1124,9 +1225,9 @@
 
                 if (response.ok) {
                     document.getElementById('itemForm').reset();
+                    document.getElementById('autoCalc').textContent = '';
                     await loadInventory();
-                    
-                    // Switch to inventory tab to see the new item
+                    await loadSuppliers();
                     switchTab('inventory');
                 } else {
                     const error = await response.json();
@@ -1138,7 +1239,7 @@
             }
         });
 
-        // Edit item - open modal and load data
+        // Edit item
         async function editItem(id) {
             try {
                 const response = await fetch(`${API_URL}/api/inventory/${id}`);
@@ -1148,11 +1249,15 @@
                 document.getElementById('editInhouse').value = item.inhouse_number || '';
                 document.getElementById('editBarcode').value = item.barcode || '';
                 document.getElementById('editBrand').value = item.brand || '';
+                document.getElementById('editSupplier').value = item.supplier || '';
                 document.getElementById('editQuantity').value = item.quantity;
+                document.getElementById('editCaseQty').value = item.case_quantity || '';
+                document.getElementById('editPerCase').value = item.items_per_case || '';
                 document.getElementById('editExpiry').value = item.expiry_date || '';
                 document.getElementById('editCategory').value = item.category || '';
                 document.getElementById('editLocation').value = item.location || '';
                 document.getElementById('editNotes').value = item.notes || '';
+                document.getElementById('editAutoCalc').textContent = '';
 
                 openEditModal(id);
             } catch (error) {
@@ -1161,7 +1266,7 @@
             }
         }
 
-        // Update item (from edit modal)
+        // Update item
         document.getElementById('editForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -1170,7 +1275,10 @@
                 inhouse_number: document.getElementById('editInhouse').value,
                 barcode: document.getElementById('editBarcode').value,
                 brand: document.getElementById('editBrand').value,
+                supplier: document.getElementById('editSupplier').value,
                 quantity: parseInt(document.getElementById('editQuantity').value),
+                case_quantity: parseInt(document.getElementById('editCaseQty').value) || null,
+                items_per_case: parseInt(document.getElementById('editPerCase').value) || null,
                 expiry_date: document.getElementById('editExpiry').value,
                 category: document.getElementById('editCategory').value,
                 location: document.getElementById('editLocation').value,
@@ -1187,6 +1295,7 @@
                 if (response.ok) {
                     closeEditModal();
                     await loadInventory();
+                    await loadSuppliers();
                 } else {
                     const error = await response.json();
                     alert(error.error || 'Failed to update item');
@@ -1253,6 +1362,7 @@
         // Initialize
         checkConnection();
         loadInventory();
+        loadSuppliers();
         setInterval(checkConnection, 30000);
     </script>
 </body>
