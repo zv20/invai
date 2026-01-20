@@ -1,13 +1,13 @@
 {
   "name": "inventory-management",
-  "version": "1.2.0",
-  "description": "Simple inventory management system with persistent storage",
+  "version": "1.2.1",
+  "description": "Grocery inventory management system with supplier and case tracking",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": ["inventory", "management", "sqlite", "express"],
+  "keywords": ["inventory", "management", "sqlite", "express", "grocery"],
   "author": "",
   "license": "MIT",
   "dependencies": {
