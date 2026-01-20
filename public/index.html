@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory Management</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -119,6 +120,116 @@
             font-weight: 500;
         }
 
+        .barcode-input-group {
+            position: relative;
+        }
+
+        .barcode-input-group input {
+            padding-right: 50px;
+        }
+
+        .scan-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #10b981;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: none;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .scan-btn:hover {
+            background: #059669;
+        }
+
+        /* Scanner Modal */
+        .scanner-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .scanner-modal.active {
+            display: flex;
+        }
+
+        .scanner-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .scanner-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .scanner-header h2 {
+            color: #667eea;
+            margin: 0;
+        }
+
+        .close-scanner {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1em;
+        }
+
+        .close-scanner:hover {
+            background: #dc2626;
+        }
+
+        #reader {
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .scanner-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            font-size: 0.9em;
+            color: #4b5563;
+        }
+
+        .scanner-result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #dcfce7;
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            color: #065f46;
+            font-weight: 600;
+            display: none;
+        }
+
+        .scanner-result.show {
+            display: block;
+        }
+
         .inventory-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -178,6 +289,18 @@
             margin-bottom: 10px;
         }
 
+        .item-barcode {
+            display: inline-block;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            margin-left: 5px;
+        }
+
         .item-actions {
             display: flex;
             gap: 10px;
@@ -231,6 +354,11 @@
             .search-bar, .category-filter {
                 width: 100%;
             }
+
+            .scanner-content {
+                width: 95%;
+                padding: 20px;
+            }
         }
     </style>
 </head>
@@ -247,6 +375,15 @@
                         <label>Item Name *</label>
                         <input type="text" id="itemName" placeholder="Enter item name" required>
                     </div>
+                    <div>
+                        <label>Barcode / SKU</label>
+                        <div class="barcode-input-group">
+                            <input type="text" id="itemBarcode" placeholder="Scan or enter barcode">
+                            <button type="button" class="scan-btn" onclick="openScanner()" title="Scan Barcode">📷</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
                     <div>
                         <label>Quantity *</label>
                         <input type="number" id="itemQuantity" placeholder="0" required>
@@ -272,7 +409,7 @@
         </div>
 
         <div class="controls">
-            <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Search items...">
+            <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Search items or scan barcode...">
             <select id="categoryFilter" class="category-filter">
                 <option value="all">All Categories</option>
             </select>
@@ -289,9 +426,104 @@
         </div>
     </div>
 
+    <!-- Barcode Scanner Modal -->
+    <div id="scannerModal" class="scanner-modal">
+        <div class="scanner-content">
+            <div class="scanner-header">
+                <h2>📷 Barcode Scanner</h2>
+                <button class="close-scanner" onclick="closeScanner()">✕ Close</button>
+            </div>
+            <div id="reader"></div>
+            <div class="scanner-info">
+                <strong>💡 Tips:</strong>
+                <ul style="margin: 10px 0 0 20px; line-height: 1.6;">
+                    <li>Allow camera access when prompted</li>
+                    <li>Hold barcode steady in camera view</li>
+                    <li>Works with UPC, EAN, QR codes, and more</li>
+                    <li>USB barcode scanners also supported</li>
+                </ul>
+            </div>
+            <div id="scannerResult" class="scanner-result">
+                <strong>✓ Scanned:</strong> <span id="scannedCode"></span>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = window.location.origin;
         let editingItemId = null;
+        let html5QrcodeScanner = null;
+
+        // Barcode Scanner Functions
+        function openScanner() {
+            document.getElementById('scannerModal').classList.add('active');
+            startScanner();
+        }
+
+        function closeScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    html5QrcodeScanner.clear();
+                    html5QrcodeScanner = null;
+                }).catch(err => console.error('Error stopping scanner:', err));
+            }
+            document.getElementById('scannerModal').classList.remove('active');
+            document.getElementById('scannerResult').classList.remove('show');
+        }
+
+        function startScanner() {
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                rememberLastUsedCamera: true,
+                supportedScanTypes: [
+                    Html5QrcodeScanType.SCAN_TYPE_CAMERA,
+                    Html5QrcodeScanType.SCAN_TYPE_FILE
+                ]
+            };
+
+            html5QrcodeScanner = new Html5QrcodeScanner("reader", config);
+            
+            html5QrcodeScanner.render(onScanSuccess, onScanError);
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            // Show result
+            document.getElementById('scannedCode').textContent = decodedText;
+            document.getElementById('scannerResult').classList.add('show');
+            
+            // Fill barcode field
+            document.getElementById('itemBarcode').value = decodedText;
+            
+            // Check if item with this barcode exists
+            checkExistingBarcode(decodedText);
+            
+            // Auto-close after 2 seconds
+            setTimeout(() => {
+                closeScanner();
+            }, 2000);
+        }
+
+        function onScanError(errorMessage) {
+            // Ignore scan errors (too noisy)
+        }
+
+        // Check if barcode already exists
+        async function checkExistingBarcode(barcode) {
+            try {
+                const response = await fetch(`${API_URL}/api/inventory?search=${encodeURIComponent(barcode)}`);
+                const items = await response.json();
+                
+                const existingItem = items.find(item => item.barcode === barcode);
+                if (existingItem) {
+                    if (confirm(`Item "${existingItem.name}" already has this barcode. Load it for editing?`)) {
+                        editItem(existingItem.id);
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking barcode:', error);
+            }
+        }
 
         // Check connection status
         async function checkConnection() {
@@ -316,7 +548,7 @@
                 
                 let url = `${API_URL}/api/inventory?`;
                 if (search) url += `search=${encodeURIComponent(search)}&`;
-                if (category) url += `category=${encodeURIComponent(category)}`;
+                if (category && category !== 'all') url += `category=${encodeURIComponent(category)}`;
 
                 const response = await fetch(url);
                 const items = await response.json();
@@ -374,6 +606,7 @@
                         <div class="item-quantity">${item.quantity}</div>
                     </div>
                     ${item.category ? `<div class="item-category">${escapeHtml(item.category)}</div>` : ''}
+                    ${item.barcode ? `<div class="item-barcode">🔖 ${escapeHtml(item.barcode)}</div>` : ''}
                     <div class="item-details">
                         ${item.location ? `<div>📍 ${escapeHtml(item.location)}</div>` : ''}
                         ${item.notes ? `<div>📝 ${escapeHtml(item.notes)}</div>` : ''}
@@ -399,6 +632,7 @@
 
             const itemData = {
                 name: document.getElementById('itemName').value,
+                barcode: document.getElementById('itemBarcode').value,
                 quantity: parseInt(document.getElementById('itemQuantity').value),
                 category: document.getElementById('itemCategory').value,
                 location: document.getElementById('itemLocation').value,
@@ -438,6 +672,7 @@
                 const item = await response.json();
 
                 document.getElementById('itemName').value = item.name;
+                document.getElementById('itemBarcode').value = item.barcode || '';
                 document.getElementById('itemQuantity').value = item.quantity;
                 document.getElementById('itemCategory').value = item.category || '';
                 document.getElementById('itemLocation').value = item.location || '';
@@ -487,6 +722,13 @@
 
         // Category filter
         document.getElementById('categoryFilter').addEventListener('change', loadInventory);
+
+        // Close scanner on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.getElementById('scannerModal').classList.contains('active')) {
+                closeScanner();
+            }
+        });
 
         // Initialize
         checkConnection();
