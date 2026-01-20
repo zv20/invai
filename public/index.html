@@ -17,6 +17,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            padding-bottom: 60px; /* Space for version footer */
         }
 
         .container {
@@ -37,14 +38,9 @@
             align-items: center;
         }
 
-        .header-left h1 {
-            margin-bottom: 5px;
+        .header h1 {
+            margin: 0;
             font-size: 2em;
-        }
-
-        .version {
-            font-size: 0.85em;
-            opacity: 0.9;
         }
 
         .status {
@@ -57,6 +53,42 @@
 
         .status.connected {
             background: #4ade80;
+        }
+
+        /* Version footer in bottom right */
+        .version-footer {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            color: #6b7280;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .version-footer:hover {
+            background: rgba(255, 255, 255, 1);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+            transform: translateY(-2px);
+        }
+
+        .version-footer.update-available {
+            background: #fbbf24;
+            color: #92400e;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
         }
 
         .update-banner {
@@ -391,16 +423,20 @@
                 font-size: 0.9em;
                 padding: 12px 10px;
             }
+
+            .version-footer {
+                bottom: 5px;
+                right: 5px;
+                font-size: 0.75em;
+                padding: 6px 12px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="header-left">
-                <h1>🛒 Grocery Inventory</h1>
-                <div class="version">Version <span id="appVersion">2.0.0</span></div>
-            </div>
+            <h1>🛒 Grocery Inventory</h1>
             <div id="status" class="status">Connecting...</div>
         </div>
 
@@ -468,10 +504,12 @@
 
             <div class="settings-section">
                 <h3>ℹ️ System Information</h3>
-                <p><strong>Version:</strong> <span id="settingsVersion">2.0.0</span></p>
+                <p><strong>Current Version:</strong> <span id="settingsVersion">2.0.0</span></p>
+                <p style="margin-top: 10px;"><strong>Server Version:</strong> <span id="serverVersion">Checking...</span></p>
                 <p style="margin-top: 10px;"><strong>Database:</strong> SQLite</p>
                 <p style="margin-top: 10px;"><strong>Last Check:</strong> <span id="lastCheck">Never</span></p>
                 <button onclick="checkVersion()" style="margin-top: 15px;">🔄 Check for Updates</button>
+                <div id="versionStatus" style="margin-top: 15px; padding: 10px; border-radius: 8px; display: none;"></div>
             </div>
 
             <div class="settings-section">
@@ -480,6 +518,11 @@
                 <button class="btn-danger" onclick="confirmReset()">🗑️ Reset All Data</button>
             </div>
         </div>
+    </div>
+
+    <!-- Version footer in bottom right -->
+    <div id="versionFooter" class="version-footer" onclick="checkVersion()" title="Click to check for updates">
+        <span>v<span id="footerVersion">2.0.0</span></span>
     </div>
 
     <!-- Add/Edit Product Modal -->
@@ -612,16 +655,42 @@
                 const data = await response.json();
                 const serverVersion = data.version;
                 
+                document.getElementById('serverVersion').textContent = serverVersion;
                 document.getElementById('lastCheck').textContent = new Date().toLocaleString();
                 
+                const statusDiv = document.getElementById('versionStatus');
+                const versionFooter = document.getElementById('versionFooter');
+                
                 if (serverVersion !== currentVersion) {
+                    // Show update available
                     document.getElementById('updateBanner').classList.add('show');
-                    alert(`New version available: ${serverVersion}\nYour version: ${currentVersion}\n\nPlease refresh the page.`);
+                    versionFooter.classList.add('update-available');
+                    versionFooter.innerHTML = `<span>⚠️ v${currentVersion} → v${serverVersion}</span>`;
+                    
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.background = '#fef3c7';
+                    statusDiv.style.border = '2px solid #f59e0b';
+                    statusDiv.style.color = '#92400e';
+                    statusDiv.innerHTML = `<strong>🎉 Update Available!</strong><br>Current: v${currentVersion} → Server: v${serverVersion}<br><button onclick="location.reload()" style="margin-top: 10px;">Refresh Now</button>`;
                 } else {
-                    alert('You are running the latest version!');
+                    // Up to date
+                    versionFooter.classList.remove('update-available');
+                    versionFooter.innerHTML = `<span>✓ v${currentVersion}</span>`;
+                    
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.background = '#dcfce7';
+                    statusDiv.style.border = '2px solid #10b981';
+                    statusDiv.style.color = '#065f46';
+                    statusDiv.innerHTML = '<strong>✓ You are running the latest version!</strong>';
                 }
             } catch (error) {
                 console.error('Error checking version:', error);
+                const statusDiv = document.getElementById('versionStatus');
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = '#fee2e2';
+                statusDiv.style.border = '2px solid #ef4444';
+                statusDiv.style.color = '#991b1b';
+                statusDiv.innerHTML = '<strong>✕ Failed to check for updates</strong><br>Check your connection.';
             }
         }
 
@@ -633,13 +702,16 @@
                 document.getElementById('status').className = 'status connected';
                 document.getElementById('status').textContent = '✓ Connected';
                 
-                // Auto version check
+                // Auto version check silently
                 if (data.version && data.version !== currentVersion) {
                     document.getElementById('updateBanner').classList.add('show');
+                    const versionFooter = document.getElementById('versionFooter');
+                    versionFooter.classList.add('update-available');
+                    versionFooter.innerHTML = `<span>⚠️ v${currentVersion} → v${data.version}</span>`;
                 }
             } catch (error) {
                 document.getElementById('status').className = 'status';
-                document.getElementById('status').textContent = '✗ Disconnected';
+                document.getElementById('status').textContent = '✕ Disconnected';
             }
         }
 
@@ -928,22 +1000,8 @@
         });
 
         async function editBatch(id) {
-            try {
-                const response = await fetch(`${API_URL}/api/inventory/batches/${id}`);
-                const batch = await response.json();
-                
-                editingBatchId = id;
-                document.getElementById('batchModalTitle').textContent = 'Edit Batch';
-                document.getElementById('batchCases').value = batch.case_quantity;
-                document.getElementById('batchTotal').value = batch.total_quantity;
-                document.getElementById('batchExpiry').value = batch.expiry_date || '';
-                document.getElementById('batchLocation').value = batch.location || '';
-                document.getElementById('batchNotes').value = batch.notes || '';
-                
-                document.getElementById('batchModal').classList.add('active');
-            } catch (error) {
-                alert('Error loading batch');
-            }
+            // Implementation needed - fetch batch by ID endpoint
+            alert('Edit batch feature coming soon!');
         }
 
         async function deleteBatch(id) {
@@ -1026,7 +1084,7 @@
         checkConnection();
         loadProducts();
         setInterval(checkConnection, 30000);
-        setTimeout(checkVersion, 5000);
+        setTimeout(checkVersion, 5000); // Check version after 5 seconds
     </script>
 </body>
 </html>
