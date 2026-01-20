@@ -126,10 +126,47 @@ function triggerImport() {
     document.getElementById('csvFileInput').click();
 }
 
-function handleImport(event) {
+async function handleImport(event) {
     const file = event.target.files[0];
     if (!file) return;
-    alert('CSV import will be available in the next update!');
+    
+    // Validate file type
+    if (!file.name.endsWith('.csv')) {
+        alert('⚠️ Please select a valid CSV file.');
+        event.target.value = '';
+        return;
+    }
+    
+    // Confirm import
+    if (!confirm(`Import data from "${file.name}"?\n\nThis will add products and batches from the CSV file.\n\nExisting data will NOT be deleted.`)) {
+        event.target.value = '';
+        return;
+    }
+    
+    try {
+        const text = await file.text();
+        
+        const response = await fetch(`${API_URL}/api/import/inventory`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/csv'
+            },
+            body: text
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert(`✓ Import Successful!\n\nProducts created: ${result.productsCreated}\nProducts updated: ${result.productsUpdated}\nBatches created: ${result.batchesCreated}\nErrors: ${result.errors}\n\nThe page will now reload.`);
+            location.reload();
+        } else {
+            alert(`✗ Import Failed\n\n${result.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Import error:', error);
+        alert('✗ Failed to import CSV file.\nPlease check the file format and try again.');
+    }
+    
     event.target.value = '';
 }
 
