@@ -82,6 +82,17 @@ function migrateDatabase() {
   });
 }
 
+// Helper function to escape CSV fields
+function escapeCSV(field) {
+  if (field === null || field === undefined) return '';
+  const stringField = String(field);
+  // If field contains comma, quote, or newline, wrap in quotes and escape existing quotes
+  if (stringField.includes(',') || stringField.includes('"') || stringField.includes('\n')) {
+    return `"${stringField.replace(/"/g, '""')}"`;
+  }
+  return stringField;
+}
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -112,6 +123,61 @@ app.get('/api/inventory', (req, res) => {
     } else {
       res.json(rows);
     }
+  });
+});
+
+// Export inventory to CSV
+app.get('/api/inventory/export/csv', (req, res) => {
+  const query = 'SELECT * FROM inventory ORDER BY name';
+  
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    // CSV Header
+    const headers = [
+      'ID',
+      'Name',
+      'In-House Number',
+      'Barcode',
+      'Brand',
+      'Quantity',
+      'Expiration Date',
+      'Category',
+      'Location',
+      'Notes',
+      'Created At',
+      'Updated At'
+    ];
+    
+    let csv = headers.join(',') + '\n';
+    
+    // Add data rows
+    rows.forEach(row => {
+      const rowData = [
+        escapeCSV(row.id),
+        escapeCSV(row.name),
+        escapeCSV(row.inhouse_number),
+        escapeCSV(row.barcode),
+        escapeCSV(row.brand),
+        escapeCSV(row.quantity),
+        escapeCSV(row.expiry_date),
+        escapeCSV(row.category),
+        escapeCSV(row.location),
+        escapeCSV(row.notes),
+        escapeCSV(row.created_at),
+        escapeCSV(row.updated_at)
+      ];
+      csv += rowData.join(',') + '\n';
+    });
+    
+    // Set headers for file download
+    const filename = `inventory_export_${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
   });
 });
 
