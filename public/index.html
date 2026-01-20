@@ -115,43 +115,35 @@
             display: block;
         }
 
-        .tabs {
-            display: flex;
+        .nav-section {
             background: #f3f4f6;
+            padding: 20px 30px;
             border-bottom: 2px solid #e5e7eb;
         }
 
-        .tab {
-            flex: 1;
-            padding: 18px 20px;
-            background: none;
-            border: none;
-            font-size: 1.05em;
+        .nav-select {
+            width: 100%;
+            max-width: 400px;
+            padding: 15px 20px;
+            font-size: 1.1em;
             font-weight: 600;
-            color: #6b7280;
+            color: #374151;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s;
-            position: relative;
         }
 
-        .tab:hover {
-            background: #e5e7eb;
-            color: #374151;
+        .nav-select:hover {
+            border-color: #5568d3;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
         }
 
-        .tab.active {
-            color: #667eea;
-            background: white;
-        }
-
-        .tab.active::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: #667eea;
+        .nav-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
         .tab-content {
@@ -476,9 +468,9 @@
                 align-items: flex-start;
             }
 
-            .tab {
-                font-size: 0.9em;
-                padding: 12px 10px;
+            .nav-select {
+                max-width: 100%;
+                font-size: 1em;
             }
 
             .version-footer {
@@ -508,10 +500,12 @@
             🎉 New version available! <button onclick="window.open('https://github.com/zv20/invai', '_blank')" style="margin-left:10px;padding:5px 15px;">View Update</button>
         </div>
 
-        <div class="tabs">
-            <button class="tab active" data-tab="products" onclick="switchTab('products')">📦 Products</button>
-            <button class="tab" data-tab="inventory" onclick="switchTab('inventory')">📋 Inventory</button>
-            <button class="tab" data-tab="settings" onclick="switchTab('settings')">⚙️ Settings</button>
+        <div class="nav-section">
+            <select class="nav-select" id="mainNav" onchange="switchTab(this.value)">
+                <option value="products">📦 Products</option>
+                <option value="inventory">📋 Inventory</option>
+                <option value="settings">⚙️ Settings</option>
+            </select>
         </div>
 
         <!-- Products Tab -->
@@ -594,10 +588,130 @@
         <span id="footerVersionText">Checking...</span>
     </div>
 
-    <!-- Modals omitted for brevity - keep existing modals -->
-    <div id="scannerModal" class="modal"><div class="modal-content scanner-content"><div class="modal-header"><h2>📷 Barcode Scanner</h2><button class="close-modal" onclick="closeScanner()">✕ Close</button></div><div id="reader"></div><div class="scanner-info"><strong>💡 Tips:</strong><ul style="margin: 10px 0 0 20px; line-height: 1.8;"><li>Allow camera access when prompted</li><li>Hold barcode steady in camera view</li><li>Works with UPC, EAN, QR codes</li></ul></div><div id="scannerResult" class="scanner-result"><strong>✓ Scanned:</strong> <span id="scannedCode"></span></div></div></div>
-    <div id="productModal" class="modal"><div class="modal-content"><div class="modal-header"><h2 id="productModalTitle">Add Product</h2><button class="close-modal" onclick="closeProductModal()">✕ Close</button></div><form id="productForm"><div class="form-row"><div><label>Product Name *</label><input type="text" id="prodName" required placeholder="e.g., Coca Cola 2L"></div><div><label>Brand</label><input type="text" id="prodBrand" placeholder="e.g., Coca-Cola"></div></div><div class="form-row"><div><label>Supplier</label><input type="text" id="prodSupplier" list="supplierList" placeholder="e.g., Sysco"><datalist id="supplierList"></datalist></div><div><label>Category</label><input type="text" id="prodCategory" placeholder="e.g., Beverages"></div></div><div class="form-row"><div><label>Barcode / UPC</label><input type="text" id="prodBarcode" placeholder="Scan or enter"></div><div><label>In-House Number</label><input type="text" id="prodInhouse" placeholder="Internal SKU"></div></div><div class="form-row"><div><label>Items Per Case *</label><input type="number" id="prodPerCase" required min="1" placeholder="e.g., 12"><div class="help-text">How many items in each case</div></div></div><div class="form-row"><div style="grid-column: 1 / -1;"><label>Notes</label><textarea id="prodNotes" rows="2" placeholder="Product notes..."></textarea></div></div><div style="display: flex; gap: 10px; margin-top: 20px;"><button type="submit" style="flex: 1;">Save Product</button><button type="button" onclick="closeProductModal()" style="background: #6b7280; flex: 1;">Cancel</button></div></form></div></div>
-    <div id="batchModal" class="modal"><div class="modal-content"><div class="modal-header"><h2 id="batchModalTitle">Add Inventory Batch</h2><button class="close-modal" onclick="closeBatchModal()">✕ Close</button></div><form id="batchForm"><div class="form-row"><div><label>Number of Cases *</label><input type="number" id="batchCases" required min="1" placeholder="e.g., 5" oninput="calcBatchTotal()"></div><div><label>Total Items</label><input type="number" id="batchTotal" readonly style="background: #f3f4f6;"><div class="help-text" id="batchCalc">Auto-calculated</div></div></div><div class="form-row"><div><label>Expiration Date</label><input type="date" id="batchExpiry"></div><div><label>Location</label><input type="text" id="batchLocation" placeholder="e.g., Aisle 3"></div></div><div class="form-row"><div style="grid-column: 1 / -1;"><label>Batch Notes</label><textarea id="batchNotes" rows="2" placeholder="Delivery notes..."></textarea></div></div><div style="display: flex; gap: 10px; margin-top: 20px;"><button type="submit" style="flex: 1;">Save Batch</button><button type="button" onclick="closeBatchModal()" style="background: #6b7280; flex: 1;">Cancel</button></div></form></div></div>
+    <!-- Scanner Modal -->
+    <div id="scannerModal" class="modal">
+        <div class="modal-content scanner-content">
+            <div class="modal-header">
+                <h2>📷 Barcode Scanner</h2>
+                <button class="close-modal" onclick="closeScanner()">✕ Close</button>
+            </div>
+            <div id="reader"></div>
+            <div class="scanner-info">
+                <strong>💡 Tips:</strong>
+                <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+                    <li>Allow camera access when prompted</li>
+                    <li>Hold barcode steady in camera view</li>
+                    <li>Works with UPC, EAN, QR codes</li>
+                </ul>
+            </div>
+            <div id="scannerResult" class="scanner-result">
+                <strong>✓ Scanned:</strong> <span id="scannedCode"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="productModalTitle">Add Product</h2>
+                <button class="close-modal" onclick="closeProductModal()">✕ Close</button>
+            </div>
+            <form id="productForm">
+                <div class="form-row">
+                    <div>
+                        <label>Product Name *</label>
+                        <input type="text" id="prodName" required placeholder="e.g., Coca Cola 2L">
+                    </div>
+                    <div>
+                        <label>Brand</label>
+                        <input type="text" id="prodBrand" placeholder="e.g., Coca-Cola">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Supplier</label>
+                        <input type="text" id="prodSupplier" list="supplierList" placeholder="e.g., Sysco">
+                        <datalist id="supplierList"></datalist>
+                    </div>
+                    <div>
+                        <label>Category</label>
+                        <input type="text" id="prodCategory" placeholder="e.g., Beverages">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Barcode / UPC</label>
+                        <input type="text" id="prodBarcode" placeholder="Scan or enter">
+                    </div>
+                    <div>
+                        <label>In-House Number</label>
+                        <input type="text" id="prodInhouse" placeholder="Internal SKU">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Items Per Case *</label>
+                        <input type="number" id="prodPerCase" required min="1" placeholder="e.g., 12">
+                        <div class="help-text">How many items in each case</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Notes</label>
+                        <textarea id="prodNotes" rows="2" placeholder="Product notes..."></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1;">Save Product</button>
+                    <button type="button" onclick="closeProductModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Batch Modal -->
+    <div id="batchModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="batchModalTitle">Add Inventory Batch</h2>
+                <button class="close-modal" onclick="closeBatchModal()">✕ Close</button>
+            </div>
+            <form id="batchForm">
+                <div class="form-row">
+                    <div>
+                        <label>Number of Cases *</label>
+                        <input type="number" id="batchCases" required min="1" placeholder="e.g., 5" oninput="calcBatchTotal()">
+                    </div>
+                    <div>
+                        <label>Total Items</label>
+                        <input type="number" id="batchTotal" readonly style="background: #f3f4f6;">
+                        <div class="help-text" id="batchCalc">Auto-calculated</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Expiration Date</label>
+                        <input type="date" id="batchExpiry">
+                    </div>
+                    <div>
+                        <label>Location</label>
+                        <input type="text" id="batchLocation" placeholder="e.g., Aisle 3">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Batch Notes</label>
+                        <textarea id="batchNotes" rows="2" placeholder="Delivery notes..."></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1;">Save Batch</button>
+                    <button type="button" onclick="closeBatchModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script>
         const API_URL = window.location.origin;
@@ -616,13 +730,11 @@
         }
 
         function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.toggle('active', tab.dataset.tab === tabName);
-            });
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
             });
             document.getElementById(tabName + 'Tab').classList.add('active');
+            document.getElementById('mainNav').value = tabName;
             if (tabName === 'inventory') loadProductsForInventory();
         }
 
