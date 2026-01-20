@@ -17,7 +17,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
-            padding-bottom: 60px; /* Space for version footer */
+            padding-bottom: 60px;
         }
 
         .container {
@@ -43,6 +43,13 @@
             font-size: 2em;
         }
 
+        .header-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+        }
+
         .status {
             display: inline-block;
             padding: 8px 16px;
@@ -55,7 +62,11 @@
             background: #4ade80;
         }
 
-        /* Version footer in bottom right */
+        .current-time {
+            font-size: 0.85em;
+            opacity: 0.9;
+        }
+
         .version-footer {
             position: fixed;
             bottom: 10px;
@@ -104,7 +115,6 @@
             display: block;
         }
 
-        /* Tabs */
         .tabs {
             display: flex;
             background: #f3f4f6;
@@ -153,7 +163,6 @@
             display: block;
         }
 
-        /* Forms */
         input, select, textarea, button {
             padding: 12px;
             border: 2px solid #e5e7eb;
@@ -181,6 +190,14 @@
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
         }
 
+        .btn-scan {
+            background: #10b981;
+        }
+
+        .btn-scan:hover {
+            background: #059669;
+        }
+
         .form-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -202,7 +219,16 @@
             margin-top: 3px;
         }
 
-        /* Product list */
+        .search-bar-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-bar-container input {
+            flex: 1;
+        }
+
         .product-list {
             display: grid;
             gap: 15px;
@@ -270,7 +296,6 @@
         .badge-category { background: #ddd6fe; color: #5b21b6; }
         .badge-barcode { background: #e0e7ff; color: #3730a3; }
 
-        /* Batch list */
         .batch-section {
             margin-top: 20px;
             padding: 20px;
@@ -308,7 +333,6 @@
             margin-bottom: 10px;
         }
 
-        /* Settings */
         .settings-section {
             background: #f9fafb;
             border: 2px solid #e5e7eb;
@@ -358,7 +382,6 @@
             color: #9ca3af;
         }
 
-        /* Modal */
         .modal {
             display: none;
             position: fixed;
@@ -388,6 +411,10 @@
             margin: 20px;
         }
 
+        .scanner-content {
+            max-width: 500px;
+        }
+
         .modal-header {
             display: flex;
             justify-content: space-between;
@@ -408,6 +435,37 @@
             font-size: 0.9em;
         }
 
+        #reader {
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .scanner-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            font-size: 0.9em;
+            color: #4b5563;
+        }
+
+        .scanner-result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #dcfce7;
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            color: #065f46;
+            font-weight: 600;
+            display: none;
+        }
+
+        .scanner-result.show {
+            display: block;
+        }
+
         #csvFileInput {
             display: none;
         }
@@ -417,6 +475,10 @@
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 10px;
+            }
+
+            .header-right {
+                align-items: flex-start;
             }
 
             .tab {
@@ -430,6 +492,10 @@
                 font-size: 0.75em;
                 padding: 6px 12px;
             }
+
+            .search-bar-container {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -437,7 +503,10 @@
     <div class="container">
         <div class="header">
             <h1>🛒 Grocery Inventory</h1>
-            <div id="status" class="status">Connecting...</div>
+            <div class="header-right">
+                <div id="status" class="status">Connecting...</div>
+                <div class="current-time" id="currentTime"></div>
+            </div>
         </div>
 
         <div id="updateBanner" class="update-banner">
@@ -457,7 +526,10 @@
                 <button onclick="openAddProductModal()">➕ Add Product</button>
             </div>
 
-            <input type="text" id="productSearch" placeholder="🔍 Search products..." style="width: 100%; margin-bottom: 20px;">
+            <div class="search-bar-container">
+                <input type="text" id="productSearch" placeholder="🔍 Search products...">
+                <button class="btn-scan" onclick="openScanner()">📷 Scan Barcode</button>
+            </div>
 
             <div id="productList" class="product-list">
                 <div class="empty-state">
@@ -473,9 +545,12 @@
 
             <div style="margin-bottom: 20px;">
                 <label>Select Product</label>
-                <select id="inventoryProductSelect" style="width: 100%;" onchange="loadBatches()">
-                    <option value="">-- Choose a product --</option>
-                </select>
+                <div style="display: flex; gap: 10px;">
+                    <select id="inventoryProductSelect" style="flex: 1;" onchange="loadBatches()">
+                        <option value="">-- Choose a product --</option>
+                    </select>
+                    <button class="btn-scan" onclick="openScanner()">📷 Scan</button>
+                </div>
             </div>
 
             <div id="batchSection" class="batch-section" style="display: none;">
@@ -520,9 +595,30 @@
         </div>
     </div>
 
-    <!-- Version footer in bottom right -->
     <div id="versionFooter" class="version-footer" onclick="checkVersion()" title="Click to check for updates">
         <span>v<span id="footerVersion">2.0.0</span></span>
+    </div>
+
+    <!-- Barcode Scanner Modal -->
+    <div id="scannerModal" class="modal">
+        <div class="modal-content scanner-content">
+            <div class="modal-header">
+                <h2>📷 Barcode Scanner</h2>
+                <button class="close-modal" onclick="closeScanner()">✕ Close</button>
+            </div>
+            <div id="reader"></div>
+            <div class="scanner-info">
+                <strong>💡 Tips:</strong>
+                <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+                    <li>Allow camera access when prompted</li>
+                    <li>Hold barcode steady in camera view</li>
+                    <li>Works with UPC, EAN, QR codes</li>
+                </ul>
+            </div>
+            <div id="scannerResult" class="scanner-result">
+                <strong>✓ Scanned:</strong> <span id="scannedCode"></span>
+            </div>
+        </div>
     </div>
 
     <!-- Add/Edit Product Modal -->
@@ -634,6 +730,16 @@
         let selectedProductId = null;
         let editingProductId = null;
         let editingBatchId = null;
+        let html5QrcodeScanner = null;
+        let isScanning = false;
+
+        // Update current time
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            document.getElementById('currentTime').textContent = `${dateStr} ${timeStr}`;
+        }
 
         // Tab switching
         function switchTab(tabName) {
@@ -646,6 +752,69 @@
             document.getElementById(tabName + 'Tab').classList.add('active');
 
             if (tabName === 'inventory') loadProductsForInventory();
+        }
+
+        // Barcode Scanner
+        function openScanner() {
+            document.getElementById('scannerModal').classList.add('active');
+            document.getElementById('scannerResult').classList.remove('show');
+            if (!isScanning) {
+                startScanner();
+            }
+        }
+
+        function closeScanner() {
+            const modal = document.getElementById('scannerModal');
+            modal.classList.remove('active');
+            
+            if (html5QrcodeScanner && isScanning) {
+                html5QrcodeScanner.stop().then(() => {
+                    isScanning = false;
+                    document.getElementById('reader').innerHTML = '';
+                }).catch(err => {
+                    console.error('Error stopping scanner:', err);
+                    isScanning = false;
+                    document.getElementById('reader').innerHTML = '';
+                });
+            }
+        }
+
+        function startScanner() {
+            isScanning = true;
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 }
+            };
+
+            html5QrcodeScanner.start(
+                { facingMode: "environment" },
+                config,
+                onScanSuccess,
+                onScanError
+            ).catch(err => {
+                console.error('Unable to start scanning', err);
+                alert('Unable to access camera. Please check permissions.');
+                closeScanner();
+            });
+        }
+
+        function onScanSuccess(decodedText) {
+            document.getElementById('scannedCode').textContent = decodedText;
+            document.getElementById('scannerResult').classList.add('show');
+            
+            // Search for product by barcode
+            document.getElementById('productSearch').value = decodedText;
+            loadProducts();
+            
+            setTimeout(() => {
+                closeScanner();
+            }, 1500);
+        }
+
+        function onScanError(errorMessage) {
+            // Ignore scan errors (continuous scanning)
         }
 
         // Version checking
@@ -662,7 +831,6 @@
                 const versionFooter = document.getElementById('versionFooter');
                 
                 if (serverVersion !== currentVersion) {
-                    // Show update available
                     document.getElementById('updateBanner').classList.add('show');
                     versionFooter.classList.add('update-available');
                     versionFooter.innerHTML = `<span>⚠️ v${currentVersion} → v${serverVersion}</span>`;
@@ -673,7 +841,6 @@
                     statusDiv.style.color = '#92400e';
                     statusDiv.innerHTML = `<strong>🎉 Update Available!</strong><br>Current: v${currentVersion} → Server: v${serverVersion}<br><button onclick="location.reload()" style="margin-top: 10px;">Refresh Now</button>`;
                 } else {
-                    // Up to date
                     versionFooter.classList.remove('update-available');
                     versionFooter.innerHTML = `<span>✓ v${currentVersion}</span>`;
                     
@@ -702,7 +869,6 @@
                 document.getElementById('status').className = 'status connected';
                 document.getElementById('status').textContent = '✓ Connected';
                 
-                // Auto version check silently
                 if (data.version && data.version !== currentVersion) {
                     document.getElementById('updateBanner').classList.add('show');
                     const versionFooter = document.getElementById('versionFooter');
@@ -1000,7 +1166,6 @@
         });
 
         async function editBatch(id) {
-            // Implementation needed - fetch batch by ID endpoint
             alert('Edit batch feature coming soon!');
         }
 
@@ -1080,11 +1245,28 @@
             searchTimeout = setTimeout(loadProducts, 300);
         });
 
+        // Close modals with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (document.getElementById('scannerModal').classList.contains('active')) {
+                    closeScanner();
+                }
+                if (document.getElementById('productModal').classList.contains('active')) {
+                    closeProductModal();
+                }
+                if (document.getElementById('batchModal').classList.contains('active')) {
+                    closeBatchModal();
+                }
+            }
+        });
+
         // Initialize
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000); // Update every second
         checkConnection();
         loadProducts();
         setInterval(checkConnection, 30000);
-        setTimeout(checkVersion, 5000); // Check version after 5 seconds
+        setTimeout(checkVersion, 5000);
     </script>
 </body>
 </html>
