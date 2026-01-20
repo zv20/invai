@@ -7,7 +7,7 @@ const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VERSION = '2.0.3';
+const VERSION = '2.1.0';
 const GITHUB_REPO = 'zv20/invai'; // GitHub repo to check for updates
 
 // Middleware
@@ -440,6 +440,36 @@ app.delete('/api/inventory/batches/:id', (req, res) => {
     } else {
       res.json({ message: 'Batch deleted successfully' });
     }
+  });
+});
+
+// Reset database - delete all data
+app.post('/api/database/reset', (req, res) => {
+  // Delete all batches first (due to foreign key constraints)
+  db.run('DELETE FROM inventory_batches', (err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to delete batches: ' + err.message });
+    }
+    
+    // Then delete all products
+    db.run('DELETE FROM products', (err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Failed to delete products: ' + err.message });
+      }
+      
+      // Reset autoincrement counters
+      db.run('DELETE FROM sqlite_sequence WHERE name="products" OR name="inventory_batches"', (err) => {
+        if (err) {
+          console.error('Failed to reset autoincrement:', err);
+        }
+        
+        console.log('Database reset completed');
+        res.json({ 
+          message: 'Database reset successful. All data has been deleted.',
+          timestamp: new Date().toISOString()
+        });
+      });
+    });
   });
 });
 
