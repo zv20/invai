@@ -27,8 +27,11 @@ function initDatabase() {
     CREATE TABLE IF NOT EXISTS inventory (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
+      inhouse_number TEXT,
       barcode TEXT,
+      brand TEXT,
       quantity INTEGER NOT NULL,
+      expiry_date TEXT,
       category TEXT,
       location TEXT,
       notes TEXT,
@@ -40,13 +43,13 @@ function initDatabase() {
       console.error('Error creating table:', err);
     } else {
       console.log('Database initialized');
-      // Migrate existing database to add barcode column
+      // Migrate existing database to add new columns
       migrateDatabase();
     }
   });
 }
 
-// Database migration to add barcode column to existing databases
+// Database migration to add new columns to existing databases
 function migrateDatabase() {
   db.all("PRAGMA table_info(inventory)", (err, columns) => {
     if (err) {
@@ -54,18 +57,28 @@ function migrateDatabase() {
       return;
     }
     
-    const hasBarcodeColumn = columns.some(col => col.name === 'barcode');
+    const columnNames = columns.map(col => col.name);
     
-    if (!hasBarcodeColumn) {
-      console.log('Adding barcode column to existing database...');
-      db.run('ALTER TABLE inventory ADD COLUMN barcode TEXT', (err) => {
-        if (err) {
-          console.error('Error adding barcode column:', err);
-        } else {
-          console.log('Barcode column added successfully');
-        }
-      });
-    }
+    // Check and add missing columns
+    const migrations = [
+      { column: 'barcode', type: 'TEXT' },
+      { column: 'inhouse_number', type: 'TEXT' },
+      { column: 'brand', type: 'TEXT' },
+      { column: 'expiry_date', type: 'TEXT' }
+    ];
+    
+    migrations.forEach(migration => {
+      if (!columnNames.includes(migration.column)) {
+        console.log(`Adding ${migration.column} column to database...`);
+        db.run(`ALTER TABLE inventory ADD COLUMN ${migration.column} ${migration.type}`, (err) => {
+          if (err) {
+            console.error(`Error adding ${migration.column} column:`, err);
+          } else {
+            console.log(`${migration.column} column added successfully`);
+          }
+        });
+      }
+    });
   });
 }
 
@@ -81,8 +94,9 @@ app.get('/api/inventory', (req, res) => {
   const params = [];
 
   if (search) {
-    query += ' AND (name LIKE ? OR notes LIKE ? OR barcode LIKE ?)';
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    query += ' AND (name LIKE ? OR notes LIKE ? OR barcode LIKE ? OR brand LIKE ? OR inhouse_number LIKE ?)';
+    const searchTerm = `%${search}%`;
+    params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
   }
 
   if (category && category !== 'all') {
@@ -116,13 +130,13 @@ app.get('/api/inventory/:id', (req, res) => {
 
 // Add new inventory item
 app.post('/api/inventory', (req, res) => {
-  const { name, barcode, quantity, category, location, notes } = req.body;
+  const { name, inhouse_number, barcode, brand, quantity, expiry_date, category, location, notes } = req.body;
 
   if (!name || quantity === undefined) {
     return res.status(400).json({ error: 'Name and quantity are required' });
   }
 
-  // Check if barcode already exists
+  // Check if barcode already exists (only if barcode is provided)
   if (barcode) {
     db.get('SELECT id FROM inventory WHERE barcode = ?', [barcode], (err, row) => {
       if (err) {
@@ -141,8 +155,9 @@ app.post('/api/inventory', (req, res) => {
 
   function insertItem() {
     db.run(
-      'INSERT INTO inventory (name, barcode, quantity, category, location, notes) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, barcode || null, quantity, category || '', location || '', notes || ''],
+      `INSERT INTO inventory (name, inhouse_number, barcode, brand, quantity, expiry_date, category, location, notes) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, inhouse_number || null, barcode || null, brand || null, quantity, expiry_date || null, category || '', location || '', notes || ''],
       function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
@@ -156,7 +171,7 @@ app.post('/api/inventory', (req, res) => {
 
 // Update inventory item
 app.put('/api/inventory/:id', (req, res) => {
-  const { name, barcode, quantity, category, location, notes } = req.body;
+  const { name, inhouse_number, barcode, brand, quantity, expiry_date, category, location, notes } = req.body;
 
   // Check if barcode is being changed to one that already exists
   if (barcode) {
@@ -177,8 +192,12 @@ app.put('/api/inventory/:id', (req, res) => {
 
   function updateItem() {
     db.run(
-      'UPDATE inventory SET name = ?, barcode = ?, quantity = ?, category = ?, location = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [name, barcode || null, quantity, category || '', location || '', notes || '', req.params.id],
+      `UPDATE inventory 
+       SET name = ?, inhouse_number = ?, barcode = ?, brand = ?, quantity = ?, expiry_date = ?, 
+           category = ?, location = ?, notes = ?, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [name, inhouse_number || null, barcode || null, brand || null, quantity, expiry_date || null, 
+       category || '', location || '', notes || '', req.params.id],
       function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
