@@ -137,7 +137,7 @@
 
         .form-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 15px;
             margin-bottom: 15px;
         }
@@ -174,6 +174,20 @@
         .scan-btn:hover {
             background: #059669;
             transform: translateY(-50%) translateY(-2px);
+        }
+
+        /* Quick Scan Button in Inventory */
+        .quick-scan-btn {
+            background: #10b981;
+            padding: 12px 24px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-scan-btn:hover {
+            background: #059669;
         }
 
         /* Scanner Modal */
@@ -287,7 +301,7 @@
 
         .inventory-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 20px;
         }
 
@@ -303,6 +317,16 @@
             transform: translateY(-5px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             border-color: #667eea;
+        }
+
+        .item-card.expired {
+            border-color: #ef4444;
+            background: linear-gradient(135deg, #fee2e2 0%, #ffffff 100%);
+        }
+
+        .item-card.expiring-soon {
+            border-color: #f59e0b;
+            background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%);
         }
 
         .item-header {
@@ -326,33 +350,59 @@
             font-weight: 600;
         }
 
+        .item-meta {
+            margin-bottom: 10px;
+        }
+
         .item-details {
             color: #6b7280;
             margin-bottom: 10px;
             line-height: 1.6;
+            font-size: 0.95em;
+        }
+
+        .item-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin: 4px 4px 4px 0;
         }
 
         .item-category {
-            display: inline-block;
             background: #ddd6fe;
             color: #5b21b6;
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 0.85em;
-            font-weight: 600;
-            margin-bottom: 10px;
         }
 
         .item-barcode {
-            display: inline-block;
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .item-brand {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .item-inhouse {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .item-expiry {
             background: #fef3c7;
             color: #92400e;
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 0.85em;
-            font-weight: 600;
-            margin-bottom: 10px;
-            margin-left: 5px;
+        }
+
+        .item-expiry.expired {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .item-expiry.expiring-soon {
+            background: #fed7aa;
+            color: #9a3412;
         }
 
         .item-actions {
@@ -415,6 +465,10 @@
                 width: 95%;
                 padding: 20px;
             }
+
+            .inventory-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -440,31 +494,45 @@
                         <input type="text" id="itemName" placeholder="Enter item name" required>
                     </div>
                     <div>
-                        <label>Barcode / SKU</label>
+                        <label>In-House Number</label>
+                        <input type="text" id="itemInhouse" placeholder="Internal ID/SKU">
+                    </div>
+                    <div>
+                        <label>Barcode / UPC</label>
                         <div class="barcode-input-group">
-                            <input type="text" id="itemBarcode" placeholder="Scan or enter barcode">
-                            <button type="button" class="scan-btn" onclick="openScanner()" title="Scan Barcode">📷</button>
+                            <input type="text" id="itemBarcode" placeholder="Scan or enter">
+                            <button type="button" class="scan-btn" onclick="openScanner('barcode')" title="Scan Barcode">📷</button>
                         </div>
                     </div>
                 </div>
                 <div class="form-row">
                     <div>
+                        <label>Brand / Manufacturer</label>
+                        <input type="text" id="itemBrand" placeholder="e.g., Samsung, Nestle">
+                    </div>
+                    <div>
                         <label>Quantity *</label>
                         <input type="number" id="itemQuantity" placeholder="0" required>
                     </div>
                     <div>
+                        <label>Expiration Date</label>
+                        <input type="date" id="itemExpiry">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
                         <label>Category</label>
-                        <input type="text" id="itemCategory" placeholder="e.g., Electronics">
+                        <input type="text" id="itemCategory" placeholder="e.g., Electronics, Food">
                     </div>
                     <div>
                         <label>Location</label>
-                        <input type="text" id="itemLocation" placeholder="e.g., Shelf A">
+                        <input type="text" id="itemLocation" placeholder="e.g., Shelf A, Warehouse B">
                     </div>
                 </div>
                 <div class="form-row">
                     <div style="grid-column: 1 / -1;">
                         <label>Notes</label>
-                        <textarea id="itemNotes" placeholder="Additional notes..." rows="3"></textarea>
+                        <textarea id="itemNotes" placeholder="Additional notes..." rows="2"></textarea>
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
@@ -477,7 +545,11 @@
         <!-- Inventory Tab -->
         <div id="inventoryTab" class="tab-content">
             <div class="controls">
-                <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Search items or scan barcode...">
+                <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Search by name, barcode, brand, in-house #...">
+                <button type="button" class="quick-scan-btn" onclick="openScanner('search')">
+                    <span>📷</span>
+                    <span>Scan to Search</span>
+                </button>
                 <select id="categoryFilter" class="category-filter">
                     <option value="all">All Categories</option>
                 </select>
@@ -522,6 +594,7 @@
         let editingItemId = null;
         let html5QrcodeScanner = null;
         let isScanning = false;
+        let scannerMode = 'barcode'; // 'barcode' or 'search'
 
         // Tab Switching
         function switchTab(tabName) {
@@ -540,7 +613,8 @@
         }
 
         // Barcode Scanner Functions
-        function openScanner() {
+        function openScanner(mode) {
+            scannerMode = mode;
             document.getElementById('scannerModal').classList.add('active');
             document.getElementById('scannerResult').classList.remove('show');
             if (!isScanning) {
@@ -593,11 +667,15 @@
             document.getElementById('scannedCode').textContent = decodedText;
             document.getElementById('scannerResult').classList.add('show');
             
-            // Fill barcode field
-            document.getElementById('itemBarcode').value = decodedText;
-            
-            // Check if item with this barcode exists
-            checkExistingBarcode(decodedText);
+            if (scannerMode === 'barcode') {
+                // Fill barcode field in Add form
+                document.getElementById('itemBarcode').value = decodedText;
+                checkExistingBarcode(decodedText);
+            } else {
+                // Search in inventory
+                document.getElementById('searchInput').value = decodedText;
+                loadInventory();
+            }
             
             // Auto-close after 1.5 seconds
             setTimeout(() => {
@@ -619,13 +697,32 @@
                 if (existingItem) {
                     if (confirm(`Item "${existingItem.name}" already has this barcode. Load it for editing?`)) {
                         editItem(existingItem.id);
-                        switchTab('add');
-                        document.querySelectorAll('.tab')[0].classList.add('active');
-                        document.querySelectorAll('.tab')[1].classList.remove('active');
                     }
                 }
             } catch (error) {
                 console.error('Error checking barcode:', error);
+            }
+        }
+
+        // Calculate expiration status
+        function getExpiryStatus(expiryDate) {
+            if (!expiryDate) return null;
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const expiry = new Date(expiryDate);
+            expiry.setHours(0, 0, 0, 0);
+            
+            const daysUntilExpiry = Math.floor((expiry - today) / (1000 * 60 * 60 * 24));
+            
+            if (daysUntilExpiry < 0) {
+                return { status: 'expired', days: Math.abs(daysUntilExpiry), text: `Expired ${Math.abs(daysUntilExpiry)} days ago` };
+            } else if (daysUntilExpiry === 0) {
+                return { status: 'expiring-soon', days: 0, text: 'Expires today!' };
+            } else if (daysUntilExpiry <= 7) {
+                return { status: 'expiring-soon', days: daysUntilExpiry, text: `Expires in ${daysUntilExpiry} day${daysUntilExpiry > 1 ? 's' : ''}` };
+            } else {
+                return { status: 'ok', days: daysUntilExpiry, text: `Expires ${expiry.toLocaleDateString()}` };
             }
         }
 
@@ -703,24 +800,35 @@
                 return;
             }
 
-            container.innerHTML = items.map(item => `
-                <div class="item-card">
-                    <div class="item-header">
-                        <div class="item-name">${escapeHtml(item.name)}</div>
-                        <div class="item-quantity">${item.quantity}</div>
+            container.innerHTML = items.map(item => {
+                const expiryStatus = getExpiryStatus(item.expiry_date);
+                const cardClass = expiryStatus ? `item-card ${expiryStatus.status}` : 'item-card';
+                const expiryBadgeClass = expiryStatus ? `item-badge item-expiry ${expiryStatus.status}` : 'item-badge item-expiry';
+                
+                return `
+                    <div class="${cardClass}">
+                        <div class="item-header">
+                            <div class="item-name">${escapeHtml(item.name)}</div>
+                            <div class="item-quantity">${item.quantity}</div>
+                        </div>
+                        <div class="item-meta">
+                            ${item.brand ? `<span class="item-badge item-brand">🏭 ${escapeHtml(item.brand)}</span>` : ''}
+                            ${item.category ? `<span class="item-badge item-category">📚 ${escapeHtml(item.category)}</span>` : ''}
+                            ${item.inhouse_number ? `<span class="item-badge item-inhouse">#${escapeHtml(item.inhouse_number)}</span>` : ''}
+                            ${item.barcode ? `<span class="item-badge item-barcode">🔖 ${escapeHtml(item.barcode)}</span>` : ''}
+                            ${expiryStatus ? `<span class="${expiryBadgeClass}">⏰ ${expiryStatus.text}</span>` : ''}
+                        </div>
+                        <div class="item-details">
+                            ${item.location ? `<div>📍 ${escapeHtml(item.location)}</div>` : ''}
+                            ${item.notes ? `<div>📝 ${escapeHtml(item.notes)}</div>` : ''}
+                        </div>
+                        <div class="item-actions">
+                            <button class="btn-edit" onclick="editItem(${item.id})">Edit</button>
+                            <button class="btn-delete" onclick="deleteItem(${item.id})">Delete</button>
+                        </div>
                     </div>
-                    ${item.category ? `<div class="item-category">${escapeHtml(item.category)}</div>` : ''}
-                    ${item.barcode ? `<div class="item-barcode">🔖 ${escapeHtml(item.barcode)}</div>` : ''}
-                    <div class="item-details">
-                        ${item.location ? `<div>📍 ${escapeHtml(item.location)}</div>` : ''}
-                        ${item.notes ? `<div>📝 ${escapeHtml(item.notes)}</div>` : ''}
-                    </div>
-                    <div class="item-actions">
-                        <button class="btn-edit" onclick="editItem(${item.id})">Edit</button>
-                        <button class="btn-delete" onclick="deleteItem(${item.id})">Delete</button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Escape HTML to prevent XSS
@@ -736,8 +844,11 @@
 
             const itemData = {
                 name: document.getElementById('itemName').value,
+                inhouse_number: document.getElementById('itemInhouse').value,
                 barcode: document.getElementById('itemBarcode').value,
+                brand: document.getElementById('itemBrand').value,
                 quantity: parseInt(document.getElementById('itemQuantity').value),
+                expiry_date: document.getElementById('itemExpiry').value,
                 category: document.getElementById('itemCategory').value,
                 location: document.getElementById('itemLocation').value,
                 notes: document.getElementById('itemNotes').value
@@ -784,8 +895,11 @@
                 const item = await response.json();
 
                 document.getElementById('itemName').value = item.name;
+                document.getElementById('itemInhouse').value = item.inhouse_number || '';
                 document.getElementById('itemBarcode').value = item.barcode || '';
+                document.getElementById('itemBrand').value = item.brand || '';
                 document.getElementById('itemQuantity').value = item.quantity;
+                document.getElementById('itemExpiry').value = item.expiry_date || '';
                 document.getElementById('itemCategory').value = item.category || '';
                 document.getElementById('itemLocation').value = item.location || '';
                 document.getElementById('itemNotes').value = item.notes || '';
