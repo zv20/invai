@@ -572,7 +572,21 @@
                 <p style="margin-top: 10px;"><strong>Latest Version:</strong> <span id="latestVersion">Checking...</span></p>
                 <p style="margin-top: 10px;"><strong>Database:</strong> SQLite</p>
                 <p style="margin-top: 10px;"><strong>Last Check:</strong> <span id="lastCheck">Never</span></p>
-                <button onclick="checkVersion()" style="margin-top: 15px;">🔄 Check for Updates</button>
+                
+                <div style="margin-top: 20px;">
+                    <label>Auto-Update Check Frequency</label>
+                    <select id="updateCheckInterval" onchange="saveUpdateInterval()" style="width: 100%; max-width: 300px; margin-top: 5px;">
+                        <option value="0">Never (Manual only)</option>
+                        <option value="3600000">Every Hour</option>
+                        <option value="21600000">Every 6 Hours</option>
+                        <option value="43200000">Every 12 Hours</option>
+                        <option value="86400000" selected>Every 24 Hours (Default)</option>
+                        <option value="604800000">Weekly</option>
+                    </select>
+                    <div class="help-text" style="margin-top: 5px;">Choose how often to automatically check for updates in the background</div>
+                </div>
+
+                <button onclick="checkVersion()" style="margin-top: 15px;">🔄 Check for Updates Now</button>
                 <div id="versionStatus" style="margin-top: 15px; padding: 10px; border-radius: 8px; display: none;"></div>
             </div>
 
@@ -721,6 +735,63 @@
         let html5QrcodeScanner = null;
         let isScanning = false;
         let versionInfo = null;
+        let updateCheckIntervalId = null;
+
+        // Load saved update check interval preference
+        function getUpdateInterval() {
+            const saved = localStorage.getItem('updateCheckInterval');
+            return saved ? parseInt(saved) : 86400000; // Default 24 hours
+        }
+
+        function saveUpdateInterval() {
+            const select = document.getElementById('updateCheckInterval');
+            const interval = parseInt(select.value);
+            localStorage.setItem('updateCheckInterval', interval);
+            
+            // Restart the update check interval
+            setupUpdateChecker();
+            
+            // Show confirmation
+            const intervalNames = {
+                0: 'Never',
+                3600000: 'Every Hour',
+                21600000: 'Every 6 Hours',
+                43200000: 'Every 12 Hours',
+                86400000: 'Every 24 Hours',
+                604800000: 'Weekly'
+            };
+            
+            const statusDiv = document.getElementById('versionStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#dcfce7';
+            statusDiv.style.border = '2px solid #10b981';
+            statusDiv.style.color = '#065f46';
+            statusDiv.innerHTML = `<strong>✓ Update check frequency changed to: ${intervalNames[interval]}</strong>`;
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        function setupUpdateChecker() {
+            // Clear existing interval
+            if (updateCheckIntervalId) {
+                clearInterval(updateCheckIntervalId);
+                updateCheckIntervalId = null;
+            }
+
+            const interval = getUpdateInterval();
+            
+            // If interval is 0 (Never), don't set up auto-check
+            if (interval === 0) {
+                console.log('Auto-update check disabled');
+                return;
+            }
+
+            // Set up new interval
+            console.log(`Auto-update check every ${interval / 1000 / 60} minutes`);
+            updateCheckIntervalId = setInterval(checkVersion, interval);
+        }
 
         function updateCurrentTime() {
             const now = new Date();
@@ -736,6 +807,10 @@
             document.getElementById(tabName + 'Tab').classList.add('active');
             document.getElementById('mainNav').value = tabName;
             if (tabName === 'inventory') loadProductsForInventory();
+            if (tabName === 'settings') {
+                // Restore saved interval preference
+                document.getElementById('updateCheckInterval').value = getUpdateInterval();
+            }
         }
 
         function openScanner() {
@@ -1179,13 +1254,21 @@
             }
         });
 
+        // Initialize app
         updateCurrentTime();
         setInterval(updateCurrentTime, 1000);
         checkConnection();
         loadProducts();
         setInterval(checkConnection, 30000);
+        
+        // Initial version check after 2 seconds
         setTimeout(checkVersion, 2000);
-        setInterval(checkVersion, 60000); // Check every minute
+        
+        // Setup auto-update checker based on user preference
+        setupUpdateChecker();
+        
+        // Load saved interval preference when app starts
+        document.getElementById('updateCheckInterval').value = getUpdateInterval();
     </script>
 </body>
 </html>
