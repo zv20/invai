@@ -3,10 +3,12 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VERSION = '2.0.1'; // Bumped for update testing
+const VERSION = '2.0.1';
+const GITHUB_REPO = 'zv20/invai'; // GitHub repo to check for updates
 
 // Middleware
 app.use(cors());
@@ -115,14 +117,96 @@ function migrateLegacyData() {
   });
 }
 
+// Check GitHub for latest version
+function checkGitHubVersion() {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.github.com',
+      path: `/repos/${GITHUB_REPO}/commits/main`,
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Grocery-Inventory-App'
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const commit = JSON.parse(data);
+          
+          // Try to get version from package.json in latest commit
+          const pkgOptions = {
+            hostname: 'raw.githubusercontent.com',
+            path: `/${GITHUB_REPO}/main/package.json`,
+            method: 'GET',
+            headers: {
+              'User-Agent': 'Grocery-Inventory-App'
+            }
+          };
+
+          const pkgReq = https.request(pkgOptions, (pkgRes) => {
+            let pkgData = '';
+
+            pkgRes.on('data', (chunk) => {
+              pkgData += chunk;
+            });
+
+            pkgRes.on('end', () => {
+              try {
+                const pkg = JSON.parse(pkgData);
+                resolve({
+                  latestVersion: pkg.version,
+                  currentVersion: VERSION,
+                  updateAvailable: pkg.version !== VERSION,
+                  commitSha: commit.sha ? commit.sha.substring(0, 7) : 'unknown',
+                  commitDate: commit.commit ? commit.commit.author.date : null
+                });
+              } catch (err) {
+                reject(err);
+              }
+            });
+          });
+
+          pkgReq.on('error', reject);
+          pkgReq.end();
+
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', version: VERSION, timestamp: new Date().toISOString() });
 });
 
-// Get version info
-app.get('/api/version', (req, res) => {
-  res.json({ version: VERSION });
+// Get version info and check for updates
+app.get('/api/version', async (req, res) => {
+  try {
+    const updateInfo = await checkGitHubVersion();
+    res.json(updateInfo);
+  } catch (error) {
+    console.error('Error checking GitHub version:', error.message);
+    // Fallback to local version if GitHub check fails
+    res.json({
+      latestVersion: VERSION,
+      currentVersion: VERSION,
+      updateAvailable: false,
+      error: 'Could not check for updates'
+    });
+  }
 });
 
 // Get all products
@@ -436,6 +520,23 @@ app.listen(PORT, () => {
   console.log(`Grocery Inventory Management v${VERSION}`);
   console.log(`Server running on port ${PORT}`);
   console.log(`Access at http://localhost:${PORT}`);
+  console.log('Checking for updates from GitHub...');
+  
+  // Check for updates on startup
+  checkGitHubVersion()
+    .then(info => {
+      if (info.updateAvailable) {
+        console.log(`\n⚠️  UPDATE AVAILABLE!`);
+        console.log(`   Current: ${info.currentVersion}`);
+        console.log(`   Latest:  ${info.latestVersion}`);
+        console.log(`   Run 'update' command to upgrade\n`);
+      } else {
+        console.log(`✓ Running latest version (${VERSION})`);
+      }
+    })
+    .catch(err => {
+      console.log(`Could not check for updates: ${err.message}`);
+    });
 });
 
 // Graceful shutdown
