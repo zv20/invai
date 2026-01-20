@@ -536,6 +536,11 @@ label {
     display: flex;
 }
 
+/* Scanner Modal - Highest Priority */
+#scannerModal {
+    z-index: 100000;
+}
+
 .modal-content {
     background: white;
     border-radius: 15px;
