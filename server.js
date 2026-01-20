@@ -6,7 +6,7 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VERSION = '2.0.0'; // Major version for batch tracking
+const VERSION = '2.0.1'; // Bumped for update testing
 
 // Middleware
 app.use(cors());
