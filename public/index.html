@@ -62,7 +62,7 @@
 
             <div class="search-bar-container">
                 <input type="text" id="productSearch" placeholder="🔍 Search products...">
-                <button class="btn-scan" onclick="openScanner()">📷 Scan Barcode</button>
+                <button class="btn-scan" onclick="openScanner('search')">📷 Scan Barcode</button>
             </div>
 
             <div id="productList" class="product-list">
@@ -83,7 +83,7 @@
                     <select id="inventoryProductSelect" style="flex: 1;" onchange="loadBatches()">
                         <option value="">-- Choose a product --</option>
                     </select>
-                    <button class="btn-scan" onclick="openScanner()">📷 Scan</button>
+                    <button class="btn-scan" onclick="openScanner('search')">📷 Scan</button>
                 </div>
             </div>
 
@@ -201,7 +201,12 @@
                 <div class="form-row">
                     <div>
                         <label>Barcode / UPC</label>
-                        <input type="text" id="prodBarcode" placeholder="Scan or enter">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="prodBarcode" placeholder="Scan or enter" style="flex: 1;">
+                            <button type="button" class="btn-scan-inline" onclick="openScanner('product-form')" title="Scan barcode">
+                                📷
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label>In-House Number</label>
