@@ -5,9 +5,10 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 
+const packageJson = require('./package.json');
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VERSION = '0.2.0';
+const VERSION = packageJson.version;
 const GITHUB_REPO = 'zv20/invai';
 const BACKUP_DIR = path.join(__dirname, 'backups');
 const MAX_BACKUPS = 10;
@@ -667,7 +668,7 @@ app.listen(PORT, () => {
   console.log(`Access at http://localhost:${PORT}`);
   console.log('✨ Cache busting enabled');
   console.log('💰 Product-level pricing enabled');
-  console.log('💾 Backup system enabled - Max ${MAX_BACKUPS} backups retained');
+  console.log(`💾 Backup system enabled - Max ${MAX_BACKUPS} backups retained`);
   console.log('Checking for updates from GitHub...');
   checkGitHubVersion()
     .then(info => {
