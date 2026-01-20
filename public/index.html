@@ -55,9 +55,25 @@
 
         <!-- Products Tab -->
         <div id="productsTab" class="tab-content active">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2>Product Catalog</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                <h2 style="margin: 0;">Product Catalog</h2>
                 <button onclick="openAddProductModal()">➕ Add Product</button>
+            </div>
+
+            <!-- Inventory Value Summary -->
+            <div id="inventoryValueSummary" class="value-summary" style="display: none;">
+                <div class="value-card">
+                    <div class="value-label">Total Products</div>
+                    <div class="value-amount" id="totalProducts">0</div>
+                </div>
+                <div class="value-card">
+                    <div class="value-label">Total Items</div>
+                    <div class="value-amount" id="totalItems">0</div>
+                </div>
+                <div class="value-card value-highlight">
+                    <div class="value-label">💰 Total Inventory Value</div>
+                    <div class="value-amount" id="totalValue">$0.00</div>
+                </div>
             </div>
 
             <div class="search-bar-container">
@@ -216,8 +232,13 @@
                 <div class="form-row">
                     <div>
                         <label>Items Per Case *</label>
-                        <input type="number" id="prodPerCase" required min="1" placeholder="e.g., 12">
+                        <input type="number" id="prodPerCase" required min="1" placeholder="e.g., 12" oninput="calcCostPerItem()">
                         <div class="help-text">How many items in each case</div>
+                    </div>
+                    <div>
+                        <label>Cost Per Case</label>
+                        <input type="number" id="prodCostPerCase" step="0.01" min="0" placeholder="e.g., 24.00" oninput="calcCostPerItem()">
+                        <div class="help-text" id="costPerItemDisplay">Cost per item: $0.00</div>
                     </div>
                 </div>
                 <div class="form-row">
