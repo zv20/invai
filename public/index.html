@@ -117,44 +117,105 @@
         <div id="settingsTab" class="tab-content">
             <h2 style="margin-bottom: 20px;">Settings</h2>
 
-            <div class="settings-section">
-                <h3>📊 Data Management</h3>
-                <div class="btn-group">
-                    <button class="btn-export" onclick="exportCSV()">💾 Export to CSV</button>
-                    <button class="btn-import" onclick="triggerImport()">📂 Import from CSV</button>
-                </div>
-                <input type="file" id="csvFileInput" accept=".csv" onchange="handleImport(event)">
-                <div class="help-text" style="margin-top: 10px;">Export your inventory data or import from a backup CSV file</div>
+            <!-- Settings Submenu Navigation -->
+            <div class="settings-nav">
+                <button class="settings-nav-item active" onclick="switchSettingsTab('updates')">🔄 Updates</button>
+                <button class="settings-nav-item" onclick="switchSettingsTab('backups')">💾 Backups</button>
+                <button class="settings-nav-item" onclick="switchSettingsTab('about')">ℹ️ About</button>
+                <button class="settings-nav-item" onclick="switchSettingsTab('danger')">⚠️ Danger Zone</button>
             </div>
 
-            <div class="settings-section">
-                <h3>ℹ️ System Information</h3>
-                <p><strong>Running Version:</strong> <span id="settingsVersion">Checking...</span></p>
-                <p style="margin-top: 10px;"><strong>Latest Version:</strong> <span id="latestVersion">Checking...</span></p>
-                <p style="margin-top: 10px;"><strong>Database:</strong> SQLite</p>
-                <p style="margin-top: 10px;"><strong>Last Check:</strong> <span id="lastCheck">Never</span></p>
-                
-                <div style="margin-top: 20px;">
-                    <label>Auto-Update Check Frequency</label>
-                    <select id="updateCheckInterval" onchange="saveUpdateInterval()" style="width: 100%; max-width: 300px; margin-top: 5px;">
-                        <option value="0">Never (Manual only)</option>
-                        <option value="3600000">Every Hour</option>
-                        <option value="21600000">Every 6 Hours</option>
-                        <option value="43200000">Every 12 Hours</option>
-                        <option value="86400000" selected>Every 24 Hours (Default)</option>
-                        <option value="604800000">Weekly</option>
-                    </select>
-                    <div class="help-text" style="margin-top: 5px;">Choose how often to automatically check for updates in the background</div>
-                </div>
+            <!-- Updates Subtab -->
+            <div id="settings-updates" class="settings-subtab active">
+                <div class="settings-section">
+                    <h3>System Information</h3>
+                    <p><strong>Running Version:</strong> <span id="settingsVersion">Checking...</span></p>
+                    <p style="margin-top: 10px;"><strong>Latest Version:</strong> <span id="latestVersion">Checking...</span></p>
+                    <p style="margin-top: 10px;"><strong>Database:</strong> SQLite</p>
+                    <p style="margin-top: 10px;"><strong>Last Check:</strong> <span id="lastCheck">Never</span></p>
+                    
+                    <div style="margin-top: 20px;">
+                        <label>Auto-Update Check Frequency</label>
+                        <select id="updateCheckInterval" onchange="saveUpdateInterval()" style="width: 100%; max-width: 300px; margin-top: 5px;">
+                            <option value="0">Never (Manual only)</option>
+                            <option value="3600000">Every Hour</option>
+                            <option value="21600000">Every 6 Hours</option>
+                            <option value="43200000">Every 12 Hours</option>
+                            <option value="86400000" selected>Every 24 Hours (Default)</option>
+                            <option value="604800000">Weekly</option>
+                        </select>
+                        <div class="help-text" style="margin-top: 5px;">Choose how often to automatically check for updates</div>
+                    </div>
 
-                <button onclick="checkVersion()" style="margin-top: 15px;">🔄 Check for Updates Now</button>
-                <div id="versionStatus" style="margin-top: 15px; padding: 10px; border-radius: 8px; display: none;"></div>
+                    <button onclick="checkVersion()" style="margin-top: 15px;">🔄 Check for Updates Now</button>
+                    <div id="versionStatus" style="margin-top: 15px; padding: 10px; border-radius: 8px; display: none;"></div>
+                </div>
             </div>
 
-            <div class="settings-section">
-                <h3>⚠️ Danger Zone</h3>
-                <p style="margin-bottom: 15px;">Backup your data before performing these actions</p>
-                <button class="btn-danger" onclick="confirmReset()">🗑️ Reset All Data</button>
+            <!-- Backups Subtab -->
+            <div id="settings-backups" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>Database Backups</h3>
+                    <p style="margin-bottom: 15px;">Create and manage database backups. System automatically keeps the last 10 backups.</p>
+                    <button onclick="createBackup()" style="margin-bottom: 20px;">💾 Create Backup Now</button>
+                    
+                    <h4 style="margin-top: 25px; margin-bottom: 15px;">Backup History</h4>
+                    <div id="backupList" class="backup-list">
+                        <div style="text-align: center; padding: 20px; color: #9ca3af;">📂 No backups yet</div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>📊 Data Management</h3>
+                    <div class="btn-group">
+                        <button class="btn-export" onclick="exportCSV()">💾 Export to CSV</button>
+                        <button class="btn-import" onclick="triggerImport()">📂 Import from CSV</button>
+                    </div>
+                    <input type="file" id="csvFileInput" accept=".csv" onchange="handleImport(event)">
+                    <div class="help-text" style="margin-top: 10px;">Export your inventory data or import from a backup CSV file</div>
+                </div>
+            </div>
+
+            <!-- About Subtab -->
+            <div id="settings-about" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>🛒 Grocery Inventory v0.2.1</h3>
+                    <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
+                    
+                    <h4 style="margin-top: 25px; margin-bottom: 10px;">Latest Changes</h4>
+                    <ul class="changelog-list">
+                        <li>✨ <strong>v0.2.1</strong> - Settings submenu with Backups, Updates, and About sections</li>
+                        <li>💾 <strong>v0.2.0</strong> - Comprehensive backup system with server-side storage</li>
+                        <li>💰 <strong>v0.1.0</strong> - Product pricing system with inventory value tracking</li>
+                        <li>🎨 <strong>v0.0.1</strong> - Initial release with barcode scanner</li>
+                    </ul>
+
+                    <h4 style="margin-top: 25px; margin-bottom: 10px;">Features</h4>
+                    <ul class="changelog-list">
+                        <li>📦 Product catalog management</li>
+                        <li>📋 Batch inventory tracking</li>
+                        <li>📷 Barcode scanning</li>
+                        <li>💾 Automated backups with retention</li>
+                        <li>📊 CSV import/export</li>
+                        <li>💰 Real-time pricing and inventory value</li>
+                    </ul>
+
+                    <h4 style="margin-top: 25px; margin-bottom: 10px;">Links</h4>
+                    <p><a href="https://github.com/zv20/invai" target="_blank" style="color: #667eea; text-decoration: underline;">🔗 GitHub Repository</a></p>
+                    <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/issues" target="_blank" style="color: #667eea; text-decoration: underline;">📝 Report an Issue</a></p>
+
+                    <h4 style="margin-top: 25px; margin-bottom: 10px;">License</h4>
+                    <p>MIT License - Free to use and modify</p>
+                </div>
+            </div>
+
+            <!-- Danger Zone Subtab -->
+            <div id="settings-danger" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>⚠️ Danger Zone</h3>
+                    <p style="margin-bottom: 15px; color: #dc2626;"><strong>Warning:</strong> Actions in this section are permanent and cannot be undone. Please create a backup before proceeding.</p>
+                    <button class="btn-danger" onclick="confirmReset()">🗑️ Reset All Data</button>
+                </div>
             </div>
         </div>
     </div>
