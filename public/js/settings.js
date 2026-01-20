@@ -137,10 +137,47 @@ function handleImport(event) {
    Database Reset
    ========================================================================== */
 
-function confirmReset() {
-    if (confirm('Are you ABSOLUTELY SURE you want to delete all data?\n\nThis cannot be undone!')) {
-        if (confirm('Last warning! This will permanently delete everything!')) {
-            alert('Database reset feature coming soon!');
+async function confirmReset() {
+    // First confirmation
+    if (!confirm('⚠️ WARNING: Delete ALL Data?\n\nThis will permanently delete:\n• All products\n• All inventory batches\n• All settings\n\nThis action CANNOT be undone!\n\nClick OK to continue or Cancel to abort.')) {
+        return;
+    }
+    
+    // Second confirmation
+    if (!confirm('🚨 FINAL WARNING!\n\nYou are about to delete EVERYTHING.\n\nMake sure you have exported your data first!\n\nType confirmation required. Click OK to proceed.')) {
+        return;
+    }
+    
+    // Third confirmation - type check
+    const confirmation = prompt('Type "DELETE ALL" (in caps) to confirm:');
+    if (confirmation !== 'DELETE ALL') {
+        alert('Reset cancelled. Database was not modified.');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/database/reset`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('✓ Database reset successful!\n\nAll data has been deleted.\n\nThe page will now reload.');
+            
+            // Clear localStorage
+            localStorage.clear();
+            
+            // Reload the page
+            location.reload();
+        } else {
+            alert('Error resetting database:\n' + (data.error || 'Unknown error'));
         }
+    } catch (error) {
+        console.error('Reset error:', error);
+        alert('Failed to reset database. Check your connection.');
     }
 }
