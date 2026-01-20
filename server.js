@@ -7,7 +7,7 @@ const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VERSION = '2.0.1';
+const VERSION = '2.0.2';
 const GITHUB_REPO = 'zv20/invai'; // GitHub repo to check for updates
 
 // Middleware
