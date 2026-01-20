@@ -7,8 +7,16 @@ const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 const GITHUB_REPO = 'zv20/invai';
+const BACKUP_DIR = path.join(__dirname, 'backups');
+const MAX_BACKUPS = 10;
+
+// Ensure backups directory exists
+if (!fs.existsSync(BACKUP_DIR)) {
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  console.log('Created backups directory');
+}
 
 app.use(cors());
 app.use(express.json());
@@ -73,7 +81,6 @@ function initDatabase() {
     if (err) {
       console.error('Error creating products table:', err);
     } else {
-      // Add cost_per_case column to existing databases
       db.run(`ALTER TABLE products ADD COLUMN cost_per_case REAL DEFAULT 0`, (err) => {
         if (err && !err.message.includes('duplicate column')) {
           console.error('Error adding cost_per_case column:', err);
@@ -103,15 +110,12 @@ function initDatabase() {
 function migrateLegacyData() {
   db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='inventory'", (err, row) => {
     if (!row) return;
-    
     console.log('Migrating legacy inventory data...');
-    
     db.all('SELECT * FROM inventory', [], (err, items) => {
       if (err || !items || items.length === 0) {
         console.log('No legacy data to migrate');
         return;
       }
-      
       items.forEach(item => {
         db.run(
           `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, category, notes, created_at, updated_at)
@@ -123,9 +127,7 @@ function migrateLegacyData() {
               console.error('Error migrating product:', err);
               return;
             }
-            
             const productId = this.lastID;
-            
             db.run(
               `INSERT INTO inventory_batches (product_id, case_quantity, total_quantity, expiry_date, location, received_date)
                VALUES (?, ?, ?, ?, ?, ?)`,
@@ -137,9 +139,7 @@ function migrateLegacyData() {
           }
         );
       });
-      
       console.log(`Migrated ${items.length} legacy items`);
-      
       db.run('ALTER TABLE inventory RENAME TO inventory_old', (err) => {
         if (!err) console.log('Legacy table renamed to inventory_old (safe to delete later)');
       });
@@ -155,7 +155,6 @@ function checkGitHubVersion() {
       method: 'GET',
       headers: { 'User-Agent': 'Grocery-Inventory-App' }
     };
-
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
@@ -168,7 +167,6 @@ function checkGitHubVersion() {
             method: 'GET',
             headers: { 'User-Agent': 'Grocery-Inventory-App' }
           };
-
           const pkgReq = https.request(pkgOptions, (pkgRes) => {
             let pkgData = '';
             pkgRes.on('data', (chunk) => { pkgData += chunk; });
@@ -195,6 +193,117 @@ function checkGitHubVersion() {
   });
 }
 
+// ========== BACKUP SYSTEM ==========
+
+function createBackup() {
+  return new Promise((resolve, reject) => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0];
+    const backupName = `backup_${timestamp}.db`;
+    const backupPath = path.join(BACKUP_DIR, backupName);
+    const dbPath = path.join(__dirname, 'inventory.db');
+    
+    fs.copyFile(dbPath, backupPath, (err) => {
+      if (err) {
+        reject(err);
+      } else {
+        cleanupOldBackups();
+        resolve({ filename: backupName, path: backupPath });
+      }
+    });
+  });
+}
+
+function cleanupOldBackups() {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(file => file.startsWith('backup_') && file.endsWith('.db'))
+      .map(file => ({
+        name: file,
+        path: path.join(BACKUP_DIR, file),
+        time: fs.statSync(path.join(BACKUP_DIR, file)).mtime.getTime()
+      }))
+      .sort((a, b) => b.time - a.time);
+    
+    if (files.length > MAX_BACKUPS) {
+      const toDelete = files.slice(MAX_BACKUPS);
+      toDelete.forEach(file => {
+        fs.unlinkSync(file.path);
+        console.log(`Deleted old backup: ${file.name}`);
+      });
+    }
+  } catch (err) {
+    console.error('Error cleaning up backups:', err);
+  }
+}
+
+app.post('/api/backup/create', async (req, res) => {
+  try {
+    const backup = await createBackup();
+    const stats = fs.statSync(backup.path);
+    res.json({ 
+      message: 'Backup created successfully', 
+      filename: backup.filename,
+      size: stats.size,
+      created: stats.mtime
+    });
+  } catch (error) {
+    console.error('Backup creation error:', error);
+    res.status(500).json({ error: 'Failed to create backup: ' + error.message });
+  }
+});
+
+app.get('/api/backup/list', (req, res) => {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(file => file.startsWith('backup_') && file.endsWith('.db'))
+      .map(file => {
+        const stats = fs.statSync(path.join(BACKUP_DIR, file));
+        return {
+          filename: file,
+          size: stats.size,
+          created: stats.mtime,
+          age: Date.now() - stats.mtime.getTime()
+        };
+      })
+      .sort((a, b) => b.created - a.created);
+    res.json(files);
+  } catch (error) {
+    console.error('Error listing backups:', error);
+    res.status(500).json({ error: 'Failed to list backups: ' + error.message });
+  }
+});
+
+app.get('/api/backup/download/:filename', (req, res) => {
+  const filename = req.params.filename;
+  if (!filename.startsWith('backup_') || !filename.endsWith('.db')) {
+    return res.status(400).json({ error: 'Invalid backup filename' });
+  }
+  const filePath = path.join(BACKUP_DIR, filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Backup file not found' });
+  }
+  res.download(filePath, filename);
+});
+
+app.delete('/api/backup/delete/:filename', (req, res) => {
+  const filename = req.params.filename;
+  if (!filename.startsWith('backup_') || !filename.endsWith('.db')) {
+    return res.status(400).json({ error: 'Invalid backup filename' });
+  }
+  const filePath = path.join(BACKUP_DIR, filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Backup file not found' });
+  }
+  try {
+    fs.unlinkSync(filePath);
+    res.json({ message: 'Backup deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete backup: ' + error.message });
+  }
+});
+
+// ========== EXISTING API ENDPOINTS ==========
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', version: VERSION, timestamp: new Date().toISOString() });
 });
@@ -218,13 +327,11 @@ app.get('/api/products', (req, res) => {
   const { search } = req.query;
   let query = 'SELECT * FROM products WHERE 1=1';
   const params = [];
-
   if (search) {
     query += ' AND (name LIKE ? OR barcode LIKE ? OR brand LIKE ? OR supplier LIKE ? OR inhouse_number LIKE ?)';
     const searchTerm = `%${search}%`;
     params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
   }
-
   query += ' ORDER BY name';
   db.all(query, params, (err, rows) => {
     if (err) res.status(500).json({ error: err.message });
@@ -243,7 +350,6 @@ app.get('/api/products/:id', (req, res) => {
 app.post('/api/products', (req, res) => {
   const { name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes } = req.body;
   if (!name) return res.status(400).json({ error: 'Product name is required' });
-
   db.run(
     `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -298,7 +404,6 @@ app.get('/api/inventory/summary', (req, res) => {
     WHERE 1=1
   `;
   const params = [];
-
   if (search) {
     query += ' AND (p.name LIKE ? OR p.barcode LIKE ? OR p.brand LIKE ? OR p.supplier LIKE ? OR p.inhouse_number LIKE ?)';
     const searchTerm = `%${search}%`;
@@ -315,7 +420,6 @@ app.get('/api/inventory/summary', (req, res) => {
   });
 });
 
-// New endpoint for inventory value statistics
 app.get('/api/inventory/value', (req, res) => {
   const query = `
     SELECT 
@@ -325,7 +429,6 @@ app.get('/api/inventory/value', (req, res) => {
     FROM products p
     LEFT JOIN inventory_batches ib ON p.id = ib.product_id
   `;
-  
   db.get(query, [], (err, row) => {
     if (err) res.status(500).json({ error: err.message });
     else res.json(row);
@@ -356,14 +459,11 @@ app.post('/api/inventory/batches', (req, res) => {
   if (!product_id || !case_quantity) {
     return res.status(400).json({ error: 'Product ID and case quantity are required' });
   }
-
   db.get('SELECT items_per_case FROM products WHERE id = ?', [product_id], (err, product) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!product) return res.status(404).json({ error: 'Product not found' });
-
     const itemsPerCase = product.items_per_case || 1;
     const totalQuantity = case_quantity * itemsPerCase;
-
     db.run(
       `INSERT INTO inventory_batches (product_id, case_quantity, total_quantity, expiry_date, location, notes)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -422,19 +522,16 @@ app.get('/api/export/inventory', (req, res) => {
     LEFT JOIN inventory_batches ib ON p.id = ib.product_id
     ORDER BY p.name, ib.expiry_date
   `;
-  
   db.all(query, [], (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    
     const headers = [
       'Product Name', 'In-House Number', 'Barcode', 'Brand', 'Supplier',
       'Items Per Case', 'Cost Per Case', 'Category', 'Case Quantity', 'Total Quantity',
       'Expiration Date', 'Location', 'Received Date', 'Batch Notes', 'Product Notes'
     ];
-    
     let csv = headers.join(',') + '\n';
     rows.forEach(row => {
       const rowData = [
@@ -446,7 +543,6 @@ app.get('/api/export/inventory', (req, res) => {
       ];
       csv += rowData.join(',') + '\n';
     });
-    
     const filename = `inventory_export_${new Date().toISOString().split('T')[0]}.csv`;
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -467,16 +563,12 @@ app.post('/api/import/inventory', async (req, res) => {
   try {
     const csvText = req.body;
     const lines = csvText.split('\n').filter(line => line.trim());
-    
     if (lines.length < 2) {
       return res.status(400).json({ error: 'CSV file is empty or invalid' });
     }
-    
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
     const rows = lines.slice(1);
-    
     let productsCreated = 0, productsUpdated = 0, batchesCreated = 0, errors = 0;
-    
     const parseField = (field) => {
       if (!field) return null;
       field = field.trim();
@@ -485,16 +577,13 @@ app.post('/api/import/inventory', async (req, res) => {
       }
       return field || null;
     };
-    
     for (const row of rows) {
       try {
         const fields = row.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g) || [];
         const data = {};
         headers.forEach((header, index) => { data[header] = parseField(fields[index]); });
-        
         const productName = data['Product Name'];
         if (!productName) { errors++; continue; }
-        
         const existingProduct = await new Promise((resolve, reject) => {
           if (data['Barcode']) {
             db.get('SELECT * FROM products WHERE barcode = ?', [data['Barcode']], (err, row) => {
@@ -506,7 +595,6 @@ app.post('/api/import/inventory', async (req, res) => {
             });
           }
         });
-        
         let productId;
         if (existingProduct) {
           await new Promise((resolve, reject) => {
@@ -534,7 +622,6 @@ app.post('/api/import/inventory', async (req, res) => {
           });
           productsCreated++;
         }
-        
         if (data['Case Quantity'] && parseInt(data['Case Quantity']) > 0) {
           await new Promise((resolve, reject) => {
             db.run(
@@ -553,7 +640,6 @@ app.post('/api/import/inventory', async (req, res) => {
         errors++;
       }
     }
-    
     res.json({ message: 'Import completed', productsCreated, productsUpdated, batchesCreated, errors, totalRows: rows.length });
   } catch (error) {
     console.error('Import error:', error);
@@ -579,10 +665,10 @@ app.listen(PORT, () => {
   console.log(`Grocery Inventory Management v${VERSION}`);
   console.log(`Server running on port ${PORT}`);
   console.log(`Access at http://localhost:${PORT}`);
-  console.log('✨ Cache busting enabled - updates will always load fresh CSS/JS files');
+  console.log('✨ Cache busting enabled');
   console.log('💰 Product-level pricing enabled');
+  console.log('💾 Backup system enabled - Max ${MAX_BACKUPS} backups retained');
   console.log('Checking for updates from GitHub...');
-  
   checkGitHubVersion()
     .then(info => {
       if (info.updateAvailable) {
