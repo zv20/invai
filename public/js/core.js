@@ -62,16 +62,37 @@ async function checkConnection() {
 }
 
 /* ==========================================================================
-   Tab Management
+   Sidebar Navigation
    ========================================================================== */
 
+function toggleMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('active');
+}
+
 function switchTab(tabName) {
+    // Close sidebar on mobile after selection
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+    
+    // Update tab content visibility
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
     document.getElementById(tabName + 'Tab').classList.add('active');
-    document.getElementById('mainNav').value = tabName;
     
+    // Update active nav item
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.target.closest('.nav-item').classList.add('active');
+    
+    // Tab-specific actions
     if (tabName === 'inventory') loadProductsForInventory();
     if (tabName === 'settings') {
         document.getElementById('updateCheckInterval').value = getUpdateInterval();
@@ -89,12 +110,34 @@ document.getElementById('productSearch').addEventListener('input', () => {
     searchTimeout = setTimeout(loadProducts, 300);
 });
 
-// ESC key to close modals
+// ESC key to close modals and sidebar
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        
+        // Close sidebar if open
+        if (sidebar.classList.contains('open')) {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        }
+        
+        // Close modals
         if (document.getElementById('scannerModal').classList.contains('active')) closeScanner();
         if (document.getElementById('productModal').classList.contains('active')) closeProductModal();
         if (document.getElementById('batchModal').classList.contains('active')) closeBatchModal();
+    }
+});
+
+// Close sidebar when clicking outside on mobile
+document.addEventListener('click', (e) => {
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.querySelector('.menu-toggle');
+    
+    if (sidebar.classList.contains('open') && 
+        !sidebar.contains(e.target) && 
+        !menuToggle.contains(e.target)) {
+        toggleMenu();
     }
 });
 
