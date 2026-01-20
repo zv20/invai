@@ -7,16 +7,14 @@ const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VERSION = '2.1.0';
-const GITHUB_REPO = 'zv20/invai'; // GitHub repo to check for updates
+const VERSION = '2.1.1';
+const GITHUB_REPO = 'zv20/invai';
 
-// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.text({ limit: '10mb' }));
+app.use(express.text({ limit: '10mb', type: 'text/csv' }));
 app.use(express.static('public'));
 
-// Database setup
 const db = new sqlite3.Database('./inventory.db', (err) => {
   if (err) {
     console.error('Error opening database:', err);
@@ -26,9 +24,7 @@ const db = new sqlite3.Database('./inventory.db', (err) => {
   }
 });
 
-// Initialize database tables
 function initDatabase() {
-  // Products table - master product definitions
   db.run(`
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,7 +43,6 @@ function initDatabase() {
     if (err) console.error('Error creating products table:', err);
   });
 
-  // Inventory batches table - specific deliveries with expiry dates
   db.run(`
     CREATE TABLE IF NOT EXISTS inventory_batches (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,10 +61,9 @@ function initDatabase() {
   });
 }
 
-// Migrate legacy inventory data to new structure
 function migrateLegacyData() {
   db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='inventory'", (err, row) => {
-    if (!row) return; // No legacy table
+    if (!row) return;
     
     console.log('Migrating legacy inventory data...');
     
@@ -80,7 +74,6 @@ function migrateLegacyData() {
       }
       
       items.forEach(item => {
-        // Insert into products
         db.run(
           `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, category, notes, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -94,7 +87,6 @@ function migrateLegacyData() {
             
             const productId = this.lastID;
             
-            // Insert into inventory_batches
             db.run(
               `INSERT INTO inventory_batches (product_id, case_quantity, total_quantity, expiry_date, location, received_date)
                VALUES (?, ?, ?, ?, ?, ?)`,
@@ -109,7 +101,6 @@ function migrateLegacyData() {
       
       console.log(`Migrated ${items.length} legacy items`);
       
-      // Rename old table
       db.run('ALTER TABLE inventory RENAME TO inventory_old', (err) => {
         if (!err) console.log('Legacy table renamed to inventory_old (safe to delete later)');
       });
@@ -117,46 +108,31 @@ function migrateLegacyData() {
   });
 }
 
-// Check GitHub for latest version
 function checkGitHubVersion() {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: 'api.github.com',
       path: `/repos/${GITHUB_REPO}/commits/main`,
       method: 'GET',
-      headers: {
-        'User-Agent': 'Grocery-Inventory-App'
-      }
+      headers: { 'User-Agent': 'Grocery-Inventory-App' }
     };
 
     const req = https.request(options, (res) => {
       let data = '';
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
+      res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
         try {
           const commit = JSON.parse(data);
-          
-          // Try to get version from package.json in latest commit
           const pkgOptions = {
             hostname: 'raw.githubusercontent.com',
             path: `/${GITHUB_REPO}/main/package.json`,
             method: 'GET',
-            headers: {
-              'User-Agent': 'Grocery-Inventory-App'
-            }
+            headers: { 'User-Agent': 'Grocery-Inventory-App' }
           };
 
           const pkgReq = https.request(pkgOptions, (pkgRes) => {
             let pkgData = '';
-
-            pkgRes.on('data', (chunk) => {
-              pkgData += chunk;
-            });
-
+            pkgRes.on('data', (chunk) => { pkgData += chunk; });
             pkgRes.on('end', () => {
               try {
                 const pkg = JSON.parse(pkgData);
@@ -167,39 +143,29 @@ function checkGitHubVersion() {
                   commitSha: commit.sha ? commit.sha.substring(0, 7) : 'unknown',
                   commitDate: commit.commit ? commit.commit.author.date : null
                 });
-              } catch (err) {
-                reject(err);
-              }
+              } catch (err) { reject(err); }
             });
           });
-
           pkgReq.on('error', reject);
           pkgReq.end();
-
-        } catch (err) {
-          reject(err);
-        }
+        } catch (err) { reject(err); }
       });
     });
-
     req.on('error', reject);
     req.end();
   });
 }
 
-// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', version: VERSION, timestamp: new Date().toISOString() });
 });
 
-// Get version info and check for updates
 app.get('/api/version', async (req, res) => {
   try {
     const updateInfo = await checkGitHubVersion();
     res.json(updateInfo);
   } catch (error) {
     console.error('Error checking GitHub version:', error.message);
-    // Fallback to local version if GitHub check fails
     res.json({
       latestVersion: VERSION,
       currentVersion: VERSION,
@@ -209,7 +175,6 @@ app.get('/api/version', async (req, res) => {
   }
 });
 
-// Get all products
 app.get('/api/products', (req, res) => {
   const { search } = req.query;
   let query = 'SELECT * FROM products WHERE 1=1';
@@ -222,36 +187,23 @@ app.get('/api/products', (req, res) => {
   }
 
   query += ' ORDER BY name';
-
   db.all(query, params, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      res.json(rows);
-    }
+    if (err) res.status(500).json({ error: err.message });
+    else res.json(rows);
   });
 });
 
-// Get single product
 app.get('/api/products/:id', (req, res) => {
   db.get('SELECT * FROM products WHERE id = ?', [req.params.id], (err, row) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else if (!row) {
-      res.status(404).json({ error: 'Product not found' });
-    } else {
-      res.json(row);
-    }
+    if (err) res.status(500).json({ error: err.message });
+    else if (!row) res.status(404).json({ error: 'Product not found' });
+    else res.json(row);
   });
 });
 
-// Add new product
 app.post('/api/products', (req, res) => {
   const { name, inhouse_number, barcode, brand, supplier, items_per_case, category, notes } = req.body;
-
-  if (!name) {
-    return res.status(400).json({ error: 'Product name is required' });
-  }
+  if (!name) return res.status(400).json({ error: 'Product name is required' });
 
   db.run(
     `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, category, notes)
@@ -272,10 +224,8 @@ app.post('/api/products', (req, res) => {
   );
 });
 
-// Update product
 app.put('/api/products/:id', (req, res) => {
   const { name, inhouse_number, barcode, brand, supplier, items_per_case, category, notes } = req.body;
-
   db.run(
     `UPDATE products
      SET name = ?, inhouse_number = ?, barcode = ?, brand = ?, supplier = ?,
@@ -284,40 +234,26 @@ app.put('/api/products/:id', (req, res) => {
     [name, inhouse_number || null, barcode || null, brand || null, supplier || null,
      items_per_case || null, category || '', notes || '', req.params.id],
     function(err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-      } else if (this.changes === 0) {
-        res.status(404).json({ error: 'Product not found' });
-      } else {
-        res.json({ message: 'Product updated successfully' });
-      }
+      if (err) res.status(500).json({ error: err.message });
+      else if (this.changes === 0) res.status(404).json({ error: 'Product not found' });
+      else res.json({ message: 'Product updated successfully' });
     }
   );
 });
 
-// Delete product (cascades to batches)
 app.delete('/api/products/:id', (req, res) => {
   db.run('DELETE FROM products WHERE id = ?', [req.params.id], function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else if (this.changes === 0) {
-      res.status(404).json({ error: 'Product not found' });
-    } else {
-      res.json({ message: 'Product deleted successfully' });
-    }
+    if (err) res.status(500).json({ error: err.message });
+    else if (this.changes === 0) res.status(404).json({ error: 'Product not found' });
+    else res.json({ message: 'Product deleted successfully' });
   });
 });
 
-// Get inventory summary (products with total quantities)
 app.get('/api/inventory/summary', (req, res) => {
   const { search, category } = req.query;
-  
   let query = `
-    SELECT 
-      p.*,
-      COALESCE(SUM(ib.total_quantity), 0) as total_quantity,
-      COUNT(ib.id) as batch_count,
-      MIN(ib.expiry_date) as earliest_expiry
+    SELECT p.*, COALESCE(SUM(ib.total_quantity), 0) as total_quantity,
+           COUNT(ib.id) as batch_count, MIN(ib.expiry_date) as earliest_expiry
     FROM products p
     LEFT JOIN inventory_batches ib ON p.id = ib.product_id
     WHERE 1=1
@@ -329,67 +265,45 @@ app.get('/api/inventory/summary', (req, res) => {
     const searchTerm = `%${search}%`;
     params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
   }
-
   if (category && category !== 'all') {
     query += ' AND p.category = ?';
     params.push(category);
   }
-
   query += ' GROUP BY p.id ORDER BY p.name';
-
   db.all(query, params, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      res.json(rows);
-    }
+    if (err) res.status(500).json({ error: err.message });
+    else res.json(rows);
   });
 });
 
-// Get batches for a product
 app.get('/api/products/:id/batches', (req, res) => {
   db.all(
     'SELECT * FROM inventory_batches WHERE product_id = ? ORDER BY expiry_date, received_date',
     [req.params.id],
     (err, rows) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-      } else {
-        res.json(rows);
-      }
+      if (err) res.status(500).json({ error: err.message });
+      else res.json(rows);
     }
   );
 });
 
-// Get single inventory batch
 app.get('/api/inventory/batches/:id', (req, res) => {
   db.get('SELECT * FROM inventory_batches WHERE id = ?', [req.params.id], (err, row) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else if (!row) {
-      res.status(404).json({ error: 'Batch not found' });
-    } else {
-      res.json(row);
-    }
+    if (err) res.status(500).json({ error: err.message });
+    else if (!row) res.status(404).json({ error: 'Batch not found' });
+    else res.json(row);
   });
 });
 
-// Add inventory batch
 app.post('/api/inventory/batches', (req, res) => {
   const { product_id, case_quantity, expiry_date, location, notes } = req.body;
-
   if (!product_id || !case_quantity) {
     return res.status(400).json({ error: 'Product ID and case quantity are required' });
   }
 
-  // Get product to calculate total quantity
   db.get('SELECT items_per_case FROM products WHERE id = ?', [product_id], (err, product) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
+    if (err) return res.status(500).json({ error: err.message });
+    if (!product) return res.status(404).json({ error: 'Product not found' });
 
     const itemsPerCase = product.items_per_case || 1;
     const totalQuantity = case_quantity * itemsPerCase;
@@ -399,88 +313,55 @@ app.post('/api/inventory/batches', (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [product_id, case_quantity, totalQuantity, expiry_date || null, location || '', notes || ''],
       function(err) {
-        if (err) {
-          res.status(500).json({ error: err.message });
-        } else {
-          res.json({ id: this.lastID, total_quantity: totalQuantity, message: 'Batch added successfully' });
-        }
+        if (err) res.status(500).json({ error: err.message });
+        else res.json({ id: this.lastID, total_quantity: totalQuantity, message: 'Batch added successfully' });
       }
     );
   });
 });
 
-// Update inventory batch
 app.put('/api/inventory/batches/:id', (req, res) => {
   const { case_quantity, total_quantity, expiry_date, location, notes } = req.body;
-
   db.run(
     `UPDATE inventory_batches
      SET case_quantity = ?, total_quantity = ?, expiry_date = ?, location = ?, notes = ?
      WHERE id = ?`,
     [case_quantity, total_quantity, expiry_date || null, location || '', notes || '', req.params.id],
     function(err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-      } else if (this.changes === 0) {
-        res.status(404).json({ error: 'Batch not found' });
-      } else {
-        res.json({ message: 'Batch updated successfully' });
-      }
+      if (err) res.status(500).json({ error: err.message });
+      else if (this.changes === 0) res.status(404).json({ error: 'Batch not found' });
+      else res.json({ message: 'Batch updated successfully' });
     }
   );
 });
 
-// Delete inventory batch
 app.delete('/api/inventory/batches/:id', (req, res) => {
   db.run('DELETE FROM inventory_batches WHERE id = ?', [req.params.id], function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else if (this.changes === 0) {
-      res.status(404).json({ error: 'Batch not found' });
-    } else {
-      res.json({ message: 'Batch deleted successfully' });
-    }
+    if (err) res.status(500).json({ error: err.message });
+    else if (this.changes === 0) res.status(404).json({ error: 'Batch not found' });
+    else res.json({ message: 'Batch deleted successfully' });
   });
 });
 
-// Reset database - delete all data
 app.post('/api/database/reset', (req, res) => {
-  // Delete all batches first (due to foreign key constraints)
   db.run('DELETE FROM inventory_batches', (err) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to delete batches: ' + err.message });
-    }
-    
-    // Then delete all products
+    if (err) return res.status(500).json({ error: 'Failed to delete batches: ' + err.message });
     db.run('DELETE FROM products', (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to delete products: ' + err.message });
-      }
-      
-      // Reset autoincrement counters
+      if (err) return res.status(500).json({ error: 'Failed to delete products: ' + err.message });
       db.run('DELETE FROM sqlite_sequence WHERE name="products" OR name="inventory_batches"', (err) => {
-        if (err) {
-          console.error('Failed to reset autoincrement:', err);
-        }
-        
+        if (err) console.error('Failed to reset autoincrement:', err);
         console.log('Database reset completed');
-        res.json({ 
-          message: 'Database reset successful. All data has been deleted.',
-          timestamp: new Date().toISOString()
-        });
+        res.json({ message: 'Database reset successful. All data has been deleted.', timestamp: new Date().toISOString() });
       });
     });
   });
 });
 
-// Export inventory to CSV
 app.get('/api/export/inventory', (req, res) => {
   const query = `
-    SELECT 
-      p.name, p.inhouse_number, p.barcode, p.brand, p.supplier,
-      p.items_per_case, p.category,
-      ib.case_quantity, ib.total_quantity, ib.expiry_date, ib.location,
-      ib.received_date, ib.notes as batch_notes, p.notes as product_notes
+    SELECT p.name, p.inhouse_number, p.barcode, p.brand, p.supplier, p.items_per_case, p.category,
+           ib.case_quantity, ib.total_quantity, ib.expiry_date, ib.location, ib.received_date,
+           ib.notes as batch_notes, p.notes as product_notes
     FROM products p
     LEFT JOIN inventory_batches ib ON p.id = ib.product_id
     ORDER BY p.name, ib.expiry_date
@@ -499,23 +380,13 @@ app.get('/api/export/inventory', (req, res) => {
     ];
     
     let csv = headers.join(',') + '\n';
-    
     rows.forEach(row => {
       const rowData = [
-        escapeCSV(row.name),
-        escapeCSV(row.inhouse_number),
-        escapeCSV(row.barcode),
-        escapeCSV(row.brand),
-        escapeCSV(row.supplier),
-        escapeCSV(row.items_per_case),
-        escapeCSV(row.category),
-        escapeCSV(row.case_quantity),
-        escapeCSV(row.total_quantity),
-        escapeCSV(row.expiry_date),
-        escapeCSV(row.location),
-        escapeCSV(row.received_date),
-        escapeCSV(row.batch_notes),
-        escapeCSV(row.product_notes)
+        escapeCSV(row.name), escapeCSV(row.inhouse_number), escapeCSV(row.barcode),
+        escapeCSV(row.brand), escapeCSV(row.supplier), escapeCSV(row.items_per_case),
+        escapeCSV(row.category), escapeCSV(row.case_quantity), escapeCSV(row.total_quantity),
+        escapeCSV(row.expiry_date), escapeCSV(row.location), escapeCSV(row.received_date),
+        escapeCSV(row.batch_notes), escapeCSV(row.product_notes)
       ];
       csv += rowData.join(',') + '\n';
     });
@@ -536,36 +407,124 @@ function escapeCSV(field) {
   return stringField;
 }
 
-// Get categories
+app.post('/api/import/inventory', async (req, res) => {
+  try {
+    const csvText = req.body;
+    const lines = csvText.split('\n').filter(line => line.trim());
+    
+    if (lines.length < 2) {
+      return res.status(400).json({ error: 'CSV file is empty or invalid' });
+    }
+    
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const rows = lines.slice(1);
+    
+    let productsCreated = 0, productsUpdated = 0, batchesCreated = 0, errors = 0;
+    
+    const parseField = (field) => {
+      if (!field) return null;
+      field = field.trim();
+      if (field.startsWith('"') && field.endsWith('"')) {
+        field = field.slice(1, -1).replace(/""/g, '"');
+      }
+      return field || null;
+    };
+    
+    for (const row of rows) {
+      try {
+        const fields = row.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g) || [];
+        const data = {};
+        headers.forEach((header, index) => { data[header] = parseField(fields[index]); });
+        
+        const productName = data['Product Name'];
+        if (!productName) { errors++; continue; }
+        
+        const existingProduct = await new Promise((resolve, reject) => {
+          if (data['Barcode']) {
+            db.get('SELECT * FROM products WHERE barcode = ?', [data['Barcode']], (err, row) => {
+              if (err) reject(err); else resolve(row);
+            });
+          } else {
+            db.get('SELECT * FROM products WHERE name = ?', [productName], (err, row) => {
+              if (err) reject(err); else resolve(row);
+            });
+          }
+        });
+        
+        let productId;
+        if (existingProduct) {
+          await new Promise((resolve, reject) => {
+            db.run(
+              `UPDATE products SET inhouse_number = COALESCE(?, inhouse_number),
+               brand = COALESCE(?, brand), supplier = COALESCE(?, supplier),
+               items_per_case = COALESCE(?, items_per_case), category = COALESCE(?, category),
+               notes = COALESCE(?, notes), updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+              [data['In-House Number'], data['Brand'], data['Supplier'], 
+               data['Items Per Case'], data['Category'], data['Product Notes'], existingProduct.id],
+              (err) => { if (err) reject(err); else resolve(); }
+            );
+          });
+          productId = existingProduct.id;
+          productsUpdated++;
+        } else {
+          productId = await new Promise((resolve, reject) => {
+            db.run(
+              `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, category, notes)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              [productName, data['In-House Number'], data['Barcode'], data['Brand'], 
+               data['Supplier'], data['Items Per Case'] || 1, data['Category'] || '', data['Product Notes'] || ''],
+              function(err) { if (err) reject(err); else resolve(this.lastID); }
+            );
+          });
+          productsCreated++;
+        }
+        
+        if (data['Case Quantity'] && parseInt(data['Case Quantity']) > 0) {
+          await new Promise((resolve, reject) => {
+            db.run(
+              `INSERT INTO inventory_batches (product_id, case_quantity, total_quantity, expiry_date, location, notes, received_date)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [productId, data['Case Quantity'], data['Total Quantity'] || data['Case Quantity'], 
+               data['Expiration Date'], data['Location'] || '', data['Batch Notes'] || '', 
+               data['Received Date'] || new Date().toISOString()],
+              function(err) { if (err) reject(err); else resolve(); }
+            );
+          });
+          batchesCreated++;
+        }
+      } catch (rowError) {
+        console.error('Error processing row:', rowError);
+        errors++;
+      }
+    }
+    
+    res.json({ message: 'Import completed', productsCreated, productsUpdated, batchesCreated, errors, totalRows: rows.length });
+  } catch (error) {
+    console.error('Import error:', error);
+    res.status(500).json({ error: 'Failed to import CSV: ' + error.message });
+  }
+});
+
 app.get('/api/categories', (req, res) => {
   db.all('SELECT DISTINCT category FROM products WHERE category != "" ORDER BY category', (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      res.json(rows.map(row => row.category));
-    }
+    if (err) res.status(500).json({ error: err.message });
+    else res.json(rows.map(row => row.category));
   });
 });
 
-// Get suppliers
 app.get('/api/suppliers', (req, res) => {
   db.all('SELECT DISTINCT supplier FROM products WHERE supplier != "" AND supplier IS NOT NULL ORDER BY supplier', (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      res.json(rows.map(row => row.supplier));
-    }
+    if (err) res.status(500).json({ error: err.message });
+    else res.json(rows.map(row => row.supplier));
   });
 });
 
-// Start server
 app.listen(PORT, () => {
   console.log(`Grocery Inventory Management v${VERSION}`);
   console.log(`Server running on port ${PORT}`);
   console.log(`Access at http://localhost:${PORT}`);
   console.log('Checking for updates from GitHub...');
   
-  // Check for updates on startup
   checkGitHubVersion()
     .then(info => {
       if (info.updateAvailable) {
@@ -577,19 +536,13 @@ app.listen(PORT, () => {
         console.log(`✓ Running latest version (${VERSION})`);
       }
     })
-    .catch(err => {
-      console.log(`Could not check for updates: ${err.message}`);
-    });
+    .catch(err => { console.log(`Could not check for updates: ${err.message}`); });
 });
 
-// Graceful shutdown
 process.on('SIGINT', () => {
   db.close((err) => {
-    if (err) {
-      console.error('Error closing database:', err);
-    } else {
-      console.log('Database connection closed');
-    }
+    if (err) console.error('Error closing database:', err);
+    else console.log('Database connection closed');
     process.exit(0);
   });
 });
