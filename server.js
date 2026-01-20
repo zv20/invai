@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.text({ limit: '10mb' })); // For CSV upload
 app.use(express.static('public'));
 
 // Database setup
@@ -91,6 +92,35 @@ function escapeCSV(field) {
     return `"${stringField.replace(/"/g, '""')}"`;
   }
   return stringField;
+}
+
+// Helper function to parse CSV line
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+    
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        current += '"';
+        i++; // Skip next quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  result.push(current.trim());
+  return result;
 }
 
 // Health check endpoint
@@ -179,6 +209,124 @@ app.get('/api/inventory/export/csv', (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);
   });
+});
+
+// Import inventory from CSV
+app.post('/api/inventory/import/csv', (req, res) => {
+  const csvData = req.body;
+  
+  if (!csvData || typeof csvData !== 'string') {
+    return res.status(400).json({ error: 'Invalid CSV data' });
+  }
+  
+  try {
+    const lines = csvData.split('\n').filter(line => line.trim());
+    
+    if (lines.length < 2) {
+      return res.status(400).json({ error: 'CSV file is empty or invalid' });
+    }
+    
+    // Parse header
+    const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
+    
+    // Find column indices
+    const nameIdx = headers.findIndex(h => h === 'name');
+    const inhouseIdx = headers.findIndex(h => h.includes('house') || h.includes('sku'));
+    const barcodeIdx = headers.findIndex(h => h.includes('barcode') || h.includes('upc'));
+    const brandIdx = headers.findIndex(h => h.includes('brand') || h.includes('manufacturer'));
+    const quantityIdx = headers.findIndex(h => h === 'quantity' || h === 'qty');
+    const expiryIdx = headers.findIndex(h => h.includes('expir'));
+    const categoryIdx = headers.findIndex(h => h.includes('category'));
+    const locationIdx = headers.findIndex(h => h.includes('location'));
+    const notesIdx = headers.findIndex(h => h.includes('note'));
+    
+    if (nameIdx === -1 || quantityIdx === -1) {
+      return res.status(400).json({ error: 'CSV must contain at least Name and Quantity columns' });
+    }
+    
+    let imported = 0;
+    let skipped = 0;
+    let errors = [];
+    
+    // Process each data row
+    const dataLines = lines.slice(1);
+    let processed = 0;
+    
+    dataLines.forEach((line, index) => {
+      const values = parseCSVLine(line);
+      
+      if (values.length < 2) {
+        skipped++;
+        processed++;
+        return;
+      }
+      
+      const name = values[nameIdx]?.trim();
+      const quantity = parseInt(values[quantityIdx]);
+      
+      if (!name || isNaN(quantity)) {
+        errors.push(`Line ${index + 2}: Missing or invalid name/quantity`);
+        skipped++;
+        processed++;
+        return;
+      }
+      
+      const item = {
+        name,
+        inhouse_number: inhouseIdx >= 0 ? values[inhouseIdx]?.trim() || null : null,
+        barcode: barcodeIdx >= 0 ? values[barcodeIdx]?.trim() || null : null,
+        brand: brandIdx >= 0 ? values[brandIdx]?.trim() || null : null,
+        quantity,
+        expiry_date: expiryIdx >= 0 ? values[expiryIdx]?.trim() || null : null,
+        category: categoryIdx >= 0 ? values[categoryIdx]?.trim() || '' : '',
+        location: locationIdx >= 0 ? values[locationIdx]?.trim() || '' : '',
+        notes: notesIdx >= 0 ? values[notesIdx]?.trim() || '' : ''
+      };
+      
+      // Insert into database
+      db.run(
+        `INSERT INTO inventory (name, inhouse_number, barcode, brand, quantity, expiry_date, category, location, notes) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [item.name, item.inhouse_number, item.barcode, item.brand, item.quantity, 
+         item.expiry_date, item.category, item.location, item.notes],
+        function(err) {
+          processed++;
+          
+          if (err) {
+            errors.push(`Line ${index + 2}: ${err.message}`);
+            skipped++;
+          } else {
+            imported++;
+          }
+          
+          // Send response when all rows are processed
+          if (processed === dataLines.length) {
+            res.json({
+              message: 'Import completed',
+              imported,
+              skipped,
+              total: dataLines.length,
+              errors: errors.length > 0 ? errors.slice(0, 10) : [] // Limit error messages
+            });
+          }
+        }
+      );
+    });
+    
+    // Handle empty data case
+    if (dataLines.length === 0) {
+      res.json({
+        message: 'No data to import',
+        imported: 0,
+        skipped: 0,
+        total: 0,
+        errors: []
+      });
+    }
+    
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to parse CSV: ' + error.message });
+  }
 });
 
 // Get single inventory item
