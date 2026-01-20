@@ -24,14 +24,19 @@
             margin: 0 auto;
             background: white;
             border-radius: 15px;
-            padding: 30px;
+            overflow: hidden;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
 
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+        }
+
         h1 {
-            color: #667eea;
             margin-bottom: 10px;
-            font-size: 2.5em;
+            font-size: 2.2em;
         }
 
         .status {
@@ -39,24 +44,64 @@
             padding: 5px 15px;
             border-radius: 20px;
             font-size: 0.9em;
-            margin-bottom: 20px;
+            background: rgba(255,255,255,0.2);
         }
 
         .status.connected {
             background: #4ade80;
-            color: white;
         }
 
         .status.disconnected {
             background: #f87171;
-            color: white;
         }
 
-        .controls {
+        /* Tab Navigation */
+        .tabs {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+            background: #f3f4f6;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 18px 20px;
+            background: none;
+            border: none;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .tab:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .tab.active {
+            color: #667eea;
+            background: white;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         input, select, textarea, button {
@@ -90,25 +135,9 @@
             transform: translateY(0);
         }
 
-        .search-bar {
-            flex: 1;
-            min-width: 200px;
-        }
-
-        .category-filter {
-            min-width: 150px;
-        }
-
-        .form-section {
-            background: #f9fafb;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-
         .form-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 15px;
             margin-bottom: 15px;
         }
@@ -144,6 +173,7 @@
 
         .scan-btn:hover {
             background: #059669;
+            transform: translateY(-50%) translateY(-2px);
         }
 
         /* Scanner Modal */
@@ -154,8 +184,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
             justify-content: center;
             align-items: center;
         }
@@ -167,10 +197,10 @@
         .scanner-content {
             background: white;
             border-radius: 15px;
-            padding: 30px;
-            max-width: 600px;
+            padding: 25px;
+            max-width: 500px;
             width: 90%;
-            max-height: 90vh;
+            max-height: 85vh;
             overflow-y: auto;
         }
 
@@ -184,26 +214,30 @@
         .scanner-header h2 {
             color: #667eea;
             margin: 0;
+            font-size: 1.5em;
         }
 
         .close-scanner {
             background: #ef4444;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
+            padding: 10px 18px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 1.1em;
+            font-size: 1em;
+            font-weight: 600;
         }
 
         .close-scanner:hover {
             background: #dc2626;
+            transform: translateY(0) !important;
         }
 
         #reader {
-            border: 2px solid #667eea;
+            border: 3px solid #667eea;
             border-radius: 10px;
             overflow: hidden;
+            width: 100%;
         }
 
         .scanner-info {
@@ -213,6 +247,11 @@
             border-radius: 8px;
             font-size: 0.9em;
             color: #4b5563;
+        }
+
+        .scanner-info ul {
+            margin: 10px 0 0 20px;
+            line-height: 1.8;
         }
 
         .scanner-result {
@@ -230,11 +269,26 @@
             display: block;
         }
 
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-bar {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .category-filter {
+            min-width: 150px;
+        }
+
         .inventory-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 20px;
-            margin-top: 20px;
         }
 
         .item-card {
@@ -329,6 +383,7 @@
             text-align: center;
             padding: 60px 20px;
             color: #9ca3af;
+            grid-column: 1 / -1;
         }
 
         .empty-state svg {
@@ -339,20 +394,21 @@
         }
 
         @media (max-width: 768px) {
-            .container {
+            .header {
                 padding: 20px;
             }
 
             h1 {
-                font-size: 1.8em;
+                font-size: 1.6em;
             }
 
-            .controls {
-                flex-direction: column;
+            .tab {
+                font-size: 1em;
+                padding: 15px 10px;
             }
 
-            .search-bar, .category-filter {
-                width: 100%;
+            .tab-content {
+                padding: 20px;
             }
 
             .scanner-content {
@@ -364,11 +420,19 @@
 </head>
 <body>
     <div class="container">
-        <h1>📦 Inventory Management</h1>
-        <div id="status" class="status disconnected">Connecting...</div>
+        <div class="header">
+            <h1>📦 Inventory Management</h1>
+            <div id="status" class="status disconnected">Connecting...</div>
+        </div>
 
-        <div class="form-section">
-            <h2 style="margin-bottom: 15px; color: #4b5563;">Add New Item</h2>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('add')">➕ Add Item</button>
+            <button class="tab" onclick="switchTab('inventory')">📦 Inventory</button>
+        </div>
+
+        <!-- Add Item Tab -->
+        <div id="addTab" class="tab-content active">
+            <h2 style="margin-bottom: 20px; color: #374151;">Add New Item</h2>
             <form id="itemForm">
                 <div class="form-row">
                     <div>
@@ -400,28 +464,33 @@
                 <div class="form-row">
                     <div style="grid-column: 1 / -1;">
                         <label>Notes</label>
-                        <textarea id="itemNotes" placeholder="Additional notes..." rows="2"></textarea>
+                        <textarea id="itemNotes" placeholder="Additional notes..." rows="3"></textarea>
                     </div>
                 </div>
-                <button type="submit" id="submitBtn">Add Item</button>
-                <button type="button" id="cancelBtn" style="background: #6b7280; display: none;">Cancel</button>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" id="submitBtn">Add Item</button>
+                    <button type="button" id="cancelBtn" style="background: #6b7280; display: none;" onclick="cancelEdit()">Cancel</button>
+                </div>
             </form>
         </div>
 
-        <div class="controls">
-            <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Search items or scan barcode...">
-            <select id="categoryFilter" class="category-filter">
-                <option value="all">All Categories</option>
-            </select>
-        </div>
+        <!-- Inventory Tab -->
+        <div id="inventoryTab" class="tab-content">
+            <div class="controls">
+                <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Search items or scan barcode...">
+                <select id="categoryFilter" class="category-filter">
+                    <option value="all">All Categories</option>
+                </select>
+            </div>
 
-        <div id="inventoryList" class="inventory-grid">
-            <div class="empty-state">
-                <svg fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                </svg>
-                <h3>No items yet</h3>
-                <p>Add your first inventory item above</p>
+            <div id="inventoryList" class="inventory-grid">
+                <div class="empty-state">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                    </svg>
+                    <h3>No items yet</h3>
+                    <p>Add your first inventory item in the Add Item tab</p>
+                </div>
             </div>
         </div>
     </div>
@@ -431,16 +500,15 @@
         <div class="scanner-content">
             <div class="scanner-header">
                 <h2>📷 Barcode Scanner</h2>
-                <button class="close-scanner" onclick="closeScanner()">✕ Close</button>
+                <button class="close-scanner" onclick="closeScanner()" type="button">✕ Close</button>
             </div>
             <div id="reader"></div>
             <div class="scanner-info">
                 <strong>💡 Tips:</strong>
-                <ul style="margin: 10px 0 0 20px; line-height: 1.6;">
+                <ul>
                     <li>Allow camera access when prompted</li>
                     <li>Hold barcode steady in camera view</li>
-                    <li>Works with UPC, EAN, QR codes, and more</li>
-                    <li>USB barcode scanners also supported</li>
+                    <li>Works with UPC, EAN, QR codes</li>
                 </ul>
             </div>
             <div id="scannerResult" class="scanner-result">
@@ -453,38 +521,71 @@
         const API_URL = window.location.origin;
         let editingItemId = null;
         let html5QrcodeScanner = null;
+        let isScanning = false;
+
+        // Tab Switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            if (tabName === 'add') {
+                document.getElementById('addTab').classList.add('active');
+            } else {
+                document.getElementById('inventoryTab').classList.add('active');
+            }
+        }
 
         // Barcode Scanner Functions
         function openScanner() {
             document.getElementById('scannerModal').classList.add('active');
-            startScanner();
+            document.getElementById('scannerResult').classList.remove('show');
+            if (!isScanning) {
+                startScanner();
+            }
         }
 
         function closeScanner() {
-            if (html5QrcodeScanner) {
+            const modal = document.getElementById('scannerModal');
+            modal.classList.remove('active');
+            
+            if (html5QrcodeScanner && isScanning) {
                 html5QrcodeScanner.stop().then(() => {
-                    html5QrcodeScanner.clear();
-                    html5QrcodeScanner = null;
-                }).catch(err => console.error('Error stopping scanner:', err));
+                    isScanning = false;
+                    const readerDiv = document.getElementById('reader');
+                    readerDiv.innerHTML = '';
+                }).catch(err => {
+                    console.error('Error stopping scanner:', err);
+                    isScanning = false;
+                    const readerDiv = document.getElementById('reader');
+                    readerDiv.innerHTML = '';
+                });
             }
-            document.getElementById('scannerModal').classList.remove('active');
-            document.getElementById('scannerResult').classList.remove('show');
         }
 
         function startScanner() {
+            isScanning = true;
+            
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            
             const config = {
                 fps: 10,
-                qrbox: { width: 250, height: 250 },
-                rememberLastUsedCamera: true,
-                supportedScanTypes: [
-                    Html5QrcodeScanType.SCAN_TYPE_CAMERA,
-                    Html5QrcodeScanType.SCAN_TYPE_FILE
-                ]
+                qrbox: { width: 250, height: 250 }
             };
 
-            html5QrcodeScanner = new Html5QrcodeScanner("reader", config);
-            
-            html5QrcodeScanner.render(onScanSuccess, onScanError);
+            html5QrcodeScanner.start(
+                { facingMode: "environment" },
+                config,
+                onScanSuccess,
+                onScanError
+            ).catch(err => {
+                console.error('Unable to start scanning', err);
+                alert('Unable to access camera. Please check permissions.');
+                closeScanner();
+            });
         }
 
         function onScanSuccess(decodedText, decodedResult) {
@@ -498,10 +599,10 @@
             // Check if item with this barcode exists
             checkExistingBarcode(decodedText);
             
-            // Auto-close after 2 seconds
+            // Auto-close after 1.5 seconds
             setTimeout(() => {
                 closeScanner();
-            }, 2000);
+            }, 1500);
         }
 
         function onScanError(errorMessage) {
@@ -518,6 +619,9 @@
                 if (existingItem) {
                     if (confirm(`Item "${existingItem.name}" already has this barcode. Load it for editing?`)) {
                         editItem(existingItem.id);
+                        switchTab('add');
+                        document.querySelectorAll('.tab')[0].classList.add('active');
+                        document.querySelectorAll('.tab')[1].classList.remove('active');
                     }
                 }
             } catch (error) {
@@ -588,7 +692,7 @@
             
             if (items.length === 0) {
                 container.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1 / -1;">
+                    <div class="empty-state">
                         <svg fill="currentColor" viewBox="0 0 20 20">
                             <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
                         </svg>
@@ -658,6 +762,14 @@
                     document.getElementById('submitBtn').textContent = 'Add Item';
                     document.getElementById('cancelBtn').style.display = 'none';
                     await loadInventory();
+                    
+                    // Switch to inventory tab to see the new item
+                    switchTab('inventory');
+                    document.querySelectorAll('.tab')[1].classList.add('active');
+                    document.querySelectorAll('.tab')[0].classList.remove('active');
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Failed to save item');
                 }
             } catch (error) {
                 console.error('Error saving item:', error);
@@ -681,6 +793,12 @@
                 editingItemId = id;
                 document.getElementById('submitBtn').textContent = 'Update Item';
                 document.getElementById('cancelBtn').style.display = 'inline-block';
+                
+                // Switch to add tab
+                switchTab('add');
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.querySelectorAll('.tab')[1].classList.remove('active');
+                
                 document.getElementById('itemName').focus();
             } catch (error) {
                 console.error('Error loading item:', error);
@@ -688,12 +806,12 @@
         }
 
         // Cancel editing
-        document.getElementById('cancelBtn').addEventListener('click', () => {
+        function cancelEdit() {
             document.getElementById('itemForm').reset();
             editingItemId = null;
             document.getElementById('submitBtn').textContent = 'Add Item';
             document.getElementById('cancelBtn').style.display = 'none';
-        });
+        }
 
         // Delete item
         async function deleteItem(id) {
@@ -730,10 +848,17 @@
             }
         });
 
+        // Close scanner when clicking outside
+        document.getElementById('scannerModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('scannerModal')) {
+                closeScanner();
+            }
+        });
+
         // Initialize
         checkConnection();
         loadInventory();
-        setInterval(checkConnection, 30000); // Check connection every 30 seconds
+        setInterval(checkConnection, 30000);
     </script>
 </body>
 </html>
