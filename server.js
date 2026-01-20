@@ -31,7 +31,10 @@ function initDatabase() {
       inhouse_number TEXT,
       barcode TEXT,
       brand TEXT,
+      supplier TEXT,
       quantity INTEGER NOT NULL,
+      case_quantity INTEGER,
+      items_per_case INTEGER,
       expiry_date TEXT,
       category TEXT,
       location TEXT,
@@ -65,6 +68,9 @@ function migrateDatabase() {
       { column: 'barcode', type: 'TEXT' },
       { column: 'inhouse_number', type: 'TEXT' },
       { column: 'brand', type: 'TEXT' },
+      { column: 'supplier', type: 'TEXT' },
+      { column: 'case_quantity', type: 'INTEGER' },
+      { column: 'items_per_case', type: 'INTEGER' },
       { column: 'expiry_date', type: 'TEXT' }
     ];
     
@@ -135,9 +141,9 @@ app.get('/api/inventory', (req, res) => {
   const params = [];
 
   if (search) {
-    query += ' AND (name LIKE ? OR notes LIKE ? OR barcode LIKE ? OR brand LIKE ? OR inhouse_number LIKE ?)';
+    query += ' AND (name LIKE ? OR notes LIKE ? OR barcode LIKE ? OR brand LIKE ? OR supplier LIKE ? OR inhouse_number LIKE ?)';
     const searchTerm = `%${search}%`;
-    params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+    params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
   }
 
   if (category && category !== 'all') {
@@ -173,7 +179,10 @@ app.get('/api/inventory/export/csv', (req, res) => {
       'In-House Number',
       'Barcode',
       'Brand',
+      'Supplier',
       'Quantity',
+      'Case Quantity',
+      'Items Per Case',
       'Expiration Date',
       'Category',
       'Location',
@@ -192,7 +201,10 @@ app.get('/api/inventory/export/csv', (req, res) => {
         escapeCSV(row.inhouse_number),
         escapeCSV(row.barcode),
         escapeCSV(row.brand),
+        escapeCSV(row.supplier),
         escapeCSV(row.quantity),
+        escapeCSV(row.case_quantity),
+        escapeCSV(row.items_per_case),
         escapeCSV(row.expiry_date),
         escapeCSV(row.category),
         escapeCSV(row.location),
@@ -234,7 +246,10 @@ app.post('/api/inventory/import/csv', (req, res) => {
     const inhouseIdx = headers.findIndex(h => h.includes('house') || h.includes('sku'));
     const barcodeIdx = headers.findIndex(h => h.includes('barcode') || h.includes('upc'));
     const brandIdx = headers.findIndex(h => h.includes('brand') || h.includes('manufacturer'));
+    const supplierIdx = headers.findIndex(h => h.includes('supplier') || h.includes('vendor'));
     const quantityIdx = headers.findIndex(h => h === 'quantity' || h === 'qty');
+    const caseQtyIdx = headers.findIndex(h => h.includes('case') && h.includes('quantity'));
+    const itemsPerCaseIdx = headers.findIndex(h => h.includes('items') && h.includes('case'));
     const expiryIdx = headers.findIndex(h => h.includes('expir'));
     const categoryIdx = headers.findIndex(h => h.includes('category'));
     const locationIdx = headers.findIndex(h => h.includes('location'));
@@ -276,7 +291,10 @@ app.post('/api/inventory/import/csv', (req, res) => {
         inhouse_number: inhouseIdx >= 0 ? values[inhouseIdx]?.trim() || null : null,
         barcode: barcodeIdx >= 0 ? values[barcodeIdx]?.trim() || null : null,
         brand: brandIdx >= 0 ? values[brandIdx]?.trim() || null : null,
+        supplier: supplierIdx >= 0 ? values[supplierIdx]?.trim() || null : null,
         quantity,
+        case_quantity: caseQtyIdx >= 0 ? parseInt(values[caseQtyIdx]) || null : null,
+        items_per_case: itemsPerCaseIdx >= 0 ? parseInt(values[itemsPerCaseIdx]) || null : null,
         expiry_date: expiryIdx >= 0 ? values[expiryIdx]?.trim() || null : null,
         category: categoryIdx >= 0 ? values[categoryIdx]?.trim() || '' : '',
         location: locationIdx >= 0 ? values[locationIdx]?.trim() || '' : '',
@@ -285,10 +303,10 @@ app.post('/api/inventory/import/csv', (req, res) => {
       
       // Insert into database
       db.run(
-        `INSERT INTO inventory (name, inhouse_number, barcode, brand, quantity, expiry_date, category, location, notes) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [item.name, item.inhouse_number, item.barcode, item.brand, item.quantity, 
-         item.expiry_date, item.category, item.location, item.notes],
+        `INSERT INTO inventory (name, inhouse_number, barcode, brand, supplier, quantity, case_quantity, items_per_case, expiry_date, category, location, notes) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [item.name, item.inhouse_number, item.barcode, item.brand, item.supplier, item.quantity,
+         item.case_quantity, item.items_per_case, item.expiry_date, item.category, item.location, item.notes],
         function(err) {
           processed++;
           
@@ -344,7 +362,7 @@ app.get('/api/inventory/:id', (req, res) => {
 
 // Add new inventory item
 app.post('/api/inventory', (req, res) => {
-  const { name, inhouse_number, barcode, brand, quantity, expiry_date, category, location, notes } = req.body;
+  const { name, inhouse_number, barcode, brand, supplier, quantity, case_quantity, items_per_case, expiry_date, category, location, notes } = req.body;
 
   if (!name || quantity === undefined) {
     return res.status(400).json({ error: 'Name and quantity are required' });
@@ -369,9 +387,10 @@ app.post('/api/inventory', (req, res) => {
 
   function insertItem() {
     db.run(
-      `INSERT INTO inventory (name, inhouse_number, barcode, brand, quantity, expiry_date, category, location, notes) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, inhouse_number || null, barcode || null, brand || null, quantity, expiry_date || null, category || '', location || '', notes || ''],
+      `INSERT INTO inventory (name, inhouse_number, barcode, brand, supplier, quantity, case_quantity, items_per_case, expiry_date, category, location, notes) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, inhouse_number || null, barcode || null, brand || null, supplier || null, quantity, 
+       case_quantity || null, items_per_case || null, expiry_date || null, category || '', location || '', notes || ''],
       function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
@@ -385,7 +404,7 @@ app.post('/api/inventory', (req, res) => {
 
 // Update inventory item
 app.put('/api/inventory/:id', (req, res) => {
-  const { name, inhouse_number, barcode, brand, quantity, expiry_date, category, location, notes } = req.body;
+  const { name, inhouse_number, barcode, brand, supplier, quantity, case_quantity, items_per_case, expiry_date, category, location, notes } = req.body;
 
   // Check if barcode is being changed to one that already exists
   if (barcode) {
@@ -407,10 +426,12 @@ app.put('/api/inventory/:id', (req, res) => {
   function updateItem() {
     db.run(
       `UPDATE inventory 
-       SET name = ?, inhouse_number = ?, barcode = ?, brand = ?, quantity = ?, expiry_date = ?, 
+       SET name = ?, inhouse_number = ?, barcode = ?, brand = ?, supplier = ?, quantity = ?, 
+           case_quantity = ?, items_per_case = ?, expiry_date = ?, 
            category = ?, location = ?, notes = ?, updated_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
-      [name, inhouse_number || null, barcode || null, brand || null, quantity, expiry_date || null, 
+      [name, inhouse_number || null, barcode || null, brand || null, supplier || null, quantity, 
+       case_quantity || null, items_per_case || null, expiry_date || null,
        category || '', location || '', notes || '', req.params.id],
       function(err) {
         if (err) {
@@ -445,6 +466,17 @@ app.get('/api/categories', (req, res) => {
       res.status(500).json({ error: err.message });
     } else {
       res.json(rows.map(row => row.category));
+    }
+  });
+});
+
+// Get suppliers
+app.get('/api/suppliers', (req, res) => {
+  db.all('SELECT DISTINCT supplier FROM inventory WHERE supplier != "" AND supplier IS NOT NULL ORDER BY supplier', (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+    } else {
+      res.json(rows.map(row => row.supplier));
     }
   });
 });
