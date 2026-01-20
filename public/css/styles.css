@@ -307,6 +307,31 @@ button:hover {
     background: #059669;
 }
 
+/* Inline Scanner Button */
+.btn-scan-inline {
+    background: #10b981;
+    padding: 12px 16px;
+    min-width: 48px;
+    font-size: 1.2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 2px solid #10b981;
+    transition: all 0.3s;
+}
+
+.btn-scan-inline:hover {
+    background: #059669;
+    border-color: #059669;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-scan-inline:active {
+    transform: scale(0.98);
+}
+
 .form-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
