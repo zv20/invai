@@ -203,6 +203,60 @@
             background: #d97706;
         }
 
+        .import-btn {
+            background: #3b82f6;
+        }
+
+        .import-btn:hover {
+            background: #2563eb;
+        }
+
+        /* Hidden file input */
+        #csvFileInput {
+            display: none;
+        }
+
+        /* Import results */
+        .import-results {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .import-results.success {
+            display: block;
+            background: #dcfce7;
+            border: 2px solid #10b981;
+            color: #065f46;
+        }
+
+        .import-results.error {
+            display: block;
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            color: #991b1b;
+        }
+
+        .import-results.warning {
+            display: block;
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            color: #92400e;
+        }
+
+        .import-stats {
+            margin-top: 10px;
+            font-weight: 600;
+        }
+
+        .import-errors {
+            margin-top: 10px;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -570,11 +624,18 @@
 
         <!-- Inventory Tab -->
         <div id="inventoryTab" class="tab-content">
+            <!-- Import Results -->
+            <div id="importResults" class="import-results"></div>
+            
             <div class="controls">
                 <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Search by name, barcode, brand, in-house #...">
                 <button type="button" class="action-btn quick-scan-btn" onclick="openScanner('search')">
                     <span>📷</span>
                     <span>Scan</span>
+                </button>
+                <button type="button" class="action-btn import-btn" onclick="triggerImport()">
+                    <span>📂</span>
+                    <span>Import CSV</span>
                 </button>
                 <button type="button" class="action-btn export-btn" onclick="exportToCSV()">
                     <span>💾</span>
@@ -584,6 +645,9 @@
                     <option value="all">All Categories</option>
                 </select>
             </div>
+
+            <!-- Hidden file input -->
+            <input type="file" id="csvFileInput" accept=".csv" onchange="handleFileSelect(event)">
 
             <div id="inventoryList" class="inventory-grid">
                 <div class="empty-state">
@@ -692,6 +756,86 @@
         // Export to CSV
         function exportToCSV() {
             window.location.href = `${API_URL}/api/inventory/export/csv`;
+        }
+
+        // Trigger CSV file selection
+        function triggerImport() {
+            document.getElementById('csvFileInput').click();
+        }
+
+        // Handle CSV file selection
+        async function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validate file type
+            if (!file.name.endsWith('.csv')) {
+                showImportResults('error', 'Please select a CSV file');
+                return;
+            }
+
+            // Read file
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const csvData = e.target.result;
+                await importCSV(csvData);
+            };
+            reader.onerror = () => {
+                showImportResults('error', 'Failed to read file');
+            };
+            reader.readAsText(file);
+
+            // Reset file input
+            event.target.value = '';
+        }
+
+        // Import CSV data
+        async function importCSV(csvData) {
+            try {
+                const response = await fetch(`${API_URL}/api/inventory/import/csv`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: csvData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    let message = `<div class="import-stats">✔ Import completed!<br>Imported: ${result.imported} | Skipped: ${result.skipped} | Total: ${result.total}</div>`;
+                    
+                    if (result.errors && result.errors.length > 0) {
+                        message += '<div class="import-errors"><strong>Errors:</strong><ul>';
+                        result.errors.forEach(err => {
+                            message += `<li>${escapeHtml(err)}</li>`;
+                        });
+                        message += '</ul></div>';
+                        showImportResults(result.imported > 0 ? 'warning' : 'error', message);
+                    } else {
+                        showImportResults('success', message);
+                    }
+
+                    // Reload inventory
+                    await loadInventory();
+                } else {
+                    showImportResults('error', result.error || 'Import failed');
+                }
+            } catch (error) {
+                console.error('Error importing CSV:', error);
+                showImportResults('error', 'Failed to import CSV: ' + error.message);
+            }
+        }
+
+        // Show import results
+        function showImportResults(type, message) {
+            const resultsDiv = document.getElementById('importResults');
+            resultsDiv.className = `import-results ${type}`;
+            resultsDiv.innerHTML = message;
+
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                resultsDiv.className = 'import-results';
+                resultsDiv.innerHTML = '';
+            }, 10000);
         }
 
         // Tab Switching
@@ -927,7 +1071,7 @@
                             ${item.brand ? `<span class="item-badge item-brand">🏭 ${escapeHtml(item.brand)}</span>` : ''}
                             ${item.category ? `<span class="item-badge item-category">📚 ${escapeHtml(item.category)}</span>` : ''}
                             ${item.inhouse_number ? `<span class="item-badge item-inhouse">#${escapeHtml(item.inhouse_number)}</span>` : ''}
-                            ${item.barcode ? `<span class="item-badge item-barcode">🔖 ${escapeHtml(item.barcode)}</span>` : ''}
+                            ${item.barcode ? `<span class="item-badge item-barcode">🏷️ ${escapeHtml(item.barcode)}</span>` : ''}
                             ${expiryStatus ? `<span class="${expiryBadgeClass}">⏰ ${expiryStatus.text}</span>` : ''}
                         </div>
                         <div class="item-details">
