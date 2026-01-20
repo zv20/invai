@@ -7,13 +7,43 @@ const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VERSION = '2.1.2';
+const VERSION = '2.1.4';
 const GITHUB_REPO = 'zv20/invai';
 
 app.use(cors());
 app.use(express.json());
 app.use(express.text({ limit: '10mb', type: 'text/csv' }));
-app.use(express.static('public'));
+
+// Serve static files with cache busting
+app.use('/css', express.static(path.join(__dirname, 'public/css'), {
+  maxAge: 0, // Disable caching
+  etag: false
+}));
+
+app.use('/js', express.static(path.join(__dirname, 'public/js'), {
+  maxAge: 0, // Disable caching
+  etag: false
+}));
+
+app.use(express.static('public', {
+  maxAge: 0,
+  etag: false
+}));
+
+// Serve index.html with version-based cache busting
+app.get('/', (req, res) => {
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  let html = fs.readFileSync(indexPath, 'utf8');
+  
+  // Inject version into CSS and JS file paths
+  html = html.replace(/href="css\/styles\.css"/g, `href="css/styles.css?v=${VERSION}"`);
+  html = html.replace(/src="js\/(\w+)\.js"/g, `src="js/$1.js?v=${VERSION}"`);
+  
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.send(html);
+});
 
 const db = new sqlite3.Database('./inventory.db', (err) => {
   if (err) {
@@ -523,6 +553,7 @@ app.listen(PORT, () => {
   console.log(`Grocery Inventory Management v${VERSION}`);
   console.log(`Server running on port ${PORT}`);
   console.log(`Access at http://localhost:${PORT}`);
+  console.log('✨ Cache busting enabled - updates will always load fresh CSS/JS files');
   console.log('Checking for updates from GitHub...');
   
   checkGitHubVersion()
