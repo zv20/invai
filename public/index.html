@@ -177,18 +177,30 @@
             transform: translateY(-50%) translateY(-2px);
         }
 
-        /* Quick Scan Button in Inventory */
-        .quick-scan-btn {
-            background: #10b981;
+        /* Action Buttons */
+        .action-btn {
             padding: 12px 24px;
             font-size: 1.1em;
             display: flex;
             align-items: center;
             gap: 8px;
+            white-space: nowrap;
+        }
+
+        .quick-scan-btn {
+            background: #10b981;
         }
 
         .quick-scan-btn:hover {
             background: #059669;
+        }
+
+        .export-btn {
+            background: #f59e0b;
+        }
+
+        .export-btn:hover {
+            background: #d97706;
         }
 
         /* Modal Styles */
@@ -479,6 +491,11 @@
             .inventory-grid {
                 grid-template-columns: 1fr;
             }
+
+            .action-btn {
+                font-size: 0.9em;
+                padding: 10px 16px;
+            }
         }
     </style>
 </head>
@@ -555,9 +572,13 @@
         <div id="inventoryTab" class="tab-content">
             <div class="controls">
                 <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Search by name, barcode, brand, in-house #...">
-                <button type="button" class="quick-scan-btn" onclick="openScanner('search')">
+                <button type="button" class="action-btn quick-scan-btn" onclick="openScanner('search')">
                     <span>📷</span>
-                    <span>Scan to Search</span>
+                    <span>Scan</span>
+                </button>
+                <button type="button" class="action-btn export-btn" onclick="exportToCSV()">
+                    <span>💾</span>
+                    <span>Export CSV</span>
                 </button>
                 <select id="categoryFilter" class="category-filter">
                     <option value="all">All Categories</option>
@@ -667,6 +688,11 @@
         let html5QrcodeScanner = null;
         let isScanning = false;
         let scannerMode = 'barcode'; // 'barcode', 'search', or 'edit'
+
+        // Export to CSV
+        function exportToCSV() {
+            window.location.href = `${API_URL}/api/inventory/export/csv`;
+        }
 
         // Tab Switching
         function switchTab(tabName) {
@@ -835,7 +861,7 @@
                 
                 let url = `${API_URL}/api/inventory?`;
                 if (search) url += `search=${encodeURIComponent(search)}&`;
-                if (category && category !== 'all') url += `category=${encodeURIComponent(category)}`;
+                if (category && category !== 'all') url += `category=${encodeURIComponent(category)}`;                
 
                 const response = await fetch(url);
                 const items = await response.json();
