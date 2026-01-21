@@ -103,3 +103,40 @@
   background: white;
   color: #667eea;
 }
+
+/* Quick Action Buttons */
+.quick-actions {
+  display: flex;
+  gap: 5px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+
+.btn-quick {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.btn-quick:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-quick.btn-danger {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.btn-quick.btn-danger:hover {
+  background: #dc3545;
+  color: white;
+}
