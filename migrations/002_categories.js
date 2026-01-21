@@ -59,8 +59,15 @@ module.exports = {
         console.log('✓ Added category_id column to products');
 
         // Migrate existing 'item' data to categories
-        // Get all unique item values from products
-        const existingItems = await db.all(`SELECT DISTINCT item FROM products WHERE item IS NOT NULL AND item != ''`);
+        // Get all unique item values from products - wrap in Promise to ensure proper async
+        const existingItemsRaw = await new Promise((resolve, reject) => {
+            db.all(`SELECT DISTINCT item FROM products WHERE item IS NOT NULL AND item != ''`, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+        
+        const existingItems = existingItemsRaw || [];
         
         console.log(`Found ${existingItems.length} unique item types to migrate`);
 
@@ -92,11 +99,18 @@ module.exports = {
 
         // Update products with matching categories
         for (const row of existingItems) {
+            if (!row || !row.item) continue; // Safety check
+            
             const itemName = row.item.toLowerCase().trim();
             const categoryName = categoryMapping[itemName] || 'Other';
             
             // Get category ID
-            const category = await db.get(`SELECT id FROM categories WHERE name = ?`, [categoryName]);
+            const category = await new Promise((resolve, reject) => {
+                db.get(`SELECT id FROM categories WHERE name = ?`, [categoryName], (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                });
+            });
             
             if (category) {
                 await db.run(
@@ -108,8 +122,16 @@ module.exports = {
         }
 
         // Set remaining NULL category_ids to 'Other'
-        const otherCategory = await db.get(`SELECT id FROM categories WHERE name = 'Other'`);
-        await db.run(`UPDATE products SET category_id = ? WHERE category_id IS NULL`, [otherCategory.id]);
+        const otherCategory = await new Promise((resolve, reject) => {
+            db.get(`SELECT id FROM categories WHERE name = 'Other'`, [], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+        
+        if (otherCategory) {
+            await db.run(`UPDATE products SET category_id = ? WHERE category_id IS NULL`, [otherCategory.id]);
+        }
 
         console.log('✓ Product categories migrated');
         console.log('Migration 002 completed successfully!');
