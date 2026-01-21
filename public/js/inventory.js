@@ -64,26 +64,50 @@ async function renderProductList() {
         };
     });
     
+    // Fetch locations for all products
+    const locationPromises = products.map(async product => {
+        try {
+            const res = await fetch(`${API_URL}/api/products/${product.id}/batches`);
+            if (!res.ok) return { productId: product.id, locations: [] };
+            const batches = await res.json();
+            const locations = [...new Set(batches.map(b => b.location).filter(l => l))];
+            return { productId: product.id, locations };
+        } catch (error) {
+            return { productId: product.id, locations: [] };
+        }
+    });
+    const locationResults = await Promise.all(locationPromises);
+    const locationMap = {};
+    locationResults.forEach(result => {
+        locationMap[result.productId] = result.locations;
+    });
+    
     const html = products.map(product => {
         const inv = inventoryMap[product.id] || { quantity: 0, batchCount: 0 };
         const stockClass = inv.quantity === 0 ? 'stock-out' : inv.quantity < 10 ? 'stock-low' : 'stock-good';
         const expiryStatus = getExpiryStatus(inv.earliestExpiry);
+        const locations = locationMap[product.id] || [];
         
         return `
-            <div class="product-card" onclick="viewProductDetail(${product.id})">
-                <div class="product-header">
+            <div class="product-card" onclick="viewProductDetail(${product.id})" style="padding: 12px; min-height: auto;">
+                <div class="product-header" style="margin-bottom: 8px;">
                     <div>
-                        <div class="product-name">${escapeHtml(product.name)}</div>
-                        ${product.brand ? `<span class="badge badge-brand">${escapeHtml(product.brand)}</span>` : ''}
-                        ${product.category ? `<span class="badge badge-category">${escapeHtml(product.category)}</span>` : ''}
+                        <div class="product-name" style="font-size: 1.1em; margin-bottom: 5px;">${escapeHtml(product.name)}</div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            ${product.brand ? `<span class="badge badge-brand" style="font-size: 0.8em;">${escapeHtml(product.brand)}</span>` : ''}
+                            ${product.category ? `<span class="badge badge-category" style="font-size: 0.8em;">${escapeHtml(product.category)}</span>` : ''}
+                        </div>
                     </div>
-                    <div class="product-stock ${stockClass}">${inv.quantity} items</div>
+                    <div class="product-stock ${stockClass}" style="font-size: 0.95em; padding: 6px 12px;">${inv.quantity} items</div>
                 </div>
-                ${expiryStatus ? `<div class="expiry-warning" style="margin-top: 10px; padding: 8px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 5px; font-size: 0.9em;">⚠️ ${expiryStatus.text}</div>` : ''}
-                <div class="product-meta" style="margin-top: 10px;">
+                ${expiryStatus ? `<div class="expiry-warning" style="margin-top: 8px; padding: 6px 10px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 0.85em;">⚠️ ${expiryStatus.text}</div>` : ''}
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 0.9em;">
+                    ${product.barcode ? `<div style="color: #374151; font-weight: 600;">📷 ${escapeHtml(product.barcode)}</div>` : '<div></div>'}
+                    ${locations.length > 0 ? `<div style="color: #6b7280;">📍 ${escapeHtml(locations[0])}${locations.length > 1 ? ` +${locations.length - 1}` : ''}</div>` : ''}
+                </div>
+                <div style="margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; font-size: 0.85em;">
                     ${product.supplier ? `<span class="badge badge-supplier">${escapeHtml(product.supplier)}</span>` : ''}
-                    ${inv.batchCount > 0 ? `<span class="badge" style="background: #e0e7ff; color: #3730a3;">${inv.batchCount} batches</span>` : ''}
-                    ${product.barcode ? `<span class="badge badge-barcode">📷 ${escapeHtml(product.barcode)}</span>` : ''}
+                    ${inv.batchCount > 0 ? `<span class="badge" style="background: #e0e7ff; color: #3730a3;">${inv.batchCount} batch${inv.batchCount > 1 ? 'es' : ''}</span>` : ''}
                 </div>
             </div>
         `;
