@@ -29,34 +29,59 @@ module.exports = {
 
         console.log('✓ Categories table created');
 
-        // Insert default categories with colors
-        const defaultCategories = [
-            { name: 'Dairy', description: 'Milk, cheese, yogurt, butter', color: '#FFF9C4', icon: '🥛', order: 1 },
-            { name: 'Produce', description: 'Fruits and vegetables', color: '#C8E6C9', icon: '🥬', order: 2 },
-            { name: 'Meat', description: 'Beef, pork, poultry, seafood', color: '#FFCDD2', icon: '🥩', order: 3 },
-            { name: 'Bakery', description: 'Bread, pastries, baked goods', color: '#FFE0B2', icon: '🍞', order: 4 },
-            { name: 'Frozen', description: 'Frozen foods and ice cream', color: '#B3E5FC', icon: '❄️', order: 5 },
-            { name: 'Dry Goods', description: 'Pasta, rice, canned goods', color: '#D7CCC8', icon: '📦', order: 6 },
-            { name: 'Beverages', description: 'Drinks, juices, sodas', color: '#F8BBD0', icon: '🥤', order: 7 },
-            { name: 'Snacks', description: 'Chips, cookies, crackers', color: '#FFECB3', icon: '🍿', order: 8 },
-            { name: 'Condiments', description: 'Sauces, dressings, spices', color: '#FFCCBC', icon: '🧂', order: 9 },
-            { name: 'Cleaning', description: 'Household cleaning products', color: '#E1BEE7', icon: '🧹', order: 10 },
-            { name: 'Personal Care', description: 'Toiletries and hygiene', color: '#BBDEFB', icon: '🧴', order: 11 },
-            { name: 'Other', description: 'Miscellaneous items', color: '#CFD8DC', icon: '📋', order: 12 }
-        ];
+        // Check if categories already exist to avoid duplicates
+        const existingCategories = await new Promise((resolve, reject) => {
+            db.get(`SELECT COUNT(*) as count FROM categories`, [], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
 
-        for (const cat of defaultCategories) {
-            await db.run(
-                `INSERT INTO categories (name, description, color, icon, display_order) VALUES (?, ?, ?, ?, ?)`,
-                [cat.name, cat.description, cat.color, cat.icon, cat.order]
-            );
+        if (existingCategories && existingCategories.count === 0) {
+            // Insert default categories with colors only if table is empty
+            const defaultCategories = [
+                { name: 'Dairy', description: 'Milk, cheese, yogurt, butter', color: '#FFF9C4', icon: '🥛', order: 1 },
+                { name: 'Produce', description: 'Fruits and vegetables', color: '#C8E6C9', icon: '🥬', order: 2 },
+                { name: 'Meat', description: 'Beef, pork, poultry, seafood', color: '#FFCDD2', icon: '🥩', order: 3 },
+                { name: 'Bakery', description: 'Bread, pastries, baked goods', color: '#FFE0B2', icon: '🍞', order: 4 },
+                { name: 'Frozen', description: 'Frozen foods and ice cream', color: '#B3E5FC', icon: '❄️', order: 5 },
+                { name: 'Dry Goods', description: 'Pasta, rice, canned goods', color: '#D7CCC8', icon: '📦', order: 6 },
+                { name: 'Beverages', description: 'Drinks, juices, sodas', color: '#F8BBD0', icon: '🥤', order: 7 },
+                { name: 'Snacks', description: 'Chips, cookies, crackers', color: '#FFECB3', icon: '🍿', order: 8 },
+                { name: 'Condiments', description: 'Sauces, dressings, spices', color: '#FFCCBC', icon: '🧂', order: 9 },
+                { name: 'Cleaning', description: 'Household cleaning products', color: '#E1BEE7', icon: '🧹', order: 10 },
+                { name: 'Personal Care', description: 'Toiletries and hygiene', color: '#BBDEFB', icon: '🧴', order: 11 },
+                { name: 'Other', description: 'Miscellaneous items', color: '#CFD8DC', icon: '📋', order: 12 }
+            ];
+
+            for (const cat of defaultCategories) {
+                await db.run(
+                    `INSERT INTO categories (name, description, color, icon, display_order) VALUES (?, ?, ?, ?, ?)`,
+                    [cat.name, cat.description, cat.color, cat.icon, cat.order]
+                );
+            }
+            console.log('✓ Default categories inserted');
+        } else {
+            console.log('✓ Categories already exist, skipping insert');
         }
 
-        console.log('✓ Default categories inserted');
+        // Check if category_id column already exists
+        const tableInfo = await new Promise((resolve, reject) => {
+            db.all(`PRAGMA table_info(products)`, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
 
-        // Add category_id column to products table
-        await db.run(`ALTER TABLE products ADD COLUMN category_id INTEGER REFERENCES categories(id)`);
-        console.log('✓ Added category_id column to products');
+        const categoryIdExists = tableInfo.some(col => col.name === 'category_id');
+
+        if (!categoryIdExists) {
+            // Add category_id column to products table
+            await db.run(`ALTER TABLE products ADD COLUMN category_id INTEGER REFERENCES categories(id)`);
+            console.log('✓ Added category_id column to products');
+        } else {
+            console.log('✓ category_id column already exists, skipping');
+        }
 
         // Migrate existing 'item' data to categories
         // Get all unique item values from products - wrap in Promise to ensure proper async
