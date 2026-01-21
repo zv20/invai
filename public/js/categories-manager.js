@@ -1,5 +1,5 @@
 /**
- * Categories Manager - v0.7.5
+ * Categories Manager - v0.7.5b
  * Handles category CRUD operations
  */
 
@@ -7,7 +7,7 @@ let categories = [];
 let editingCategoryId = null;
 
 // Load categories on page load
-async function loadCategories() {
+window.loadCategories = async function() {
     try {
         const response = await fetch('/api/categories');
         categories = await response.json();
@@ -20,7 +20,7 @@ async function loadCategories() {
             container.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 40px;">Failed to load categories</p>';
         }
     }
-}
+};
 
 function renderCategoriesList() {
     const container = document.getElementById('categoriesList');
@@ -54,7 +54,8 @@ function updateCategoryDropdown() {
     }
 }
 
-function openAddCategoryModal() {
+// Make globally accessible
+window.openAddCategoryModal = function() {
     editingCategoryId = null;
     const modal = document.getElementById('categoryModal');
     const form = document.getElementById('categoryForm');
@@ -69,9 +70,9 @@ function openAddCategoryModal() {
     form.reset();
     document.getElementById('categoryColor').value = '#667eea';
     modal.style.display = 'block';
-}
+};
 
-function editCategory(id) {
+window.editCategory = function(id) {
     const category = categories.find(c => c.id === id);
     if (!category) return;
     
@@ -83,14 +84,14 @@ function editCategory(id) {
     document.getElementById('categoryDescription').value = category.description || '';
     document.getElementById('categoryColor').value = category.color;
     modal.style.display = 'block';
-}
+};
 
-function closeCategoryModal() {
+window.closeCategoryModal = function() {
     document.getElementById('categoryModal').style.display = 'none';
     editingCategoryId = null;
-}
+};
 
-async function deleteCategory(id) {
+window.deleteCategory = async function(id) {
     const category = categories.find(c => c.id === id);
     if (!confirm(`Delete category "${category.name}"? Products will be moved to "Other".`)) {
         return;
@@ -100,7 +101,7 @@ async function deleteCategory(id) {
         const response = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
         if (response.ok) {
             showToast('Category deleted', 'success');
-            loadCategories();
+            window.loadCategories();
         } else {
             showToast('Failed to delete category', 'error');
         }
@@ -108,7 +109,7 @@ async function deleteCategory(id) {
         console.error('Error deleting category:', error);
         showToast('Failed to delete category', 'error');
     }
-}
+};
 
 // Form submit handler - attach when DOM loads
 if (document.readyState === 'loading') {
@@ -143,8 +144,8 @@ function setupCategoryForm() {
                 
                 if (response.ok) {
                     showToast(editingCategoryId ? 'Category updated' : 'Category created', 'success');
-                    closeCategoryModal();
-                    loadCategories();
+                    window.closeCategoryModal();
+                    window.loadCategories();
                 } else {
                     const error = await response.json();
                     showToast(error.error || 'Failed to save category', 'error');

@@ -1,5 +1,5 @@
 /**
- * Suppliers Manager - v0.7.5
+ * Suppliers Manager - v0.7.5b
  * Handles supplier CRUD operations
  */
 
@@ -7,7 +7,7 @@ let suppliers = [];
 let editingSupplierId = null;
 
 // Load suppliers on page load
-async function loadSuppliers() {
+window.loadSuppliers = async function() {
     try {
         const response = await fetch('/api/suppliers');
         suppliers = await response.json();
@@ -20,7 +20,7 @@ async function loadSuppliers() {
             container.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 40px;">Failed to load suppliers</p>';
         }
     }
-}
+};
 
 function renderSuppliersList() {
     const container = document.getElementById('suppliersList');
@@ -56,7 +56,8 @@ function updateSupplierDropdown() {
     }
 }
 
-function openAddSupplierModal() {
+// Make globally accessible
+window.openAddSupplierModal = function() {
     editingSupplierId = null;
     const modal = document.getElementById('supplierModal');
     const form = document.getElementById('supplierForm');
@@ -70,9 +71,9 @@ function openAddSupplierModal() {
     document.getElementById('supplierModalTitle').textContent = 'Add Supplier';
     form.reset();
     modal.style.display = 'block';
-}
+};
 
-function editSupplier(id) {
+window.editSupplier = function(id) {
     const supplier = suppliers.find(s => s.id === id);
     if (!supplier) return;
     
@@ -87,14 +88,14 @@ function editSupplier(id) {
     document.getElementById('supplierAddress').value = supplier.address || '';
     document.getElementById('supplierNotes').value = supplier.notes || '';
     modal.style.display = 'block';
-}
+};
 
-function closeSupplierModal() {
+window.closeSupplierModal = function() {
     document.getElementById('supplierModal').style.display = 'none';
     editingSupplierId = null;
-}
+};
 
-async function deleteSupplier(id) {
+window.deleteSupplier = async function(id) {
     const supplier = suppliers.find(s => s.id === id);
     if (!confirm(`Delete supplier "${supplier.name}"? Products will be moved to "Unknown".`)) {
         return;
@@ -104,7 +105,7 @@ async function deleteSupplier(id) {
         const response = await fetch(`/api/suppliers/${id}`, { method: 'DELETE' });
         if (response.ok) {
             showToast('Supplier deleted', 'success');
-            loadSuppliers();
+            window.loadSuppliers();
         } else {
             showToast('Failed to delete supplier', 'error');
         }
@@ -112,7 +113,7 @@ async function deleteSupplier(id) {
         console.error('Error deleting supplier:', error);
         showToast('Failed to delete supplier', 'error');
     }
-}
+};
 
 // Form submit handler - attach when DOM loads
 if (document.readyState === 'loading') {
@@ -151,8 +152,8 @@ function setupSupplierForm() {
                 
                 if (response.ok) {
                     showToast(editingSupplierId ? 'Supplier updated' : 'Supplier created', 'success');
-                    closeSupplierModal();
-                    loadSuppliers();
+                    window.closeSupplierModal();
+                    window.loadSuppliers();
                 } else {
                     const error = await response.json();
                     showToast(error.error || 'Failed to save supplier', 'error');
