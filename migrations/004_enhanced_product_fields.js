@@ -6,6 +6,8 @@
  * - allergen_info (text field for allergen warnings)
  * - nutritional_data (JSON field for nutritional information)
  * - storage_temp (enum: frozen/refrigerated/dry/ambient)
+ * 
+ * Version: v0.7.4c (hotfix - column existence checks)
  */
 
 module.exports = {
@@ -16,49 +18,75 @@ module.exports = {
     up: async (db) => {
         console.log('Running migration 004: Enhanced product fields...');
 
-        // Add product_image column
-        await db.run(`ALTER TABLE products ADD COLUMN product_image TEXT`);
-        console.log('✓ Added product_image column');
+        // Check what columns already exist
+        const tableInfo = await new Promise((resolve, reject) => {
+            db.all(`PRAGMA table_info(products)`, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
 
-        // Add allergen_info column
-        await db.run(`ALTER TABLE products ADD COLUMN allergen_info TEXT`);
-        console.log('✓ Added allergen_info column');
+        const columnExists = (name) => tableInfo.some(col => col.name === name);
 
-        // Add nutritional_data column (stored as JSON text)
-        await db.run(`ALTER TABLE products ADD COLUMN nutritional_data TEXT`);
-        console.log('✓ Added nutritional_data column');
+        // Add product_image column if it doesn't exist
+        if (!columnExists('product_image')) {
+            await db.run(`ALTER TABLE products ADD COLUMN product_image TEXT`);
+            console.log('✓ Added product_image column');
+        } else {
+            console.log('✓ product_image column already exists, skipping');
+        }
 
-        // Add storage_temp column with check constraint
-        await db.run(`
-            ALTER TABLE products ADD COLUMN storage_temp TEXT 
-            CHECK(storage_temp IN ('frozen', 'refrigerated', 'dry', 'ambient')) 
-            DEFAULT 'ambient'
-        `);
-        console.log('✓ Added storage_temp column');
+        // Add allergen_info column if it doesn't exist
+        if (!columnExists('allergen_info')) {
+            await db.run(`ALTER TABLE products ADD COLUMN allergen_info TEXT`);
+            console.log('✓ Added allergen_info column');
+        } else {
+            console.log('✓ allergen_info column already exists, skipping');
+        }
 
-        // Set default storage temperatures based on category
-        // This is a smart guess based on common category storage requirements
-        const storageMapping = [
-            { category: 'Frozen', temp: 'frozen' },
-            { category: 'Dairy', temp: 'refrigerated' },
-            { category: 'Meat', temp: 'refrigerated' },
-            { category: 'Produce', temp: 'refrigerated' },
-            { category: 'Bakery', temp: 'ambient' },
-            { category: 'Dry Goods', temp: 'dry' },
-            { category: 'Beverages', temp: 'ambient' },
-            { category: 'Snacks', temp: 'dry' },
-            { category: 'Condiments', temp: 'dry' },
-            { category: 'Cleaning', temp: 'ambient' },
-            { category: 'Personal Care', temp: 'ambient' }
-        ];
+        // Add nutritional_data column (stored as JSON text) if it doesn't exist
+        if (!columnExists('nutritional_data')) {
+            await db.run(`ALTER TABLE products ADD COLUMN nutritional_data TEXT`);
+            console.log('✓ Added nutritional_data column');
+        } else {
+            console.log('✓ nutritional_data column already exists, skipping');
+        }
 
-        for (const mapping of storageMapping) {
+        // Add storage_temp column with check constraint if it doesn't exist
+        if (!columnExists('storage_temp')) {
             await db.run(`
-                UPDATE products 
-                SET storage_temp = ? 
-                WHERE category_id = (SELECT id FROM categories WHERE name = ?)
-            `, [mapping.temp, mapping.category]);
-            console.log(`  Set ${mapping.category} products to ${mapping.temp}`);
+                ALTER TABLE products ADD COLUMN storage_temp TEXT 
+                CHECK(storage_temp IN ('frozen', 'refrigerated', 'dry', 'ambient')) 
+                DEFAULT 'ambient'
+            `);
+            console.log('✓ Added storage_temp column');
+
+            // Set default storage temperatures based on category
+            // This is a smart guess based on common category storage requirements
+            const storageMapping = [
+                { category: 'Frozen', temp: 'frozen' },
+                { category: 'Dairy', temp: 'refrigerated' },
+                { category: 'Meat', temp: 'refrigerated' },
+                { category: 'Produce', temp: 'refrigerated' },
+                { category: 'Bakery', temp: 'ambient' },
+                { category: 'Dry Goods', temp: 'dry' },
+                { category: 'Beverages', temp: 'ambient' },
+                { category: 'Snacks', temp: 'dry' },
+                { category: 'Condiments', temp: 'dry' },
+                { category: 'Cleaning', temp: 'ambient' },
+                { category: 'Personal Care', temp: 'ambient' }
+            ];
+
+            for (const mapping of storageMapping) {
+                await db.run(`
+                    UPDATE products 
+                    SET storage_temp = ? 
+                    WHERE category_id = (SELECT id FROM categories WHERE name = ?)
+                `, [mapping.temp, mapping.category]);
+                console.log(`  Set ${mapping.category} products to ${mapping.temp}`);
+            }
+        } else {
+            console.log('✓ storage_temp column already exists, skipping');
         }
 
         console.log('Migration 004 completed successfully!');
