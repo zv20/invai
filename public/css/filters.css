@@ -1,117 +1,134 @@
-/* Filter Panel Styles */
-.filter-panel {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 1.5rem;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    margin-bottom: 1.5rem;
+/* Inventory Filters Styling */
+
+#filterPanel {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
 }
 
 .filter-section {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e0e0e0;
 }
 
-.filter-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #fff;
+.filter-section h3 {
     margin: 0;
-}
-
-.btn-clear-filters {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-clear-filters:hover {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.3);
+    color: #333;
+    font-size: 1.2rem;
 }
 
 .filter-group {
-    margin-bottom: 1rem;
+    margin-bottom: 15px;
 }
 
 .filter-group label {
     display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
 }
 
-.filter-select {
+.filter-group select {
     width: 100%;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    padding: 0.625rem 0.75rem;
-    color: #fff;
-    font-size: 0.875rem;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    background: white;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: border-color 0.2s;
 }
 
-.filter-select:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
+.filter-group select:hover {
+    border-color: #9b59b6;
 }
 
-.filter-select:focus {
+.filter-group select:focus {
     outline: none;
-    border-color: #9333ea;
-    background: rgba(147, 51, 234, 0.1);
-}
-
-.filter-select option {
-    background: #1a1a2e;
-    color: #fff;
+    border-color: #9b59b6;
+    box-shadow: 0 0 0 3px rgba(155, 89, 182, 0.1);
 }
 
 .active-filters {
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e0e0e0;
 }
 
-.active-filters-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.active-filters p {
+    margin: 0;
+    color: #9b59b6;
+    font-size: 0.9rem;
 }
 
-.active-filters-count {
-    font-size: 0.875rem;
-    color: #9333ea;
-    font-weight: 500;
-    background: rgba(147, 51, 234, 0.1);
-    padding: 0.25rem 0.75rem;
+/* Category badges on product cards */
+.category-badge {
+    display: inline-block;
+    padding: 4px 12px;
     border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-right: 5px;
+    border: 1px solid rgba(0,0,0,0.1);
 }
 
-/* Responsive filter panel */
+.supplier-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 5px;
+}
+
+.storage-temp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-top: 5px;
+}
+
+.storage-temp-badge.frozen {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.storage-temp-badge.refrigerated {
+    background: #e8f5e9;
+    color: #388e3c;
+}
+
+.storage-temp-badge.dry {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.storage-temp-badge.ambient {
+    background: #fce4ec;
+    color: #c2185b;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-    .filter-panel {
-        padding: 1rem;
+    #filterPanel {
+        padding: 15px;
     }
-    
+
     .filter-section {
         flex-direction: column;
         align-items: flex-start;
-        gap: 1rem;
-    }
-    
-    .btn-clear-filters {
-        width: 100%;
+        gap: 10px;
     }
 }

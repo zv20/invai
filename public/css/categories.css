@@ -1,219 +1,253 @@
-/* Category Management Styles */
-.category-card {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 0.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.2s;
-}
+/* Categories and Suppliers Management Styling */
 
-.category-card:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-.category-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.category-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    flex-shrink: 0;
-}
-
-.category-info {
-    flex: 1;
-}
-
-.category-info h4 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #fff;
-}
-
-.category-info p {
-    margin: 0;
-    font-size: 0.875rem;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.category-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.btn-icon {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
-    padding: 0.5rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-icon:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: #fff;
-}
-
-.btn-icon.text-red-600 {
-    color: #ef4444;
-}
-
-.btn-icon.text-red-600:hover {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: rgba(239, 68, 68, 0.2);
-}
-
-/* Category Badge on Product Cards */
-.category-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #fff;
-}
-
-.category-badge-icon {
-    font-size: 0.875rem;
-}
-
-/* Supplier Management Styles */
-.supplier-card {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 0.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.2s;
-}
-
-.supplier-card:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-.supplier-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-}
-
-.supplier-info {
-    flex: 1;
-}
-
-.supplier-info h4 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #fff;
-}
-
-.supplier-info p {
-    margin: 0.25rem 0;
-    font-size: 0.875rem;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.supplier-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-/* Management Section Headers */
-.management-section {
-    margin-bottom: 2rem;
+.management-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
 }
 
 .management-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 30px;
 }
 
 .management-header h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #fff;
     margin: 0;
+    color: #333;
 }
 
-.btn-add {
-    background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
-    color: #fff;
-    border: none;
-    padding: 0.625rem 1.25rem;
+/* Category Items */
+#categoriesList, #suppliersList {
+    display: grid;
+    gap: 15px;
+}
+
+.category-item, .supplier-item {
+    background: white;
     border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
+    padding: 20px;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.btn-add:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
+.category-item:hover, .supplier-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-/* Form Inputs */
+.category-icon {
+    font-size: 2.5rem;
+    width: 60px;
+    text-align: center;
+}
+
+.category-info, .supplier-info {
+    flex: 1;
+}
+
+.category-info h4, .supplier-info h4 {
+    margin: 0 0 5px 0;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.category-info p, .supplier-info p {
+    margin: 3px 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.supplier-info p.notes {
+    font-style: italic;
+    color: #999;
+    margin-top: 8px;
+}
+
+.category-actions, .supplier-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.btn-icon:hover {
+    background: #f0f0f0;
+}
+
+.drag-handle {
+    cursor: move;
+    color: #999;
+}
+
+/* Modal styling for category/supplier forms */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    animation: fadeIn 0.2s;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    animation: slideDown 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #333;
+}
+
+.close {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #999;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.close:hover {
+    color: #333;
+}
+
 .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 20px;
 }
 
 .form-group label {
     display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
 }
 
-.form-input, .form-textarea {
+.form-group input,
+.form-group textarea,
+.form-group select {
     width: 100%;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    padding: 0.625rem 0.75rem;
-    color: #fff;
-    font-size: 0.875rem;
-    transition: all 0.2s;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 0.2s;
 }
 
-.form-input:focus, .form-textarea:focus {
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
     outline: none;
-    border-color: #9333ea;
-    background: rgba(147, 51, 234, 0.1);
+    border-color: #9b59b6;
+    box-shadow: 0 0 0 3px rgba(155, 89, 182, 0.1);
 }
 
-.form-textarea {
+.form-group textarea {
     resize: vertical;
     min-height: 80px;
 }
 
-input[type="color"].form-input {
-    height: 40px;
-    padding: 0.25rem;
+.form-group input[type="color"] {
+    height: 50px;
     cursor: pointer;
+}
+
+.form-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 8px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.badge.inactive {
+    background: #ffebee;
+    color: #c62828;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+/* No data state */
+.no-data {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .modal-content {
+        margin: 10% auto;
+        padding: 20px;
+        width: 95%;
+    }
+
+    .category-item, .supplier-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .category-actions, .supplier-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
 }
