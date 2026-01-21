@@ -262,6 +262,47 @@ function checkGitHubVersion() {
   });
 }
 
+function createBackup(prefix = '') {
+  return new Promise((resolve, reject) => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0];
+    const backupName = prefix ? `backup_${prefix}_${timestamp}.db` : `backup_${timestamp}.db`;
+    const backupPath = path.join(BACKUP_DIR, backupName);
+    const dbPath = path.join(__dirname, 'inventory.db');
+    
+    fs.copyFile(dbPath, backupPath, (err) => {
+      if (err) {
+        reject(err);
+      } else {
+        cleanupOldBackups();
+        resolve({ filename: backupName, path: backupPath });
+      }
+    });
+  });
+}
+
+function cleanupOldBackups() {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(file => file.startsWith('backup_') && file.endsWith('.db'))
+      .map(file => ({
+        name: file,
+        path: path.join(BACKUP_DIR, file),
+        time: fs.statSync(path.join(BACKUP_DIR, file)).mtime.getTime()
+      }))
+      .sort((a, b) => b.time - a.time);
+    
+    if (files.length > MAX_BACKUPS) {
+      const toDelete = files.slice(MAX_BACKUPS);
+      toDelete.forEach(file => {
+        fs.unlinkSync(file.path);
+        console.log(`Deleted old backup: ${file.name}`);
+      });
+    }
+  } catch (err) {
+    console.error('Error cleaning up backups:', err);
+  }
+}
+
 // ========== CHANGELOG API ==========
 
 app.get('/api/changelog', (req, res) => {
@@ -282,13 +323,11 @@ app.get('/api/changelog', (req, res) => {
     const versions = [];
     let currentVersion = null;
     let currentChanges = [];
-    let inVersionSection = false;
+    let currentDate = null;
     
     lines.forEach(line => {
-      // Detect version header like ## [0.5.0] - 2026-01-20
       const versionMatch = line.match(/^##\s*\[([\d.]+)\]\s*-\s*(.+)/);
       if (versionMatch) {
-        // Save previous version if exists
         if (currentVersion) {
           versions.push({
             version: currentVersion,
@@ -296,30 +335,20 @@ app.get('/api/changelog', (req, res) => {
             changes: currentChanges
           });
         }
-        
         currentVersion = versionMatch[1];
         currentDate = versionMatch[2].trim();
         currentChanges = [];
-        inVersionSection = true;
       } else if (line.startsWith('###')) {
-        // Category header like ### Added
         const category = line.replace(/^###\s*/, '').trim();
         currentChanges.push({ type: 'category', text: category });
       } else if (line.startsWith('- ')) {
-        // Change item
         const change = line.replace(/^-\s*/, '').trim();
         if (change) {
           currentChanges.push({ type: 'item', text: change });
         }
-      } else if (line.trim() === '---' || line.startsWith('## ')) {
-        // End of changelog versions section
-        if (line.startsWith('## ') && !line.match(/^##\s*\[/)) {
-          inVersionSection = false;
-        }
       }
     });
     
-    // Add last version
     if (currentVersion) {
       versions.push({
         version: currentVersion,
@@ -330,7 +359,7 @@ app.get('/api/changelog', (req, res) => {
     
     res.json({
       currentVersion: VERSION,
-      versions: versions.slice(0, 5) // Return last 5 versions
+      versions: versions.slice(0, 5)
     });
   } catch (error) {
     console.error('Error reading changelog:', error);
@@ -349,11 +378,11 @@ app.get('/api/migrations/status', async (req, res) => {
     res.json({
       currentVersion,
       totalMigrations: history.length,
-      history: history.slice(0, 10) // Last 10 migrations
+      history: history.slice(0, 10)
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ... [REST OF THE FILE REMAINS THE SAME - KEEPING ALL EXISTING API ENDPOINTS]
+// ========== DASHBOARD API ==========
