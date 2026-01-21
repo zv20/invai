@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-01-21
+### Added
+- **FIFO/FEFO Batch Suggestions** - Smart recommendations for which batch to use first based on expiry dates
+- **Low Stock Browser Notifications** - Get notified when items fall below reorder threshold
+- **Quick Actions** - Fast quantity adjustments with +1, +5, -1, -5 buttons and mark as empty
+- **Bulk Operations** - Select multiple batches for batch deletion, location updates, and quantity adjustments
+- **Batch Suggestion API** - New endpoint `/api/products/:id/batch-suggestion` for FIFO/FEFO logic
+- **Low Stock Alerts API** - New endpoint `/api/alerts/low-stock` with configurable threshold
+- **Quick Adjustment API** - New endpoint `/api/inventory/batches/:id/adjust` for rapid quantity changes
+- **Mark Empty API** - New endpoint `/api/inventory/batches/:id/mark-empty` for zero-out batches
+- **Bulk Delete API** - New endpoint `/api/inventory/bulk/delete` for multi-batch deletion
+- **Bulk Location Update API** - New endpoint `/api/inventory/bulk/update-location` for batch moves
+- **Bulk Quantity Adjust API** - New endpoint `/api/inventory/bulk/adjust` for mass quantity changes
+
+### Changed
+- Enhanced product detail view with batch suggestion display
+- Improved batch cards with quick action buttons
+- Added urgency indicators (expired, urgent, soon, normal) for batch suggestions
+
 ## [0.5.1] - 2026-01-20
 ### Added
 - **Changelog API** - Dynamic version and changelog retrieval from CHANGELOG.md
@@ -107,6 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **v0.6.0** - Smart inventory actions (FIFO/FEFO, notifications, quick actions, bulk ops)
 - **v0.5.1** - Dynamic About section with changelog API
 - **v0.5.0** - Compact cards with barcode & location
 - **v0.4.1** - Hotfix for duplicate variables
@@ -133,6 +153,7 @@ update
 ```
 
 ### Version Commit Hashes
+- v0.6.0: Check git log
 - v0.5.1: Check git log
 - v0.5.0: `0ff631b`
 - v0.4.1: `8e53033`
