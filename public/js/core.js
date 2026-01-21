@@ -222,6 +222,8 @@ document.addEventListener('click', (e) => {
    ========================================================================== */
 
 function initializeApp() {
+    console.log('🚀 Starting Grocery Inventory App v0.7.0...');
+    
     // Start clock
     updateCurrentTime();
     setInterval(updateCurrentTime, 1000);
@@ -234,7 +236,7 @@ function initializeApp() {
     const activeTab = document.querySelector('.tab-content.active');
     if (activeTab && activeTab.id === 'dashboardTab') {
         // Dashboard is default - it will initialize itself
-        console.log('✓ Dashboard loading...');
+        console.log('📊 Dashboard is active, waiting for dashboard.js to initialize...');
     }
     
     // Version check after 2 seconds
@@ -246,12 +248,14 @@ function initializeApp() {
     // Load saved update interval preference
     document.getElementById('updateCheckInterval').value = getUpdateInterval();
     
-    console.log('✓ Grocery Inventory App v0.4.0 initialized');
+    console.log('✓ Grocery Inventory App v0.7.0 initialized');
 }
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
+    console.log('⏳ DOM loading...');
     document.addEventListener('DOMContentLoaded', initializeApp);
 } else {
+    console.log('✓ DOM already ready');
     initializeApp();
 }
