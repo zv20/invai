@@ -1,21 +1,24 @@
 /**
- * Suppliers Manager - v0.7.4
+ * Suppliers Manager - v0.7.5
  * Handles supplier CRUD operations
  */
 
 let suppliers = [];
 let editingSupplierId = null;
 
+// Load suppliers on page load
 async function loadSuppliers() {
     try {
         const response = await fetch('/api/suppliers');
         suppliers = await response.json();
         renderSuppliersList();
-        
-        // Also update product modal dropdown
         updateSupplierDropdown();
     } catch (error) {
         console.error('Error loading suppliers:', error);
+        const container = document.getElementById('suppliersList');
+        if (container) {
+            container.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 40px;">Failed to load suppliers</p>';
+        }
     }
 }
 
@@ -55,9 +58,18 @@ function updateSupplierDropdown() {
 
 function openAddSupplierModal() {
     editingSupplierId = null;
+    const modal = document.getElementById('supplierModal');
+    const form = document.getElementById('supplierForm');
+    
+    if (!modal || !form) {
+        console.error('Supplier modal or form not found!');
+        alert('Error: Modal not found. Please refresh the page.');
+        return;
+    }
+    
     document.getElementById('supplierModalTitle').textContent = 'Add Supplier';
-    document.getElementById('supplierForm').reset();
-    document.getElementById('supplierModal').style.display = 'block';
+    form.reset();
+    modal.style.display = 'block';
 }
 
 function editSupplier(id) {
@@ -65,6 +77,8 @@ function editSupplier(id) {
     if (!supplier) return;
     
     editingSupplierId = id;
+    const modal = document.getElementById('supplierModal');
+    
     document.getElementById('supplierModalTitle').textContent = 'Edit Supplier';
     document.getElementById('supplierName').value = supplier.name;
     document.getElementById('supplierContactName').value = supplier.contact_name || '';
@@ -72,7 +86,7 @@ function editSupplier(id) {
     document.getElementById('supplierContactEmail').value = supplier.contact_email || '';
     document.getElementById('supplierAddress').value = supplier.address || '';
     document.getElementById('supplierNotes').value = supplier.notes || '';
-    document.getElementById('supplierModal').style.display = 'block';
+    modal.style.display = 'block';
 }
 
 function closeSupplierModal() {
@@ -100,43 +114,53 @@ async function deleteSupplier(id) {
     }
 }
 
-// Form submit handler
-if (document.getElementById('supplierForm')) {
-    document.getElementById('supplierForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const data = {
-            name: document.getElementById('supplierName').value,
-            contact_name: document.getElementById('supplierContactName').value,
-            contact_phone: document.getElementById('supplierContactPhone').value,
-            contact_email: document.getElementById('supplierContactEmail').value,
-            address: document.getElementById('supplierAddress').value,
-            notes: document.getElementById('supplierNotes').value,
-            is_active: 1
-        };
-        
-        try {
-            const url = editingSupplierId 
-                ? `/api/suppliers/${editingSupplierId}` 
-                : '/api/suppliers';
-            const method = editingSupplierId ? 'PUT' : 'POST';
+// Form submit handler - attach when DOM loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupSupplierForm);
+} else {
+    setupSupplierForm();
+}
+
+function setupSupplierForm() {
+    const form = document.getElementById('supplierForm');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
             
-            const response = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            const data = {
+                name: document.getElementById('supplierName').value,
+                contact_name: document.getElementById('supplierContactName').value,
+                contact_phone: document.getElementById('supplierContactPhone').value,
+                contact_email: document.getElementById('supplierContactEmail').value,
+                address: document.getElementById('supplierAddress').value,
+                notes: document.getElementById('supplierNotes').value,
+                is_active: 1
+            };
             
-            if (response.ok) {
-                showToast(editingSupplierId ? 'Supplier updated' : 'Supplier created', 'success');
-                closeSupplierModal();
-                loadSuppliers();
-            } else {
+            try {
+                const url = editingSupplierId 
+                    ? `/api/suppliers/${editingSupplierId}` 
+                    : '/api/suppliers';
+                const method = editingSupplierId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    showToast(editingSupplierId ? 'Supplier updated' : 'Supplier created', 'success');
+                    closeSupplierModal();
+                    loadSuppliers();
+                } else {
+                    const error = await response.json();
+                    showToast(error.error || 'Failed to save supplier', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving supplier:', error);
                 showToast('Failed to save supplier', 'error');
             }
-        } catch (error) {
-            console.error('Error saving supplier:', error);
-            showToast('Failed to save supplier', 'error');
-        }
-    });
+        });
+    }
 }

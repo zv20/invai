@@ -1,21 +1,24 @@
 /**
- * Categories Manager - v0.7.4
+ * Categories Manager - v0.7.5
  * Handles category CRUD operations
  */
 
 let categories = [];
 let editingCategoryId = null;
 
+// Load categories on page load
 async function loadCategories() {
     try {
         const response = await fetch('/api/categories');
         categories = await response.json();
         renderCategoriesList();
-        
-        // Also update product modal dropdown
         updateCategoryDropdown();
     } catch (error) {
         console.error('Error loading categories:', error);
+        const container = document.getElementById('categoriesList');
+        if (container) {
+            container.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 40px;">Failed to load categories</p>';
+        }
     }
 }
 
@@ -53,10 +56,19 @@ function updateCategoryDropdown() {
 
 function openAddCategoryModal() {
     editingCategoryId = null;
+    const modal = document.getElementById('categoryModal');
+    const form = document.getElementById('categoryForm');
+    
+    if (!modal || !form) {
+        console.error('Category modal or form not found!');
+        alert('Error: Modal not found. Please refresh the page.');
+        return;
+    }
+    
     document.getElementById('categoryModalTitle').textContent = 'Add Category';
-    document.getElementById('categoryForm').reset();
+    form.reset();
     document.getElementById('categoryColor').value = '#667eea';
-    document.getElementById('categoryModal').style.display = 'block';
+    modal.style.display = 'block';
 }
 
 function editCategory(id) {
@@ -64,11 +76,13 @@ function editCategory(id) {
     if (!category) return;
     
     editingCategoryId = id;
+    const modal = document.getElementById('categoryModal');
+    
     document.getElementById('categoryModalTitle').textContent = 'Edit Category';
     document.getElementById('categoryName').value = category.name;
     document.getElementById('categoryDescription').value = category.description || '';
     document.getElementById('categoryColor').value = category.color;
-    document.getElementById('categoryModal').style.display = 'block';
+    modal.style.display = 'block';
 }
 
 function closeCategoryModal() {
@@ -96,39 +110,49 @@ async function deleteCategory(id) {
     }
 }
 
-// Form submit handler
-if (document.getElementById('categoryForm')) {
-    document.getElementById('categoryForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const data = {
-            name: document.getElementById('categoryName').value,
-            description: document.getElementById('categoryDescription').value,
-            color: document.getElementById('categoryColor').value
-        };
-        
-        try {
-            const url = editingCategoryId 
-                ? `/api/categories/${editingCategoryId}` 
-                : '/api/categories';
-            const method = editingCategoryId ? 'PUT' : 'POST';
+// Form submit handler - attach when DOM loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupCategoryForm);
+} else {
+    setupCategoryForm();
+}
+
+function setupCategoryForm() {
+    const form = document.getElementById('categoryForm');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
             
-            const response = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            const data = {
+                name: document.getElementById('categoryName').value,
+                description: document.getElementById('categoryDescription').value,
+                color: document.getElementById('categoryColor').value
+            };
             
-            if (response.ok) {
-                showToast(editingCategoryId ? 'Category updated' : 'Category created', 'success');
-                closeCategoryModal();
-                loadCategories();
-            } else {
+            try {
+                const url = editingCategoryId 
+                    ? `/api/categories/${editingCategoryId}` 
+                    : '/api/categories';
+                const method = editingCategoryId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    showToast(editingCategoryId ? 'Category updated' : 'Category created', 'success');
+                    closeCategoryModal();
+                    loadCategories();
+                } else {
+                    const error = await response.json();
+                    showToast(error.error || 'Failed to save category', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving category:', error);
                 showToast('Failed to save category', 'error');
             }
-        } catch (error) {
-            console.error('Error saving category:', error);
-            showToast('Failed to save category', 'error');
-        }
-    });
+        });
+    }
 }
