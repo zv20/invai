@@ -100,8 +100,16 @@ function switchTab(tabName) {
             loadExpirationAlerts();
         }
     }
-    if (tabName === 'products') loadProducts();
-    if (tabName === 'inventory') loadProductsForInventory();
+    if (tabName === 'inventory') {
+        // Return to list view and load products
+        const listView = document.getElementById('inventoryListView');
+        const detailView = document.getElementById('inventoryDetailView');
+        if (listView && detailView) {
+            listView.style.display = 'block';
+            detailView.style.display = 'none';
+        }
+        loadProducts();
+    }
     if (tabName === 'settings') {
         document.getElementById('updateCheckInterval').value = getUpdateInterval();
     }
@@ -227,9 +235,6 @@ function initializeApp() {
     if (activeTab && activeTab.id === 'dashboardTab') {
         // Dashboard is default - it will initialize itself
         console.log('✓ Dashboard loading...');
-    } else {
-        // Load products if products tab is active
-        loadProducts();
     }
     
     // Version check after 2 seconds
@@ -241,7 +246,7 @@ function initializeApp() {
     // Load saved update interval preference
     document.getElementById('updateCheckInterval').value = getUpdateInterval();
     
-    console.log('✓ Grocery Inventory App v0.3.0 initialized');
+    console.log('✓ Grocery Inventory App v0.4.0 initialized');
 }
 
 // Initialize when DOM is ready
