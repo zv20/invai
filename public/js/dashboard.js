@@ -5,50 +5,77 @@ let alertData = null;
 
 // Initialize dashboard
 async function initDashboard() {
+    console.log('🔄 Initializing dashboard...');
     await loadDashboardStats();
     await loadExpirationAlerts();
     setInterval(loadDashboardStats, 60000); // Refresh every minute
+    console.log('✓ Dashboard initialization complete');
 }
 
 // Load dashboard statistics
 async function loadDashboardStats() {
+    console.log('📊 Loading dashboard stats...');
     try {
         const response = await fetch('/api/dashboard/stats');
         if (!response.ok) throw new Error('Failed to load stats');
         
         dashboardData = await response.json();
+        console.log('📊 Dashboard data received:', dashboardData);
         renderDashboard();
     } catch (error) {
-        console.error('Error loading dashboard:', error);
+        console.error('❌ Error loading dashboard:', error);
         showNotification('Failed to load dashboard statistics', 'error');
     }
 }
 
 // Load expiration alerts
 async function loadExpirationAlerts() {
+    console.log('🚨 Loading expiration alerts...');
     try {
         const response = await fetch('/api/dashboard/expiration-alerts');
         if (!response.ok) throw new Error('Failed to load alerts');
         
         alertData = await response.json();
+        console.log('🚨 Alert data received:', alertData);
         renderExpirationAlerts();
     } catch (error) {
-        console.error('Error loading alerts:', error);
+        console.error('❌ Error loading alerts:', error);
         showNotification('Failed to load expiration alerts', 'error');
     }
 }
 
 // Render dashboard statistics
 function renderDashboard() {
-    if (!dashboardData) return;
+    console.log('🎨 Rendering dashboard...');
+    if (!dashboardData) {
+        console.warn('⚠️ No dashboard data to render');
+        return;
+    }
     
     const stats = dashboardData;
     
+    // Check if elements exist
+    const elements = {
+        products: document.getElementById('dash-total-products'),
+        items: document.getElementById('dash-total-items'),
+        value: document.getElementById('dash-total-value'),
+        lowStock: document.getElementById('dash-low-stock')
+    };
+    
+    console.log('📍 DOM elements found:', {
+        products: !!elements.products,
+        items: !!elements.items,
+        value: !!elements.value,
+        lowStock: !!elements.lowStock
+    });
+    
     // Update stat cards
-    document.getElementById('dash-total-products').textContent = stats.totalProducts || 0;
-    document.getElementById('dash-total-items').textContent = stats.totalItems || 0;
-    document.getElementById('dash-total-value').textContent = formatCurrency(stats.totalValue || 0);
-    document.getElementById('dash-low-stock').textContent = stats.lowStock || 0;
+    if (elements.products) elements.products.textContent = stats.totalProducts || 0;
+    if (elements.items) elements.items.textContent = stats.totalItems || 0;
+    if (elements.value) elements.value.textContent = formatCurrency(stats.totalValue || 0);
+    if (elements.lowStock) elements.lowStock.textContent = stats.lowStock || 0;
+    
+    console.log('✓ Dashboard stats updated');
     
     // Update category breakdown
     renderCategoryBreakdown(stats.categoryBreakdown || []);
@@ -60,6 +87,10 @@ function renderDashboard() {
 // Render category breakdown
 function renderCategoryBreakdown(categories) {
     const container = document.getElementById('categoryBreakdown');
+    if (!container) {
+        console.warn('⚠️ Category breakdown container not found');
+        return;
+    }
     
     if (categories.length === 0) {
         container.innerHTML = '<div class="empty-state-small">No categories yet</div>';
@@ -74,11 +105,16 @@ function renderCategoryBreakdown(categories) {
     `).join('');
     
     container.innerHTML = html;
+    console.log(`✓ Rendered ${categories.length} categories`);
 }
 
 // Render recent activity
 function renderRecentActivity(products) {
     const container = document.getElementById('recentActivity');
+    if (!container) {
+        console.warn('⚠️ Recent activity container not found');
+        return;
+    }
     
     if (products.length === 0) {
         container.innerHTML = '<div class="empty-state-small">No recent products</div>';
@@ -93,30 +129,45 @@ function renderRecentActivity(products) {
     `).join('');
     
     container.innerHTML = html;
+    console.log(`✓ Rendered ${products.length} recent products`);
 }
 
 // Render expiration alerts
 function renderExpirationAlerts() {
-    if (!alertData) return;
+    console.log('🚨 Rendering expiration alerts...');
+    if (!alertData) {
+        console.warn('⚠️ No alert data to render');
+        return;
+    }
     
     const expired = alertData.expired || [];
     const urgent = alertData.urgent || [];
     const soon = alertData.soon || [];
     
     // Update counts
-    document.getElementById('alert-expired-count').textContent = expired.length;
-    document.getElementById('alert-urgent-count').textContent = urgent.length;
-    document.getElementById('alert-soon-count').textContent = soon.length;
+    const expiredCount = document.getElementById('alert-expired-count');
+    const urgentCount = document.getElementById('alert-urgent-count');
+    const soonCount = document.getElementById('alert-soon-count');
+    
+    if (expiredCount) expiredCount.textContent = expired.length;
+    if (urgentCount) urgentCount.textContent = urgent.length;
+    if (soonCount) soonCount.textContent = soon.length;
     
     // Render alert lists
     renderAlertList('expiredList', expired, 'expired');
     renderAlertList('urgentList', urgent, 'expires');
     renderAlertList('soonList', soon, 'expires');
+    
+    console.log(`✓ Alerts rendered - Expired: ${expired.length}, Urgent: ${urgent.length}, Soon: ${soon.length}`);
 }
 
 // Render individual alert list
 function renderAlertList(elementId, items, dateField) {
     const container = document.getElementById(elementId);
+    if (!container) {
+        console.warn(`⚠️ Alert list container '${elementId}' not found`);
+        return;
+    }
     
     if (items.length === 0) {
         container.innerHTML = '<div class="empty-state-small">✓ All good!</div>';
@@ -191,6 +242,7 @@ function formatDate(dateString) {
 
 // Refresh dashboard
 function refreshDashboard() {
+    console.log('🔄 Refreshing dashboard...');
     loadDashboardStats();
     loadExpirationAlerts();
     showNotification('Dashboard refreshed', 'success');
@@ -198,14 +250,25 @@ function refreshDashboard() {
 
 // Initialize when dashboard tab is shown
 if (document.readyState === 'loading') {
+    console.log('⏳ Waiting for DOM to load...');
     document.addEventListener('DOMContentLoaded', () => {
+        console.log('✓ DOM loaded, checking for dashboard tab...');
         // Check if dashboard tab exists
-        if (document.getElementById('dashboardTab')) {
+        const dashTab = document.getElementById('dashboardTab');
+        if (dashTab) {
+            console.log('✓ Dashboard tab found, initializing...');
             initDashboard();
+        } else {
+            console.error('❌ Dashboard tab not found in DOM!');
         }
     });
 } else {
-    if (document.getElementById('dashboardTab')) {
+    console.log('✓ DOM already loaded, checking for dashboard tab...');
+    const dashTab = document.getElementById('dashboardTab');
+    if (dashTab) {
+        console.log('✓ Dashboard tab found, initializing...');
         initDashboard();
+    } else {
+        console.error('❌ Dashboard tab not found in DOM!');
     }
 }
