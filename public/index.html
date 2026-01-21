@@ -222,6 +222,16 @@
             </div>
             <div id="settings-updates" class="settings-subtab active">
                 <div class="settings-section">
+                    <h3>Update Channel</h3>
+                    <div id="channelSelector"></div>
+                    <div id="currentStatus"></div>
+                    <div class="btn-group">
+                        <button id="checkUpdatesBtn">🔍 Check for Updates</button>
+                        <button id="switchChannelBtn" disabled>🔄 Switch Channel & Update</button>
+                    </div>
+                    <div id="updateResults" class="hidden"></div>
+                </div>
+                <div class="settings-section">
                     <h3>System Information</h3>
                     <p><strong>Running Version:</strong> <span id="settingsVersion">Checking...</span></p>
                     <p style="margin-top: 10px;"><strong>Latest Version:</strong> <span id="latestVersion">Checking...</span></p>
@@ -461,5 +471,6 @@
     <script src="js/scanner.js"></script>
     <script src="js/batch-suggestions.js"></script>
     <script src="js/quick-actions.js"></script>
+    <script src="js/update-settings.js"></script>
 </body>
 </html>
