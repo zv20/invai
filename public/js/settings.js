@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Settings Management
+   Settings Management - v0.7.5c
    Version checking, updates, export/import, backup system, and settings
    ========================================================================== */
 
@@ -19,13 +19,19 @@ function switchSettingsTab(tabName) {
     });
     
     // Show selected tab
-    document.getElementById(`settings-${tabName}`).classList.add('active');
+    const targetTab = document.getElementById(`settings-${tabName}`);
+    if (targetTab) {
+        targetTab.classList.add('active');
+    }
     
     // Update nav highlighting
     document.querySelectorAll('.settings-nav-item').forEach(item => {
         item.classList.remove('active');
     });
-    document.querySelector(`[onclick="switchSettingsTab('${tabName}')"]`).classList.add('active');
+    const navButton = document.querySelector(`[onclick="switchSettingsTab('${tabName}')"]`);
+    if (navButton) {
+        navButton.classList.add('active');
+    }
     
     // Load data for specific tabs
     if (tabName === 'backups') {
@@ -52,7 +58,11 @@ async function loadAboutInfo() {
         const response = await fetch(`${API_URL}/api/changelog`);
         const data = await response.json();
         
-        const aboutSection = document.getElementById('settings-about').querySelector('.settings-section');
+        const aboutSection = document.getElementById('settings-about');
+        if (!aboutSection) return;
+        
+        const container = aboutSection.querySelector('.settings-section');
+        if (!container) return;
         
         let html = `
             <h3>🛒 Grocery Inventory v${data.currentVersion}</h3>
@@ -104,16 +114,9 @@ async function loadAboutInfo() {
             <p>MIT License - Free to use and modify</p>
         `;
         
-        aboutSection.innerHTML = html;
+        container.innerHTML = html;
     } catch (error) {
         console.error('Error loading about info:', error);
-        // Fallback to basic info if API fails
-        const aboutSection = document.getElementById('settings-about').querySelector('.settings-section');
-        aboutSection.innerHTML = `
-            <h3>🛒 Grocery Inventory</h3>
-            <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
-            <p style="margin-top: 20px; color: #ef4444;">Could not load version information</p>
-        `;
     }
 }
 
@@ -128,6 +131,8 @@ function getUpdateInterval() {
 
 function saveUpdateInterval() {
     const select = document.getElementById('updateCheckInterval');
+    if (!select) return;
+    
     const interval = parseInt(select.value);
     localStorage.setItem('updateCheckInterval', interval);
     
@@ -172,43 +177,54 @@ async function checkVersion() {
         const data = await response.json();
         versionInfo = data;
         
-        document.getElementById('settingsVersion').textContent = data.currentVersion;
-        document.getElementById('latestVersion').textContent = data.latestVersion;
-        document.getElementById('lastCheck').textContent = new Date().toLocaleString();
-        
+        const settingsVersion = document.getElementById('settingsVersion');
+        const latestVersion = document.getElementById('latestVersion');
+        const lastCheck = document.getElementById('lastCheck');
         const statusDiv = document.getElementById('versionStatus');
         const versionFooter = document.getElementById('versionFooter');
         const footerText = document.getElementById('footerVersionText');
         
+        if (settingsVersion) settingsVersion.textContent = data.currentVersion;
+        if (latestVersion) latestVersion.textContent = data.latestVersion;
+        if (lastCheck) lastCheck.textContent = new Date().toLocaleString();
+        
         if (data.updateAvailable) {
-            document.getElementById('updateBanner').classList.add('show');
-            versionFooter.classList.add('update-available');
-            footerText.textContent = `⚠️ ${data.currentVersion} → ${data.latestVersion}`;
+            const updateBanner = document.getElementById('updateBanner');
+            if (updateBanner) updateBanner.classList.add('show');
+            if (versionFooter) versionFooter.classList.add('update-available');
+            if (footerText) footerText.textContent = `⚠️ ${data.currentVersion} → ${data.latestVersion}`;
             
-            statusDiv.style.display = 'block';
-            statusDiv.style.background = '#fef3c7';
-            statusDiv.style.border = '2px solid #f59e0b';
-            statusDiv.style.color = '#92400e';
-            statusDiv.innerHTML = `<strong>🎉 Update Available!</strong><br>Current: ${data.currentVersion} → Latest: ${data.latestVersion}<br><a href="https://github.com/zv20/invai" target="_blank" style="color: #92400e; text-decoration: underline;">View on GitHub</a>`;
+            if (statusDiv) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = '#fef3c7';
+                statusDiv.style.border = '2px solid #f59e0b';
+                statusDiv.style.color = '#92400e';
+                statusDiv.innerHTML = `<strong>🎉 Update Available!</strong><br>Current: ${data.currentVersion} → Latest: ${data.latestVersion}<br><a href="https://github.com/zv20/invai" target="_blank" style="color: #92400e; text-decoration: underline;">View on GitHub</a>`;
+            }
         } else {
-            document.getElementById('updateBanner').classList.remove('show');
-            versionFooter.classList.remove('update-available');
-            footerText.textContent = `✓ v${data.currentVersion}`;
+            const updateBanner = document.getElementById('updateBanner');
+            if (updateBanner) updateBanner.classList.remove('show');
+            if (versionFooter) versionFooter.classList.remove('update-available');
+            if (footerText) footerText.textContent = `✓ v${data.currentVersion}`;
             
-            statusDiv.style.display = 'block';
-            statusDiv.style.background = '#dcfce7';
-            statusDiv.style.border = '2px solid #10b981';
-            statusDiv.style.color = '#065f46';
-            statusDiv.innerHTML = '<strong>✓ You are running the latest version!</strong>';
+            if (statusDiv) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = '#dcfce7';
+                statusDiv.style.border = '2px solid #10b981';
+                statusDiv.style.color = '#065f46';
+                statusDiv.innerHTML = '<strong>✓ You are running the latest version!</strong>';
+            }
         }
     } catch (error) {
         console.error('Error checking version:', error);
         const statusDiv = document.getElementById('versionStatus');
-        statusDiv.style.display = 'block';
-        statusDiv.style.background = '#fee2e2';
-        statusDiv.style.border = '2px solid #ef4444';
-        statusDiv.style.color = '#991b1b';
-        statusDiv.innerHTML = '<strong>✕ Failed to check for updates</strong><br>Check your connection.';
+        if (statusDiv) {
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#fee2e2';
+            statusDiv.style.border = '2px solid #ef4444';
+            statusDiv.style.color = '#991b1b';
+            statusDiv.innerHTML = '<strong>✕ Failed to check for updates</strong><br>Check your connection.';
+        }
     }
 }
 
@@ -245,6 +261,8 @@ async function createBackup() {
 
 async function loadBackups() {
     const list = document.getElementById('backupList');
+    if (!list) return;
+    
     list.innerHTML = '<div style="text-align: center; padding: 20px; color: #9ca3af;">⌛ Loading backups...</div>';
     
     try {
@@ -337,7 +355,8 @@ async function deleteBackup(filename) {
 }
 
 function triggerUploadRestore() {
-    document.getElementById('backupUploadInput').click();
+    const input = document.getElementById('backupUploadInput');
+    if (input) input.click();
 }
 
 async function handleUploadRestore(event) {
@@ -408,7 +427,8 @@ function exportCSV() {
 }
 
 function triggerImport() {
-    document.getElementById('csvFileInput').click();
+    const input = document.getElementById('csvFileInput');
+    if (input) input.click();
 }
 
 async function handleImport(event) {
