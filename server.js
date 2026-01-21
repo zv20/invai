@@ -213,6 +213,82 @@ function checkGitHubVersion() {
   });
 }
 
+// ========== CHANGELOG API ==========
+
+app.get('/api/changelog', (req, res) => {
+  try {
+    const changelogPath = path.join(__dirname, 'CHANGELOG.md');
+    
+    if (!fs.existsSync(changelogPath)) {
+      return res.json({
+        version: VERSION,
+        changes: [],
+        error: 'CHANGELOG.md not found'
+      });
+    }
+    
+    const changelogContent = fs.readFileSync(changelogPath, 'utf8');
+    const lines = changelogContent.split('\n');
+    
+    const versions = [];
+    let currentVersion = null;
+    let currentChanges = [];
+    let inVersionSection = false;
+    
+    lines.forEach(line => {
+      // Detect version header like ## [0.5.0] - 2026-01-20
+      const versionMatch = line.match(/^##\s*\[([\d.]+)\]\s*-\s*(.+)/);
+      if (versionMatch) {
+        // Save previous version if exists
+        if (currentVersion) {
+          versions.push({
+            version: currentVersion,
+            date: currentDate,
+            changes: currentChanges
+          });
+        }
+        
+        currentVersion = versionMatch[1];
+        currentDate = versionMatch[2].trim();
+        currentChanges = [];
+        inVersionSection = true;
+      } else if (line.startsWith('###')) {
+        // Category header like ### Added
+        const category = line.replace(/^###\s*/, '').trim();
+        currentChanges.push({ type: 'category', text: category });
+      } else if (line.startsWith('- ')) {
+        // Change item
+        const change = line.replace(/^-\s*/, '').trim();
+        if (change) {
+          currentChanges.push({ type: 'item', text: change });
+        }
+      } else if (line.trim() === '---' || line.startsWith('## ')) {
+        // End of changelog versions section
+        if (line.startsWith('## ') && !line.match(/^##\s*\[/)) {
+          inVersionSection = false;
+        }
+      }
+    });
+    
+    // Add last version
+    if (currentVersion) {
+      versions.push({
+        version: currentVersion,
+        date: currentDate,
+        changes: currentChanges
+      });
+    }
+    
+    res.json({
+      currentVersion: VERSION,
+      versions: versions.slice(0, 5) // Return last 5 versions
+    });
+  } catch (error) {
+    console.error('Error reading changelog:', error);
+    res.status(500).json({ error: 'Failed to read changelog' });
+  }
+});
+
 // ========== DASHBOARD API ==========
 
 app.get('/api/dashboard/stats', (req, res) => {
@@ -917,6 +993,7 @@ app.listen(PORT, () => {
   console.log(`💾 Backup system enabled - Max ${MAX_BACKUPS} backups retained`);
   console.log('📤 Backup restore & upload enabled');
   console.log('📊 Dashboard with expiration alerts enabled');
+  console.log('📋 Changelog API enabled');
   console.log('Checking for updates from GitHub...');
   checkGitHubVersion()
     .then(info => {
