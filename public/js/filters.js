@@ -1,5 +1,5 @@
 /**
- * Inventory Filters - v0.7.4
+ * Inventory Filters - v0.7.5d
  * Advanced filtering system for products
  */
 
@@ -11,8 +11,6 @@ let activeFilters = {
 };
 
 let allProducts = [];
-let categories = [];
-let suppliers = [];
 
 // Load filter options
 async function loadFilterOptions() {
@@ -22,27 +20,27 @@ async function loadFilterOptions() {
             fetch('/api/suppliers')
         ]);
         
-        categories = await catRes.json();
-        suppliers = await supRes.json();
+        const categoriesData = await catRes.json();
+        const suppliersData = await supRes.json();
         
-        populateFilterDropdowns();
+        populateFilterDropdowns(categoriesData, suppliersData);
     } catch (error) {
         console.error('Error loading filter options:', error);
     }
 }
 
-function populateFilterDropdowns() {
+function populateFilterDropdowns(categoriesData, suppliersData) {
     const categoryFilter = document.getElementById('filterCategory');
     const supplierFilter = document.getElementById('filterSupplier');
     
     if (categoryFilter) {
         categoryFilter.innerHTML = '<option value="">All Categories</option>' +
-            categories.map(cat => `<option value="${cat.id}">${cat.icon || ''} ${cat.name}</option>`).join('');
+            categoriesData.map(cat => `<option value="${cat.id}">${cat.icon || ''} ${cat.name}</option>`).join('');
     }
     
     if (supplierFilter) {
         supplierFilter.innerHTML = '<option value="">All Suppliers</option>' +
-            suppliers.filter(s => s.is_active).map(sup => `<option value="${sup.id}">${sup.name}</option>`).join('');
+            suppliersData.filter(s => s.is_active).map(sup => `<option value="${sup.id}">${sup.name}</option>`).join('');
     }
 }
 
@@ -73,10 +71,15 @@ function clearAllFilters() {
         expiry: ''
     };
     
-    document.getElementById('filterCategory').value = '';
-    document.getElementById('filterSupplier').value = '';
-    document.getElementById('filterStock').value = '';
-    document.getElementById('filterExpiry').value = '';
+    const categoryFilter = document.getElementById('filterCategory');
+    const supplierFilter = document.getElementById('filterSupplier');
+    const stockFilter = document.getElementById('filterStock');
+    const expiryFilter = document.getElementById('filterExpiry');
+    
+    if (categoryFilter) categoryFilter.value = '';
+    if (supplierFilter) supplierFilter.value = '';
+    if (stockFilter) stockFilter.value = '';
+    if (expiryFilter) expiryFilter.value = '';
     
     updateFilterCount();
     
