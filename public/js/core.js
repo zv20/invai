@@ -93,10 +93,78 @@ function switchTab(tabName) {
     event.target.closest('.nav-item').classList.add('active');
     
     // Tab-specific actions
+    if (tabName === 'dashboard') {
+        // Refresh dashboard data
+        if (typeof loadDashboardStats === 'function') {
+            loadDashboardStats();
+            loadExpirationAlerts();
+        }
+    }
+    if (tabName === 'products') loadProducts();
     if (tabName === 'inventory') loadProductsForInventory();
     if (tabName === 'settings') {
         document.getElementById('updateCheckInterval').value = getUpdateInterval();
     }
+}
+
+/* ==========================================================================
+   Notification System
+   ========================================================================== */
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        border-radius: 8px;
+        font-weight: 600;
+        z-index: 100000;
+        animation: slideIn 0.3s ease-out;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    // Set colors based on type
+    if (type === 'success') {
+        notification.style.background = '#10b981';
+        notification.style.color = 'white';
+        notification.textContent = '✓ ' + message;
+    } else if (type === 'error') {
+        notification.style.background = '#ef4444';
+        notification.style.color = 'white';
+        notification.textContent = '✕ ' + message;
+    } else {
+        notification.style.background = '#3b82f6';
+        notification.style.color = 'white';
+        notification.textContent = 'ℹ️ ' + message;
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// Add animation styles
+if (!document.getElementById('notification-styles')) {
+    const style = document.createElement('style');
+    style.id = 'notification-styles';
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 /* ==========================================================================
@@ -154,8 +222,15 @@ function initializeApp() {
     checkConnection();
     setInterval(checkConnection, 30000);
     
-    // Load initial data
-    loadProducts();
+    // Load initial data for active tab
+    const activeTab = document.querySelector('.tab-content.active');
+    if (activeTab && activeTab.id === 'dashboardTab') {
+        // Dashboard is default - it will initialize itself
+        console.log('✓ Dashboard loading...');
+    } else {
+        // Load products if products tab is active
+        loadProducts();
+    }
     
     // Version check after 2 seconds
     setTimeout(checkVersion, 2000);
@@ -166,7 +241,7 @@ function initializeApp() {
     // Load saved update interval preference
     document.getElementById('updateCheckInterval').value = getUpdateInterval();
     
-    console.log('✓ Grocery Inventory App initialized');
+    console.log('✓ Grocery Inventory App v0.3.0 initialized');
 }
 
 // Initialize when DOM is ready
