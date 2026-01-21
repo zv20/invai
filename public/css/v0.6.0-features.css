@@ -1,0 +1,193 @@
+/* Toast Notifications */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+  z-index: 10000;
+  min-width: 250px;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-success {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.toast-error {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.toast-info {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.toast-warning {
+  background: linear-gradient(135deg, #ff922b 0%, #fd7e14 100%);
+}
+
+/* Batch Suggestions */
+.batch-suggestion-container {
+  margin: 20px 0;
+}
+
+.batch-suggestion {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 20px;
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.batch-suggestion.urgent {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+}
+
+.batch-suggestion.expired {
+  background: linear-gradient(135deg, #c92a2a 0%, #a61e4d 100%);
+}
+
+.batch-suggestion.warning {
+  background: linear-gradient(135deg, #ff922b 0%, #fd7e14 100%);
+}
+
+.suggestion-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  margin-bottom: 15px;
+}
+
+.suggestion-icon {
+  font-size: 24px;
+}
+
+.suggestion-batch {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.suggestion-reason {
+  font-size: 14px;
+  opacity: 0.95;
+  font-weight: 600;
+}
+
+.btn-quick-use {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid white;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+  margin-top: 15px;
+}
+
+.btn-quick-use:hover {
+  background: white;
+  color: #667eea;
+}
+
+/* Quick Action Buttons */
+.quick-actions {
+  display: flex;
+  gap: 5px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+
+.btn-quick {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.btn-quick:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-quick.btn-danger {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.btn-quick.btn-danger:hover {
+  background: #dc3545;
+  color: white;
+}
+
+/* Bulk Operations */
+.bulk-actions-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  padding: 15px 30px;
+  border-radius: 50px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  z-index: 1000;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.bulk-info {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 15px;
+}
+
+#bulk-actions-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.batch-card.selected {
+  border: 2px solid #667eea;
+  background: #f8f9ff;
+}
+
+.batch-checkbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  margin-right: 10px;
+}

@@ -6,6 +6,7 @@
     <title>Grocery Inventory</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/v0.6.0-features.css">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
@@ -181,6 +182,9 @@
                 <!-- Expiration Alert Banners -->
                 <div id="detailAlertBanners"></div>
 
+                <!-- Batch Suggestion (v0.6.0) -->
+                <div id="batch-suggestion-container" class="batch-suggestion-container"></div>
+
                 <!-- Product Info Card -->
                 <div class="dashboard-section" style="margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 15px;">
@@ -266,10 +270,11 @@
             </div>
             <div id="settings-about" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>🛒 Grocery Inventory v0.4.0</h3>
+                    <h3>🛒 Grocery Inventory v0.6.0</h3>
                     <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Latest Changes</h4>
                     <ul class="changelog-list">
+                        <li>💡 <strong>v0.6.0</strong> - Smart Inventory Actions (FIFO/FEFO, Quick Actions, Notifications)</li>
                         <li>🔄 <strong>v0.4.0</strong> - Unified Inventory with click-through detail view</li>
                         <li>📊 <strong>v0.3.0</strong> - Dashboard with statistics and expiration alerts</li>
                         <li>♻️ <strong>v0.2.2</strong> - Backup restore functionality with upload support</li>
@@ -282,6 +287,8 @@
                         <li>📊 Dashboard with real-time statistics</li>
                         <li>🚨 Expiration alerts (expired, urgent, soon)</li>
                         <li>🔄 Unified inventory with detail view</li>
+                        <li>💡 Smart batch suggestions (FIFO/FEFO)</li>
+                        <li>⚡ Quick actions for batch adjustments</li>
                         <li>📦 Product catalog management</li>
                         <li>📋 Batch inventory tracking</li>
                         <li>📷 Barcode scanning</li>
@@ -446,10 +453,13 @@
     </div>
 
     <!-- Load JavaScript modules -->
+    <script src="js/utils.js"></script>
     <script src="js/core.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/inventory.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/scanner.js"></script>
+    <script src="js/batch-suggestions.js"></script>
+    <script src="js/quick-actions.js"></script>
 </body>
 </html>

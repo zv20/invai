@@ -428,6 +428,224 @@ app.get('/api/dashboard/expiration-alerts', (req, res) => {
   });
 });
 
+// ========== V0.6.0: SMART INVENTORY ACTIONS ==========
+
+// FIFO/FEFO Batch Suggestion
+app.get('/api/products/:id/batch-suggestion', (req, res) => {
+  const productId = req.params.id;
+  
+  db.all(`
+    SELECT ib.*, p.name as product_name
+    FROM inventory_batches ib
+    JOIN products p ON ib.product_id = p.id
+    WHERE ib.product_id = ? AND ib.total_quantity > 0
+    ORDER BY 
+      CASE 
+        WHEN ib.expiry_date IS NULL THEN 1
+        ELSE 0
+      END,
+      ib.expiry_date ASC,
+      ib.received_date ASC
+    LIMIT 1
+  `, [productId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (rows.length === 0) {
+      return res.json({ suggestion: null, message: 'No available batches' });
+    }
+    
+    const batch = rows[0];
+    const now = new Date();
+    const expiryDate = batch.expiry_date ? new Date(batch.expiry_date) : null;
+    
+    let urgency = 'normal';
+    let reason = 'Oldest batch';
+    let daysUntilExpiry = null;
+    
+    if (expiryDate) {
+      daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+      
+      if (daysUntilExpiry < 0) {
+        urgency = 'expired';
+        reason = 'EXPIRED - Remove immediately';
+      } else if (daysUntilExpiry <= 7) {
+        urgency = 'urgent';
+        reason = `Expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''} - Use immediately`;
+      } else if (daysUntilExpiry <= 30) {
+        urgency = 'soon';
+        reason = `Expires in ${daysUntilExpiry} days - Use soon`;
+      } else {
+        reason = `Expires in ${daysUntilExpiry} days`;
+      }
+    }
+    
+    res.json({
+      suggestion: batch,
+      urgency,
+      reason,
+      daysUntilExpiry
+    });
+  });
+});
+
+// Low Stock Alerts
+app.get('/api/alerts/low-stock', (req, res) => {
+  const threshold = parseInt(req.query.threshold) || 10;
+  
+  db.all(`
+    SELECT 
+      p.id, p.name, p.category,
+      COALESCE(SUM(ib.total_quantity), 0) as total_quantity
+    FROM products p
+    LEFT JOIN inventory_batches ib ON p.id = ib.product_id
+    GROUP BY p.id
+    HAVING total_quantity > 0 AND total_quantity < ?
+    ORDER BY total_quantity ASC
+  `, [threshold], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Quick Quantity Adjustment
+app.post('/api/inventory/batches/:id/adjust', (req, res) => {
+  const { adjustment, reason } = req.body;
+  const batchId = req.params.id;
+  
+  if (!adjustment || adjustment === 0) {
+    return res.status(400).json({ error: 'Adjustment value required' });
+  }
+  
+  db.get('SELECT * FROM inventory_batches WHERE id = ?', [batchId], (err, batch) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (!batch) {
+      return res.status(404).json({ error: 'Batch not found' });
+    }
+    
+    const newQuantity = batch.total_quantity + adjustment;
+    
+    if (newQuantity < 0) {
+      return res.status(400).json({ error: 'Cannot reduce quantity below zero' });
+    }
+    
+    db.run(
+      'UPDATE inventory_batches SET total_quantity = ?, case_quantity = ? WHERE id = ?',
+      [newQuantity, Math.ceil(newQuantity / (batch.total_quantity / batch.case_quantity || 1)), batchId],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        res.json({ 
+          message: 'Quantity adjusted', 
+          newQuantity,
+          adjustment,
+          reason: reason || 'Manual adjustment'
+        });
+      }
+    );
+  });
+});
+
+// Mark Batch as Empty
+app.post('/api/inventory/batches/:id/mark-empty', (req, res) => {
+  db.run(
+    'UPDATE inventory_batches SET total_quantity = 0, case_quantity = 0 WHERE id = ?',
+    [req.params.id],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Batch not found' });
+      }
+      res.json({ message: 'Batch marked as empty' });
+    }
+  );
+});
+
+// Bulk Delete Batches
+app.post('/api/inventory/bulk/delete', (req, res) => {
+  const { batchIds } = req.body;
+  
+  if (!Array.isArray(batchIds) || batchIds.length === 0) {
+    return res.status(400).json({ error: 'Batch IDs array required' });
+  }
+  
+  const placeholders = batchIds.map(() => '?').join(',');
+  
+  db.run(
+    `DELETE FROM inventory_batches WHERE id IN (${placeholders})`,
+    batchIds,
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ 
+        message: `Deleted ${this.changes} batch${this.changes !== 1 ? 'es' : ''}`, 
+        count: this.changes 
+      });
+    }
+  );
+});
+
+// Bulk Update Location
+app.post('/api/inventory/bulk/update-location', (req, res) => {
+  const { batchIds, location } = req.body;
+  
+  if (!Array.isArray(batchIds) || !location) {
+    return res.status(400).json({ error: 'Batch IDs and location required' });
+  }
+  
+  const placeholders = batchIds.map(() => '?').join(',');
+  
+  db.run(
+    `UPDATE inventory_batches SET location = ? WHERE id IN (${placeholders})`,
+    [location, ...batchIds],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ 
+        message: `Updated ${this.changes} batch${this.changes !== 1 ? 'es' : ''}`, 
+        count: this.changes 
+      });
+    }
+  );
+});
+
+// Bulk Quantity Adjustment
+app.post('/api/inventory/bulk/adjust', (req, res) => {
+  const { batchIds, adjustment } = req.body;
+  
+  if (!Array.isArray(batchIds) || adjustment === undefined) {
+    return res.status(400).json({ error: 'Batch IDs and adjustment value required' });
+  }
+  
+  const placeholders = batchIds.map(() => '?').join(',');
+  
+  db.run(
+    `UPDATE inventory_batches 
+     SET total_quantity = MAX(0, total_quantity + ?)
+     WHERE id IN (${placeholders})`,
+    [adjustment, ...batchIds],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ 
+        message: `Adjusted ${this.changes} batch${this.changes !== 1 ? 'es' : ''}`, 
+        count: this.changes 
+      });
+    }
+  );
+});
+
 // ========== BACKUP SYSTEM ==========
 
 function createBackup() {
@@ -994,6 +1212,7 @@ app.listen(PORT, () => {
   console.log('📤 Backup restore & upload enabled');
   console.log('📊 Dashboard with expiration alerts enabled');
   console.log('📋 Changelog API enabled');
+  console.log('🎯 v0.6.0: Smart inventory actions enabled');
   console.log('Checking for updates from GitHub...');
   checkGitHubVersion()
     .then(info => {
