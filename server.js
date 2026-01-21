@@ -511,6 +511,172 @@ app.get('/api/migrations/status', async (req, res) => {
   }
 });
 
+// ========== v0.7.4: CATEGORIES MANAGEMENT ==========
+
+app.get('/api/categories', (req, res) => {
+  db.all('SELECT * FROM categories ORDER BY display_order, name', [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows || []);
+  });
+});
+
+app.post('/api/categories', (req, res) => {
+  const { name, description, color, icon } = req.body;
+  
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Category name is required' });
+  }
+  
+  db.run(
+    `INSERT INTO categories (name, description, color, icon) VALUES (?, ?, ?, ?)`,
+    [name.trim(), description || '', color || '#9333ea', icon || '📦'],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint')) {
+          return res.status(409).json({ error: 'Category name already exists' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ id: this.lastID, message: 'Category created successfully' });
+    }
+  );
+});
+
+app.put('/api/categories/:id', (req, res) => {
+  const { name, description, color, icon, display_order } = req.body;
+  
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Category name is required' });
+  }
+  
+  db.run(
+    `UPDATE categories SET name = ?, description = ?, color = ?, icon = ?, display_order = COALESCE(?, display_order), updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    [name.trim(), description || '', color || '#9333ea', icon || '📦', display_order, req.params.id],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint')) {
+          return res.status(409).json({ error: 'Category name already exists' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Category not found' });
+      }
+      res.json({ message: 'Category updated successfully' });
+    }
+  );
+});
+
+app.delete('/api/categories/:id', (req, res) => {
+  // Check if any products use this category
+  db.get('SELECT COUNT(*) as count FROM products WHERE category_id = ?', [req.params.id], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (row.count > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete category. ${row.count} product(s) are using this category. Please reassign them first.` 
+      });
+    }
+    
+    db.run('DELETE FROM categories WHERE id = ?', [req.params.id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Category not found' });
+      }
+      res.json({ message: 'Category deleted successfully' });
+    });
+  });
+});
+
+// ========== v0.7.4: SUPPLIERS MANAGEMENT ==========
+
+app.get('/api/suppliers', (req, res) => {
+  db.all('SELECT * FROM suppliers ORDER BY name', [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows || []);
+  });
+});
+
+app.post('/api/suppliers', (req, res) => {
+  const { name, contact_name, phone, email, address, notes } = req.body;
+  
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Supplier name is required' });
+  }
+  
+  db.run(
+    `INSERT INTO suppliers (name, contact_name, phone, email, address, notes) VALUES (?, ?, ?, ?, ?, ?)`,
+    [name.trim(), contact_name || '', phone || '', email || '', address || '', notes || ''],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint')) {
+          return res.status(409).json({ error: 'Supplier name already exists' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ id: this.lastID, message: 'Supplier created successfully' });
+    }
+  );
+});
+
+app.put('/api/suppliers/:id', (req, res) => {
+  const { name, contact_name, phone, email, address, notes } = req.body;
+  
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Supplier name is required' });
+  }
+  
+  db.run(
+    `UPDATE suppliers SET name = ?, contact_name = ?, phone = ?, email = ?, address = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    [name.trim(), contact_name || '', phone || '', email || '', address || '', notes || '', req.params.id],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint')) {
+          return res.status(409).json({ error: 'Supplier name already exists' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Supplier not found' });
+      }
+      res.json({ message: 'Supplier updated successfully' });
+    }
+  );
+});
+
+app.delete('/api/suppliers/:id', (req, res) => {
+  // Check if any products use this supplier
+  db.get('SELECT COUNT(*) as count FROM products WHERE supplier_id = ?', [req.params.id], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (row.count > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete supplier. ${row.count} product(s) are using this supplier. Please reassign them first.` 
+      });
+    }
+    
+    db.run('DELETE FROM suppliers WHERE id = ?', [req.params.id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Supplier not found' });
+      }
+      res.json({ message: 'Supplier deleted successfully' });
+    });
+  });
+});
+
 // ========== DASHBOARD API ==========
 
 app.get('/api/dashboard/stats', (req, res) => {
@@ -553,10 +719,11 @@ app.get('/api/dashboard/stats', (req, res) => {
       // Get category breakdown
       db.all(`
         SELECT 
-          CASE WHEN p.category IS NULL OR p.category = '' THEN 'Uncategorized' ELSE p.category END as category,
+          COALESCE(c.name, 'Uncategorized') as category,
           COUNT(*) as count
         FROM products p
-        GROUP BY category
+        LEFT JOIN categories c ON p.category_id = c.id
+        GROUP BY c.name
         ORDER BY count DESC
         LIMIT 5
       `, [], (err, categoryData) => {
@@ -718,10 +885,11 @@ app.get('/api/alerts/low-stock', (req, res) => {
   
   db.all(`
     SELECT 
-      p.id, p.name, p.category,
+      p.id, p.name, c.name as category,
       COALESCE(SUM(ib.total_quantity), 0) as total_quantity
     FROM products p
     LEFT JOIN inventory_batches ib ON p.id = ib.product_id
+    LEFT JOIN categories c ON p.category_id = c.id
     GROUP BY p.id
     HAVING total_quantity > 0 AND total_quantity < ?
     ORDER BY total_quantity ASC
@@ -1050,14 +1218,21 @@ app.get('/api/version', async (req, res) => {
 
 app.get('/api/products', (req, res) => {
   const { search } = req.query;
-  let query = 'SELECT * FROM products WHERE 1=1';
+  let query = `
+    SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon,
+           s.name as supplier_name
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN suppliers s ON p.supplier_id = s.id
+    WHERE 1=1
+  `;
   const params = [];
   if (search) {
-    query += ' AND (name LIKE ? OR barcode LIKE ? OR brand LIKE ? OR supplier LIKE ? OR inhouse_number LIKE ?)';
+    query += ' AND (p.name LIKE ? OR p.barcode LIKE ? OR p.brand LIKE ? OR s.name LIKE ? OR p.inhouse_number LIKE ?)';
     const searchTerm = `%${search}%`;
     params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
   }
-  query += ' ORDER BY name';
+  query += ' ORDER BY p.name';
   db.all(query, params, (err, rows) => {
     if (err) res.status(500).json({ error: err.message });
     else res.json(rows);
@@ -1065,7 +1240,14 @@ app.get('/api/products', (req, res) => {
 });
 
 app.get('/api/products/:id', (req, res) => {
-  db.get('SELECT * FROM products WHERE id = ?', [req.params.id], (err, row) => {
+  db.get(`
+    SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon,
+           s.name as supplier_name, s.phone as supplier_phone, s.email as supplier_email
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN suppliers s ON p.supplier_id = s.id
+    WHERE p.id = ?
+  `, [req.params.id], (err, row) => {
     if (err) res.status(500).json({ error: err.message });
     else if (!row) res.status(404).json({ error: 'Product not found' });
     else res.json(row);
@@ -1073,13 +1255,16 @@ app.get('/api/products/:id', (req, res) => {
 });
 
 app.post('/api/products', (req, res) => {
-  const { name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes } = req.body;
+  const { name, inhouse_number, barcode, brand, supplier_id, category_id, items_per_case, cost_per_case, notes, 
+          product_image, allergen_info, nutritional_data, storage_temp } = req.body;
   if (!name) return res.status(400).json({ error: 'Product name is required' });
   db.run(
-    `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, inhouse_number || null, barcode || null, brand || null, supplier || null,
-     items_per_case || null, cost_per_case || 0, category || '', notes || ''],
+    `INSERT INTO products (name, inhouse_number, barcode, brand, supplier_id, category_id, items_per_case, cost_per_case, notes,
+                          product_image, allergen_info, nutritional_data, storage_temp)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, inhouse_number || null, barcode || null, brand || null, supplier_id || null, category_id || null,
+     items_per_case || null, cost_per_case || 0, notes || '', product_image || null, allergen_info || null,
+     nutritional_data || null, storage_temp || null],
     function(err) {
       if (err) {
         if (err.message.includes('UNIQUE constraint')) {
@@ -1095,14 +1280,17 @@ app.post('/api/products', (req, res) => {
 });
 
 app.put('/api/products/:id', (req, res) => {
-  const { name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes } = req.body;
+  const { name, inhouse_number, barcode, brand, supplier_id, category_id, items_per_case, cost_per_case, notes,
+          product_image, allergen_info, nutritional_data, storage_temp } = req.body;
   db.run(
     `UPDATE products
-     SET name = ?, inhouse_number = ?, barcode = ?, brand = ?, supplier = ?,
-         items_per_case = ?, cost_per_case = ?, category = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+     SET name = ?, inhouse_number = ?, barcode = ?, brand = ?, supplier_id = ?, category_id = ?,
+         items_per_case = ?, cost_per_case = ?, notes = ?, product_image = ?, allergen_info = ?,
+         nutritional_data = ?, storage_temp = ?, updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,
-    [name, inhouse_number || null, barcode || null, brand || null, supplier || null,
-     items_per_case || null, cost_per_case || 0, category || '', notes || '', req.params.id],
+    [name, inhouse_number || null, barcode || null, brand || null, supplier_id || null, category_id || null,
+     items_per_case || null, cost_per_case || 0, notes || '', product_image || null, allergen_info || null,
+     nutritional_data || null, storage_temp || null, req.params.id],
     function(err) {
       if (err) res.status(500).json({ error: err.message });
       else if (this.changes === 0) res.status(404).json({ error: 'Product not found' });
@@ -1120,23 +1308,31 @@ app.delete('/api/products/:id', (req, res) => {
 });
 
 app.get('/api/inventory/summary', (req, res) => {
-  const { search, category } = req.query;
+  const { search, category, supplier } = req.query;
   let query = `
-    SELECT p.*, COALESCE(SUM(ib.total_quantity), 0) as total_quantity,
+    SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon,
+           s.name as supplier_name,
+           COALESCE(SUM(ib.total_quantity), 0) as total_quantity,
            COUNT(ib.id) as batch_count, MIN(ib.expiry_date) as earliest_expiry
     FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN suppliers s ON p.supplier_id = s.id
     LEFT JOIN inventory_batches ib ON p.id = ib.product_id
     WHERE 1=1
   `;
   const params = [];
   if (search) {
-    query += ' AND (p.name LIKE ? OR p.barcode LIKE ? OR p.brand LIKE ? OR p.supplier LIKE ? OR p.inhouse_number LIKE ?)';
+    query += ' AND (p.name LIKE ? OR p.barcode LIKE ? OR p.brand LIKE ? OR s.name LIKE ? OR p.inhouse_number LIKE ?)';
     const searchTerm = `%${search}%`;
     params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
   }
   if (category && category !== 'all') {
-    query += ' AND p.category = ?';
+    query += ' AND p.category_id = ?';
     params.push(category);
+  }
+  if (supplier && supplier !== 'all') {
+    query += ' AND p.supplier_id = ?';
+    params.push(supplier);
   }
   query += ' GROUP BY p.id ORDER BY p.name';
   db.all(query, params, (err, rows) => {
@@ -1240,10 +1436,12 @@ app.post('/api/database/reset', (req, res) => {
 
 app.get('/api/export/inventory', (req, res) => {
   const query = `
-    SELECT p.name, p.inhouse_number, p.barcode, p.brand, p.supplier, p.items_per_case, p.cost_per_case, p.category,
-           ib.case_quantity, ib.total_quantity, ib.expiry_date, ib.location, ib.received_date,
+    SELECT p.name, p.inhouse_number, p.barcode, p.brand, s.name as supplier, p.items_per_case, p.cost_per_case, 
+           c.name as category, ib.case_quantity, ib.total_quantity, ib.expiry_date, ib.location, ib.received_date,
            ib.notes as batch_notes, p.notes as product_notes
     FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN suppliers s ON p.supplier_id = s.id
     LEFT JOIN inventory_batches ib ON p.id = ib.product_id
     ORDER BY p.name, ib.expiry_date
   `;
@@ -1325,11 +1523,11 @@ app.post('/api/import/inventory', async (req, res) => {
           await new Promise((resolve, reject) => {
             db.run(
               `UPDATE products SET inhouse_number = COALESCE(?, inhouse_number),
-               brand = COALESCE(?, brand), supplier = COALESCE(?, supplier),
-               items_per_case = COALESCE(?, items_per_case), cost_per_case = COALESCE(?, cost_per_case),
-               category = COALESCE(?, category), notes = COALESCE(?, notes), updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-              [data['In-House Number'], data['Brand'], data['Supplier'], 
-               data['Items Per Case'], data['Cost Per Case'] || 0, data['Category'], data['Product Notes'], existingProduct.id],
+               brand = COALESCE(?, brand), items_per_case = COALESCE(?, items_per_case), 
+               cost_per_case = COALESCE(?, cost_per_case), notes = COALESCE(?, notes), 
+               updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+              [data['In-House Number'], data['Brand'], data['Items Per Case'], 
+               data['Cost Per Case'] || 0, data['Product Notes'], existingProduct.id],
               (err) => { if (err) reject(err); else resolve(); }
             );
           });
@@ -1338,10 +1536,10 @@ app.post('/api/import/inventory', async (req, res) => {
         } else {
           productId = await new Promise((resolve, reject) => {
             db.run(
-              `INSERT INTO products (name, inhouse_number, barcode, brand, supplier, items_per_case, cost_per_case, category, notes)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              `INSERT INTO products (name, inhouse_number, barcode, brand, items_per_case, cost_per_case, notes)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
               [productName, data['In-House Number'], data['Barcode'], data['Brand'], 
-               data['Supplier'], data['Items Per Case'] || 1, data['Cost Per Case'] || 0, data['Category'] || '', data['Product Notes'] || ''],
+               data['Items Per Case'] || 1, data['Cost Per Case'] || 0, data['Product Notes'] || ''],
               function(err) { if (err) reject(err); else resolve(this.lastID); }
             );
           });
@@ -1372,20 +1570,6 @@ app.post('/api/import/inventory', async (req, res) => {
   }
 });
 
-app.get('/api/categories', (req, res) => {
-  db.all('SELECT DISTINCT category FROM products WHERE category != "" ORDER BY category', (err, rows) => {
-    if (err) res.status(500).json({ error: err.message });
-    else res.json(rows.map(row => row.category));
-  });
-});
-
-app.get('/api/suppliers', (req, res) => {
-  db.all('SELECT DISTINCT supplier FROM products WHERE supplier != "" AND supplier IS NOT NULL ORDER BY supplier', (err, rows) => {
-    if (err) res.status(500).json({ error: err.message });
-    else res.json(rows.map(row => row.supplier));
-  });
-});
-
 app.listen(PORT, () => {
   console.log(`Grocery Inventory Management v${VERSION}`);
   console.log(`Server running on port ${PORT}`);
@@ -1399,6 +1583,7 @@ app.listen(PORT, () => {
   console.log('🎯 v0.6.0: Smart inventory actions enabled');
   console.log('🔧 v0.7.0: Migration system enabled');
   console.log('📡 Update channel system enabled');
+  console.log('🏷️  v0.7.4: Categories & Suppliers management enabled');
   console.log(`Current channel: ${getCurrentChannel()}`);
   console.log('Checking for updates from GitHub...');
   const currentChannel = getCurrentChannel();
