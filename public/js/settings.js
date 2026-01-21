@@ -30,6 +30,82 @@ function switchSettingsTab(tabName) {
     // Load data for specific tabs
     if (tabName === 'backups') {
         loadBackups();
+    } else if (tabName === 'about') {
+        loadAboutInfo();
+    }
+}
+
+/* ==========================================================================
+   About Section - Dynamic Loading
+   ========================================================================== */
+
+async function loadAboutInfo() {
+    try {
+        const response = await fetch(`${API_URL}/api/changelog`);
+        const data = await response.json();
+        
+        const aboutSection = document.getElementById('settings-about').querySelector('.settings-section');
+        
+        let html = `
+            <h3>🛒 Grocery Inventory v${data.currentVersion}</h3>
+            <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
+        `;
+        
+        if (data.versions && data.versions.length > 0) {
+            html += `<h4 style="margin-top: 25px; margin-bottom: 10px;">Recent Updates</h4><ul class="changelog-list">`;
+            
+            data.versions.slice(0, 5).forEach(version => {
+                html += `<li style="margin-bottom: 15px;"><strong>v${version.version}</strong> - ${version.date}<ul style="margin-left: 20px; margin-top: 5px;">`;
+                
+                let lastCategory = null;
+                version.changes.forEach(change => {
+                    if (change.type === 'category') {
+                        if (lastCategory) html += '</ul>';
+                        html += `<li style="font-weight: 600; color: #667eea; margin-top: 8px;">${change.text}<ul style="margin-left: 15px;">`;
+                        lastCategory = change.text;
+                    } else if (change.type === 'item') {
+                        html += `<li style="font-weight: normal; color: #374151;">${change.text}</li>`;
+                    }
+                });
+                
+                if (lastCategory) html += '</ul>';
+                html += '</ul></li>';
+            });
+            
+            html += '</ul>';
+        }
+        
+        html += `
+            <h4 style="margin-top: 25px; margin-bottom: 10px;">Features</h4>
+            <ul class="changelog-list">
+                <li>📊 Dashboard with real-time statistics</li>
+                <li>🚨 Expiration alerts (expired, urgent, soon)</li>
+                <li>🔄 Unified inventory with detail view</li>
+                <li>📦 Product catalog management</li>
+                <li>📋 Batch inventory tracking</li>
+                <li>📷 Barcode scanning</li>
+                <li>💾 Automated backups with retention</li>
+                <li>♻️ Backup restore with safety snapshots</li>
+                <li>📊 CSV import/export</li>
+            </ul>
+            <h4 style="margin-top: 25px; margin-bottom: 10px;">Links</h4>
+            <p><a href="https://github.com/zv20/invai" target="_blank" style="color: #667eea; text-decoration: underline;">🔗 GitHub Repository</a></p>
+            <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/blob/main/CHANGELOG.md" target="_blank" style="color: #667eea; text-decoration: underline;">📋 Full Changelog</a></p>
+            <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/issues" target="_blank" style="color: #667eea; text-decoration: underline;">📝 Report an Issue</a></p>
+            <h4 style="margin-top: 25px; margin-bottom: 10px;">License</h4>
+            <p>MIT License - Free to use and modify</p>
+        `;
+        
+        aboutSection.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading about info:', error);
+        // Fallback to basic info if API fails
+        const aboutSection = document.getElementById('settings-about').querySelector('.settings-section');
+        aboutSection.innerHTML = `
+            <h3>🛒 Grocery Inventory</h3>
+            <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
+            <p style="margin-top: 20px; color: #ef4444;">Could not load version information</p>
+        `;
     }
 }
 
@@ -135,7 +211,7 @@ async function checkVersion() {
 async function createBackup() {
     const btn = event.target;
     btn.disabled = true;
-    btn.textContent = '⏳ Creating...';
+    btn.textContent = '⌛ Creating...';
     
     try {
         const response = await fetch(`${API_URL}/api/backup/create`, {
@@ -161,7 +237,7 @@ async function createBackup() {
 
 async function loadBackups() {
     const list = document.getElementById('backupList');
-    list.innerHTML = '<div style="text-align: center; padding: 20px; color: #9ca3af;">⏳ Loading backups...</div>';
+    list.innerHTML = '<div style="text-align: center; padding: 20px; color: #9ca3af;">⌛ Loading backups...</div>';
     
     try {
         const response = await fetch(`${API_URL}/api/backup/list`);
