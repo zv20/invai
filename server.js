@@ -385,6 +385,105 @@ app.get('/api/migrations/status', async (req, res) => {
   }
 });
 
+// ========== UPDATE CHANNEL MANAGEMENT ==========
+
+const UPDATE_CHANNEL_FILE = path.join(__dirname, '.update-channel');
+
+app.get('/api/settings/update-channel', (req, res) => {
+  try {
+    let channel = 'stable';
+    if (fs.existsSync(UPDATE_CHANNEL_FILE)) {
+      channel = fs.readFileSync(UPDATE_CHANNEL_FILE, 'utf8').trim();
+    }
+    
+    const { execSync } = require('child_process');
+    const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: __dirname })
+      .toString().trim();
+    
+    res.json({
+      channel,
+      currentBranch,
+      currentVersion: VERSION,
+      availableChannels: [
+        { 
+          id: 'stable', 
+          name: 'Stable', 
+          branch: 'main', 
+          description: 'Production-ready releases',
+          recommended: true 
+        },
+        { 
+          id: 'beta', 
+          name: 'Beta', 
+          branch: 'develop', 
+          description: 'Latest features (may have bugs)',
+          recommended: false 
+        }
+      ]
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/settings/update-channel', (req, res) => {
+  const { channel } = req.body;
+  
+  if (!['stable', 'beta'].includes(channel)) {
+    return res.status(400).json({ error: 'Invalid channel' });
+  }
+  
+  try {
+    fs.writeFileSync(UPDATE_CHANNEL_FILE, channel);
+    res.json({ 
+      message: 'Update channel preference saved',
+      channel,
+      note: 'Channel will be used for future updates'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/settings/switch-channel', async (req, res) => {
+  const { channel } = req.body;
+  
+  if (!['stable', 'beta'].includes(channel)) {
+    return res.status(400).json({ error: 'Invalid channel' });
+  }
+  
+  const targetBranch = channel === 'beta' ? 'develop' : 'main';
+  
+  try {
+    const { execSync } = require('child_process');
+    
+    const backup = await createBackup(`pre_channel_switch_${channel}`);
+    console.log(`Created backup: ${backup.filename}`);
+    
+    fs.writeFileSync(UPDATE_CHANNEL_FILE, channel);
+    
+    execSync('git fetch origin', { cwd: __dirname });
+    execSync(`git checkout ${targetBranch}`, { cwd: __dirname });
+    execSync(`git pull origin ${targetBranch}`, { cwd: __dirname });
+    execSync('npm install --production', { cwd: __dirname });
+    
+    res.json({ 
+      success: true,
+      message: `Switched to ${channel} channel (${targetBranch} branch)`,
+      channel,
+      branch: targetBranch,
+      backup: backup.filename,
+      restartRequired: true
+    });
+  } catch (error) {
+    console.error('Channel switch error:', error);
+    res.status(500).json({ 
+      error: 'Failed to switch channel: ' + error.message,
+      details: error.stderr ? error.stderr.toString() : ''
+    });
+  }
+});
+
 // ========== DASHBOARD API ==========
 
 app.get('/api/dashboard/stats', (req, res) => {
@@ -1254,7 +1353,8 @@ app.listen(PORT, () => {
   console.log('📊 Dashboard with expiration alerts enabled');
   console.log('📋 Changelog API enabled');
   console.log('🎯 v0.6.0: Smart inventory actions enabled');
-  console.log('🔄 v0.7.0: Database migration system enabled\n');
+  console.log('🔄 v0.7.0: Database migration system enabled');
+  console.log('📡 v0.8.0: Update channel management enabled\n');
   console.log('Checking for updates from GitHub...');
   checkGitHubVersion()
     .then(info => {
