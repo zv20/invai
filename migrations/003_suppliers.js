@@ -142,7 +142,7 @@ module.exports = {
             FROM products
         `);
         
-        await db.run(`DROP TABLE products`);
+        await db.run(`DROP TABLE products`);        
         await db.run(`ALTER TABLE products_backup RENAME TO products`);
         await db.run(`DROP TABLE IF EXISTS suppliers`);
         
