@@ -3,6 +3,8 @@
  * 
  * Creates categories table and migrates existing product 'item' text field to category_id references
  * Adds default grocery categories with colors for UI display
+ * 
+ * Version: v0.7.4a (hotfix - handle missing item column)
  */
 
 module.exports = {
@@ -74,6 +76,7 @@ module.exports = {
         });
 
         const categoryIdExists = tableInfo.some(col => col.name === 'category_id');
+        const itemColumnExists = tableInfo.some(col => col.name === 'item');
 
         if (!categoryIdExists) {
             // Add category_id column to products table
@@ -83,67 +86,72 @@ module.exports = {
             console.log('✓ category_id column already exists, skipping');
         }
 
-        // Migrate existing 'item' data to categories
-        // Get all unique item values from products - wrap in Promise to ensure proper async
-        const existingItemsRaw = await new Promise((resolve, reject) => {
-            db.all(`SELECT DISTINCT item FROM products WHERE item IS NOT NULL AND item != ''`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows || []);
-            });
-        });
-        
-        const existingItems = existingItemsRaw || [];
-        
-        console.log(`Found ${existingItems.length} unique item types to migrate`);
-
-        // Map common item names to category IDs
-        const categoryMapping = {
-            // Dairy variations
-            'dairy': 'Dairy', 'milk': 'Dairy', 'cheese': 'Dairy', 'yogurt': 'Dairy',
-            // Produce variations
-            'produce': 'Produce', 'fruit': 'Produce', 'vegetable': 'Produce', 'fruits': 'Produce', 'vegetables': 'Produce',
-            // Meat variations
-            'meat': 'Meat', 'beef': 'Meat', 'chicken': 'Meat', 'pork': 'Meat', 'fish': 'Meat', 'seafood': 'Meat',
-            // Bakery variations
-            'bakery': 'Bakery', 'bread': 'Bakery', 'pastry': 'Bakery',
-            // Frozen variations
-            'frozen': 'Frozen', 'ice cream': 'Frozen',
-            // Dry goods variations
-            'dry goods': 'Dry Goods', 'canned': 'Dry Goods', 'pasta': 'Dry Goods', 'rice': 'Dry Goods',
-            // Beverages
-            'beverage': 'Beverages', 'beverages': 'Beverages', 'drink': 'Beverages', 'juice': 'Beverages', 'soda': 'Beverages',
-            // Snacks
-            'snack': 'Snacks', 'snacks': 'Snacks', 'chips': 'Snacks', 'cookies': 'Snacks',
-            // Condiments
-            'condiment': 'Condiments', 'condiments': 'Condiments', 'sauce': 'Condiments', 'spice': 'Condiments',
-            // Cleaning
-            'cleaning': 'Cleaning', 'cleaner': 'Cleaning',
-            // Personal care
-            'personal care': 'Personal Care', 'toiletries': 'Personal Care'
-        };
-
-        // Update products with matching categories
-        for (const row of existingItems) {
-            if (!row || !row.item) continue; // Safety check
-            
-            const itemName = row.item.toLowerCase().trim();
-            const categoryName = categoryMapping[itemName] || 'Other';
-            
-            // Get category ID
-            const category = await new Promise((resolve, reject) => {
-                db.get(`SELECT id FROM categories WHERE name = ?`, [categoryName], (err, row) => {
+        // Only migrate from 'item' column if it exists
+        if (itemColumnExists) {
+            // Migrate existing 'item' data to categories
+            const existingItemsRaw = await new Promise((resolve, reject) => {
+                db.all(`SELECT DISTINCT item FROM products WHERE item IS NOT NULL AND item != ''`, [], (err, rows) => {
                     if (err) reject(err);
-                    else resolve(row);
+                    else resolve(rows || []);
                 });
             });
             
-            if (category) {
-                await db.run(
-                    `UPDATE products SET category_id = ? WHERE LOWER(TRIM(item)) = ?`,
-                    [category.id, itemName]
-                );
-                console.log(`  Migrated "${row.item}" → ${categoryName}`);
+            const existingItems = existingItemsRaw || [];
+            
+            console.log(`Found ${existingItems.length} unique item types to migrate`);
+
+            // Map common item names to category IDs
+            const categoryMapping = {
+                // Dairy variations
+                'dairy': 'Dairy', 'milk': 'Dairy', 'cheese': 'Dairy', 'yogurt': 'Dairy',
+                // Produce variations
+                'produce': 'Produce', 'fruit': 'Produce', 'vegetable': 'Produce', 'fruits': 'Produce', 'vegetables': 'Produce',
+                // Meat variations
+                'meat': 'Meat', 'beef': 'Meat', 'chicken': 'Meat', 'pork': 'Meat', 'fish': 'Meat', 'seafood': 'Meat',
+                // Bakery variations
+                'bakery': 'Bakery', 'bread': 'Bakery', 'pastry': 'Bakery',
+                // Frozen variations
+                'frozen': 'Frozen', 'ice cream': 'Frozen',
+                // Dry goods variations
+                'dry goods': 'Dry Goods', 'canned': 'Dry Goods', 'pasta': 'Dry Goods', 'rice': 'Dry Goods',
+                // Beverages
+                'beverage': 'Beverages', 'beverages': 'Beverages', 'drink': 'Beverages', 'juice': 'Beverages', 'soda': 'Beverages',
+                // Snacks
+                'snack': 'Snacks', 'snacks': 'Snacks', 'chips': 'Snacks', 'cookies': 'Snacks',
+                // Condiments
+                'condiment': 'Condiments', 'condiments': 'Condiments', 'sauce': 'Condiments', 'spice': 'Condiments',
+                // Cleaning
+                'cleaning': 'Cleaning', 'cleaner': 'Cleaning',
+                // Personal care
+                'personal care': 'Personal Care', 'toiletries': 'Personal Care'
+            };
+
+            // Update products with matching categories
+            for (const row of existingItems) {
+                if (!row || !row.item) continue; // Safety check
+                
+                const itemName = row.item.toLowerCase().trim();
+                const categoryName = categoryMapping[itemName] || 'Other';
+                
+                // Get category ID
+                const category = await new Promise((resolve, reject) => {
+                    db.get(`SELECT id FROM categories WHERE name = ?`, [categoryName], (err, row) => {
+                        if (err) reject(err);
+                        else resolve(row);
+                    });
+                });
+                
+                if (category) {
+                    await db.run(
+                        `UPDATE products SET category_id = ? WHERE LOWER(TRIM(item)) = ?`,
+                        [category.id, itemName]
+                    );
+                    console.log(`  Migrated "${row.item}" → ${categoryName}`);
+                }
             }
+            console.log('✓ Product categories migrated from item column');
+        } else {
+            console.log('✓ No item column found, skipping data migration');
         }
 
         // Set remaining NULL category_ids to 'Other'
@@ -156,9 +164,9 @@ module.exports = {
         
         if (otherCategory) {
             await db.run(`UPDATE products SET category_id = ? WHERE category_id IS NULL`, [otherCategory.id]);
+            console.log('✓ Set default category for products without category');
         }
 
-        console.log('✓ Product categories migrated');
         console.log('Migration 002 completed successfully!');
     },
 
