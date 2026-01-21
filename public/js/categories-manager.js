@@ -1,99 +1,116 @@
-// Category Management Module
-const CategoryManager = (() => {
-    let categories = [];
-    
-    async function loadCategories() {
+/**
+ * Categories Manager
+ * Handles category CRUD operations and display
+ */
+
+class CategoriesManager {
+    constructor() {
+        this.categories = [];
+        this.init();
+    }
+
+    async init() {
+        await this.loadCategories();
+        this.setupEventListeners();
+    }
+
+    async loadCategories() {
         try {
             const response = await fetch('/api/categories');
-            categories = await response.json();
-            renderCategoriesList();
+            this.categories = await response.json();
+            this.renderCategoriesList();
         } catch (error) {
             console.error('Error loading categories:', error);
             showToast('Failed to load categories', 'error');
         }
     }
-    
-    function renderCategoriesList() {
-        const container = document.getElementById('categories-list');
+
+    renderCategoriesList() {
+        const container = document.getElementById('categoriesList');
         if (!container) return;
-        
-        if (categories.length === 0) {
-            container.innerHTML = '<p class="text-gray-500">No categories found</p>';
+
+        if (this.categories.length === 0) {
+            container.innerHTML = '<p class="no-data">No categories found</p>';
             return;
         }
-        
-        container.innerHTML = categories.map(cat => `
-            <div class="category-card" data-id="${cat.id}">
-                <div class="category-header">
-                    <span class="category-icon" style="background: ${cat.color}">${cat.icon}</span>
-                    <div class="category-info">
-                        <h4>${cat.name}</h4>
-                        <p>${cat.description || ''}</p>
-                    </div>
-                    <div class="category-actions">
-                        <button onclick="CategoryManager.editCategory(${cat.id})" class="btn-icon" title="Edit">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                            </svg>
-                        </button>
-                        <button onclick="CategoryManager.deleteCategory(${cat.id})" class="btn-icon text-red-600" title="Delete">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                        </button>
-                    </div>
+
+        container.innerHTML = this.categories.map(cat => `
+            <div class="category-item" data-id="${cat.id}" style="border-left: 4px solid ${cat.color}">
+                <div class="category-icon">${cat.icon}</div>
+                <div class="category-info">
+                    <h4>${cat.name}</h4>
+                    <p>${cat.description || 'No description'}</p>
+                </div>
+                <div class="category-actions">
+                    <button class="btn-icon" onclick="categoriesManager.editCategory(${cat.id})" title="Edit">
+                        ✏️
+                    </button>
+                    <button class="btn-icon" onclick="categoriesManager.deleteCategory(${cat.id})" title="Delete">
+                        🗑️
+                    </button>
+                    <button class="btn-icon drag-handle" title="Reorder">
+                        ☰
+                    </button>
                 </div>
             </div>
         `).join('');
     }
-    
-    function showCategoryModal(category = null) {
-        const isEdit = category !== null;
-        const modal = document.getElementById('category-modal');
-        const form = document.getElementById('category-form');
+
+    setupEventListeners() {
+        const addBtn = document.getElementById('addCategoryBtn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => this.showCategoryModal());
+        }
+    }
+
+    showCategoryModal(categoryId = null) {
+        const category = categoryId ? this.categories.find(c => c.id === categoryId) : null;
         
-        document.getElementById('category-modal-title').textContent = isEdit ? 'Edit Category' : 'Add Category';
+        const modal = document.getElementById('categoryModal');
+        const form = document.getElementById('categoryForm');
         
-        if (isEdit) {
-            document.getElementById('category-id').value = category.id;
-            document.getElementById('category-name').value = category.name;
-            document.getElementById('category-description').value = category.description || '';
-            document.getElementById('category-color').value = category.color || '#9333ea';
-            document.getElementById('category-icon').value = category.icon || '';
+        if (category) {
+            document.getElementById('categoryId').value = category.id;
+            document.getElementById('categoryName').value = category.name;
+            document.getElementById('categoryDescription').value = category.description || '';
+            document.getElementById('categoryColor').value = category.color;
+            document.getElementById('categoryIcon').value = category.icon || '';
+            document.getElementById('categoryModalTitle').textContent = 'Edit Category';
         } else {
             form.reset();
-            document.getElementById('category-id').value = '';
-            document.getElementById('category-color').value = '#9333ea';
+            document.getElementById('categoryId').value = '';
+            document.getElementById('categoryModalTitle').textContent = 'Add Category';
         }
         
-        modal.classList.remove('hidden');
+        modal.style.display = 'block';
     }
-    
-    async function saveCategory(event) {
+
+    async saveCategory(event) {
         event.preventDefault();
         
-        const id = document.getElementById('category-id').value;
+        const formData = new FormData(event.target);
+        const categoryId = formData.get('categoryId');
         const data = {
-            name: document.getElementById('category-name').value.trim(),
-            description: document.getElementById('category-description').value.trim(),
-            color: document.getElementById('category-color').value,
-            icon: document.getElementById('category-icon').value.trim()
+            name: formData.get('name'),
+            description: formData.get('description'),
+            color: formData.get('color'),
+            icon: formData.get('icon')
         };
-        
+
         try {
-            const url = id ? `/api/categories/${id}` : '/api/categories';
-            const method = id ? 'PUT' : 'POST';
+            const url = categoryId ? `/api/categories/${categoryId}` : '/api/categories';
+            const method = categoryId ? 'PUT' : 'POST';
             
             const response = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            
+
             if (response.ok) {
-                showToast(id ? 'Category updated successfully' : 'Category added successfully', 'success');
-                closeCategoryModal();
-                loadCategories();
+                showToast(categoryId ? 'Category updated' : 'Category created', 'success');
+                this.closeCategoryModal();
+                await this.loadCategories();
             } else {
                 const error = await response.json();
                 showToast(error.error || 'Failed to save category', 'error');
@@ -103,18 +120,22 @@ const CategoryManager = (() => {
             showToast('Failed to save category', 'error');
         }
     }
-    
-    async function deleteCategory(id) {
-        if (!confirm('Are you sure you want to delete this category? Products using this category will need to be reassigned.')) {
+
+    editCategory(id) {
+        this.showCategoryModal(id);
+    }
+
+    async deleteCategory(id) {
+        const category = this.categories.find(c => c.id === id);
+        if (!confirm(`Delete category "${category.name}"? Products will be moved to "Other".`)) {
             return;
         }
-        
+
         try {
             const response = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
-            
             if (response.ok) {
-                showToast('Category deleted successfully', 'success');
-                loadCategories();
+                showToast('Category deleted', 'success');
+                await this.loadCategories();
             } else {
                 const error = await response.json();
                 showToast(error.error || 'Failed to delete category', 'error');
@@ -124,25 +145,24 @@ const CategoryManager = (() => {
             showToast('Failed to delete category', 'error');
         }
     }
-    
-    function editCategory(id) {
-        const category = categories.find(c => c.id === id);
-        if (category) {
-            showCategoryModal(category);
+
+    closeCategoryModal() {
+        document.getElementById('categoryModal').style.display = 'none';
+    }
+}
+
+// Global instance
+let categoriesManager;
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (document.getElementById('categoriesList')) {
+            categoriesManager = new CategoriesManager();
         }
+    });
+} else {
+    if (document.getElementById('categoriesList')) {
+        categoriesManager = new CategoriesManager();
     }
-    
-    function closeCategoryModal() {
-        document.getElementById('category-modal').classList.add('hidden');
-    }
-    
-    return {
-        init: loadCategories,
-        loadCategories,
-        showCategoryModal,
-        saveCategory,
-        deleteCategory,
-        editCategory,
-        closeCategoryModal
-    };
-})();
+}
