@@ -35,3 +35,71 @@
 .toast-warning {
   background: linear-gradient(135deg, #ff922b 0%, #fd7e14 100%);
 }
+
+/* Batch Suggestions */
+.batch-suggestion-container {
+  margin: 20px 0;
+}
+
+.batch-suggestion {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 20px;
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.batch-suggestion.urgent {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+}
+
+.batch-suggestion.expired {
+  background: linear-gradient(135deg, #c92a2a 0%, #a61e4d 100%);
+}
+
+.batch-suggestion.warning {
+  background: linear-gradient(135deg, #ff922b 0%, #fd7e14 100%);
+}
+
+.suggestion-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  margin-bottom: 15px;
+}
+
+.suggestion-icon {
+  font-size: 24px;
+}
+
+.suggestion-batch {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.suggestion-reason {
+  font-size: 14px;
+  opacity: 0.95;
+  font-weight: 600;
+}
+
+.btn-quick-use {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid white;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+  margin-top: 15px;
+}
+
+.btn-quick-use:hover {
+  background: white;
+  color: #667eea;
+}
