@@ -1,6 +1,6 @@
 {
   "name": "grocery-inventory",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Professional grocery inventory with product and batch tracking",
   "main": "server.js",
   "scripts": {
