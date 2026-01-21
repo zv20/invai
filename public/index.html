@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/v0.6.0-features.css">
+    <link rel="stylesheet" href="css/filters.css">
+    <link rel="stylesheet" href="css/categories.css">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
@@ -165,6 +167,47 @@
                     <button class="btn-scan" onclick="openScanner('search')">📷 Scan Barcode</button>
                 </div>
 
+                <!-- Filters Panel (v0.7.4) -->
+                <div id="filtersPanel" class="filters-panel">
+                    <div class="filters-header">
+                        <h4>🎛️ Filters <span id="activeFilterCount" class="filter-count">0</span></h4>
+                        <button class="clear-filters-btn" onclick="clearAllFilters()" style="display: none;">✕ Clear All</button>
+                    </div>
+                    <div class="filters-grid">
+                        <div class="filter-group">
+                            <label>Category</label>
+                            <select id="filterCategory" onchange="applyFilters()">
+                                <option value="">All Categories</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Supplier</label>
+                            <select id="filterSupplier" onchange="applyFilters()">
+                                <option value="">All Suppliers</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Stock Status</label>
+                            <select id="filterStock" onchange="applyFilters()">
+                                <option value="">All Stock Levels</option>
+                                <option value="in-stock">In Stock</option>
+                                <option value="low-stock">Low Stock</option>
+                                <option value="out-of-stock">Out of Stock</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Expiry Status</label>
+                            <select id="filterExpiry" onchange="applyFilters()">
+                                <option value="">All Expiry Status</option>
+                                <option value="expired">Expired</option>
+                                <option value="urgent">Urgent (7 days)</option>
+                                <option value="soon">Soon (30 days)</option>
+                                <option value="normal">Normal</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="productList" class="product-list">
                     <div class="empty-state">
                         <h3>No products yet</h3>
@@ -216,10 +259,14 @@
             <h2 style="margin-bottom: 20px;">Settings</h2>
             <div class="settings-nav">
                 <button class="settings-nav-item active" onclick="switchSettingsTab('updates')">🔄 Updates</button>
+                <button class="settings-nav-item" onclick="switchSettingsTab('categories')">🏷️ Categories</button>
+                <button class="settings-nav-item" onclick="switchSettingsTab('suppliers')">📦 Suppliers</button>
                 <button class="settings-nav-item" onclick="switchSettingsTab('backups')">💾 Backups</button>
                 <button class="settings-nav-item" onclick="switchSettingsTab('about')">ℹ️ About</button>
                 <button class="settings-nav-item" onclick="switchSettingsTab('danger')">⚠️ Danger Zone</button>
             </div>
+
+            <!-- Updates Tab -->
             <div id="settings-updates" class="settings-subtab active">
                 <div class="settings-section">
                     <h3>Update Channel</h3>
@@ -237,22 +284,34 @@
                     <p style="margin-top: 10px;"><strong>Latest Version:</strong> <span id="latestVersion">Checking...</span></p>
                     <p style="margin-top: 10px;"><strong>Database:</strong> SQLite</p>
                     <p style="margin-top: 10px;"><strong>Last Check:</strong> <span id="lastCheck">Never</span></p>
-                    <div style="margin-top: 20px;">
-                        <label>Auto-Update Check Frequency</label>
-                        <select id="updateCheckInterval" onchange="saveUpdateInterval()" style="width: 100%; max-width: 300px; margin-top: 5px;">
-                            <option value="0">Never (Manual only)</option>
-                            <option value="3600000">Every Hour</option>
-                            <option value="21600000">Every 6 Hours</option>
-                            <option value="43200000">Every 12 Hours</option>
-                            <option value="86400000" selected>Every 24 Hours (Default)</option>
-                            <option value="604800000">Weekly</option>
-                        </select>
-                        <div class="help-text" style="margin-top: 5px;">Choose how often to automatically check for updates</div>
-                    </div>
-                    <button onclick="checkVersion()" style="margin-top: 15px;">🔄 Check for Updates Now</button>
-                    <div id="versionStatus" style="margin-top: 15px; padding: 10px; border-radius: 8px; display: none;"></div>
                 </div>
             </div>
+
+            <!-- Categories Tab (v0.7.4) -->
+            <div id="settings-categories" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>🏷️ Categories Management</h3>
+                    <p style="margin-bottom: 15px;">Organize your products into categories for better filtering and reporting.</p>
+                    <button onclick="openAddCategoryModal()">➕ Add Category</button>
+                    <div id="categoriesList" class="categories-list" style="margin-top: 20px;">
+                        <div class="loading">Loading categories...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suppliers Tab (v0.7.4) -->
+            <div id="settings-suppliers" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>📦 Suppliers Management</h3>
+                    <p style="margin-bottom: 15px;">Manage your supplier contacts and track products by supplier.</p>
+                    <button onclick="openAddSupplierModal()">➕ Add Supplier</button>
+                    <div id="suppliersList" class="suppliers-list" style="margin-top: 20px;">
+                        <div class="loading">Loading suppliers...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backups Tab -->
             <div id="settings-backups" class="settings-subtab">
                 <div class="settings-section">
                     <h3>Database Backups</h3>
@@ -278,41 +337,38 @@
                     <div class="help-text" style="margin-top: 10px;">Export your inventory data or import from a backup CSV file</div>
                 </div>
             </div>
+
+            <!-- About Tab -->
             <div id="settings-about" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>🛒 Grocery Inventory v0.6.0</h3>
+                    <h3>🛒 Grocery Inventory v0.7.4</h3>
                     <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Latest Changes</h4>
                     <ul class="changelog-list">
+                        <li>🏷️ <strong>v0.7.4</strong> - Categories & Suppliers Foundation with Filtering</li>
+                        <li>🔧 <strong>v0.7.0</strong> - Migration System & Update Channels</li>
                         <li>💡 <strong>v0.6.0</strong> - Smart Inventory Actions (FIFO/FEFO, Quick Actions, Notifications)</li>
                         <li>🔄 <strong>v0.4.0</strong> - Unified Inventory with click-through detail view</li>
                         <li>📊 <strong>v0.3.0</strong> - Dashboard with statistics and expiration alerts</li>
-                        <li>♻️ <strong>v0.2.2</strong> - Backup restore functionality with upload support</li>
-                        <li>✨ <strong>v0.2.1</strong> - Settings submenu navigation</li>
-                        <li>💾 <strong>v0.2.0</strong> - Comprehensive backup system</li>
-                        <li>💰 <strong>v0.1.0</strong> - Product pricing and inventory value tracking</li>
                     </ul>
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Features</h4>
                     <ul class="changelog-list">
                         <li>📊 Dashboard with real-time statistics</li>
+                        <li>🏷️ Categories & Suppliers management</li>
+                        <li>🎛️ Advanced filtering system</li>
                         <li>🚨 Expiration alerts (expired, urgent, soon)</li>
-                        <li>🔄 Unified inventory with detail view</li>
                         <li>💡 Smart batch suggestions (FIFO/FEFO)</li>
                         <li>⚡ Quick actions for batch adjustments</li>
                         <li>📦 Product catalog management</li>
                         <li>📋 Batch inventory tracking</li>
                         <li>📷 Barcode scanning</li>
                         <li>💾 Automated backups with retention</li>
-                        <li>♻️ Backup restore with safety snapshots</li>
                         <li>📊 CSV import/export</li>
                     </ul>
-                    <h4 style="margin-top: 25px; margin-bottom: 10px;">Links</h4>
-                    <p><a href="https://github.com/zv20/invai" target="_blank" style="color: #667eea; text-decoration: underline;">🔗 GitHub Repository</a></p>
-                    <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/issues" target="_blank" style="color: #667eea; text-decoration: underline;">📝 Report an Issue</a></p>
-                    <h4 style="margin-top: 25px; margin-bottom: 10px;">License</h4>
-                    <p>MIT License - Free to use and modify</p>
                 </div>
             </div>
+
+            <!-- Danger Zone Tab -->
             <div id="settings-danger" class="settings-subtab">
                 <div class="settings-section">
                     <h3>⚠️ Danger Zone</h3>
@@ -370,12 +426,15 @@
                 <div class="form-row">
                     <div>
                         <label>Supplier</label>
-                        <input type="text" id="prodSupplier" list="supplierList" placeholder="e.g., Sysco">
-                        <datalist id="supplierList"></datalist>
+                        <select id="prodSupplier">
+                            <option value="">Select supplier...</option>
+                        </select>
                     </div>
                     <div>
                         <label>Category</label>
-                        <input type="text" id="prodCategory" placeholder="e.g., Beverages">
+                        <select id="prodCategory">
+                            <option value="">Select category...</option>
+                        </select>
                     </div>
                 </div>
                 <div class="form-row">
@@ -462,6 +521,88 @@
         </div>
     </div>
 
+    <!-- Category Modal (v0.7.4) -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="categoryModalTitle">Add Category</h2>
+                <button class="close-modal" onclick="closeCategoryModal()">✕ Close</button>
+            </div>
+            <form id="categoryForm">
+                <div class="form-row">
+                    <div>
+                        <label>Category Name *</label>
+                        <input type="text" id="categoryName" required placeholder="e.g., Beverages">
+                    </div>
+                    <div>
+                        <label>Color</label>
+                        <input type="color" id="categoryColor" value="#667eea">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Description</label>
+                        <textarea id="categoryDescription" rows="2" placeholder="Category description..."></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1;">Save Category</button>
+                    <button type="button" onclick="closeCategoryModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Supplier Modal (v0.7.4) -->
+    <div id="supplierModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="supplierModalTitle">Add Supplier</h2>
+                <button class="close-modal" onclick="closeSupplierModal()">✕ Close</button>
+            </div>
+            <form id="supplierForm">
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Supplier Name *</label>
+                        <input type="text" id="supplierName" required placeholder="e.g., Sysco Foods">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Contact Name</label>
+                        <input type="text" id="supplierContactName" placeholder="e.g., John Smith">
+                    </div>
+                    <div>
+                        <label>Contact Phone</label>
+                        <input type="tel" id="supplierContactPhone" placeholder="e.g., (555) 123-4567">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Contact Email</label>
+                        <input type="email" id="supplierContactEmail" placeholder="e.g., sales@sysco.com">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Address</label>
+                        <textarea id="supplierAddress" rows="2" placeholder="Supplier address..."></textarea>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Notes</label>
+                        <textarea id="supplierNotes" rows="2" placeholder="Supplier notes..."></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1;">Save Supplier</button>
+                    <button type="button" onclick="closeSupplierModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Load JavaScript modules -->
     <script src="js/utils.js"></script>
     <script src="js/core.js"></script>
@@ -472,5 +613,8 @@
     <script src="js/batch-suggestions.js"></script>
     <script src="js/quick-actions.js"></script>
     <script src="js/update-settings.js"></script>
+    <script src="js/filters.js"></script>
+    <script src="js/categories-manager.js"></script>
+    <script src="js/suppliers-manager.js"></script>
 </body>
 </html>
