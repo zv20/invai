@@ -213,6 +213,145 @@ function checkGitHubVersion() {
   });
 }
 
+// ========== DASHBOARD API ==========
+
+app.get('/api/dashboard/stats', (req, res) => {
+  const stats = {};
+  
+  // Get total products and value
+  db.get(`
+    SELECT 
+      COUNT(DISTINCT p.id) as total_products,
+      COALESCE(SUM(ib.total_quantity), 0) as total_items,
+      COALESCE(SUM((p.cost_per_case / NULLIF(p.items_per_case, 0)) * ib.total_quantity), 0) as total_value
+    FROM products p
+    LEFT JOIN inventory_batches ib ON p.id = ib.product_id
+  `, [], (err, valueData) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    stats.totalProducts = valueData.total_products || 0;
+    stats.totalItems = valueData.total_items || 0;
+    stats.totalValue = valueData.total_value || 0;
+    
+    // Get low stock count (products with < 10 items)
+    db.get(`
+      SELECT COUNT(*) as low_stock
+      FROM (
+        SELECT p.id, COALESCE(SUM(ib.total_quantity), 0) as qty
+        FROM products p
+        LEFT JOIN inventory_batches ib ON p.id = ib.product_id
+        GROUP BY p.id
+        HAVING qty < 10 AND qty > 0
+      )
+    `, [], (err, lowStockData) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      stats.lowStock = lowStockData.low_stock || 0;
+      
+      // Get category breakdown
+      db.all(`
+        SELECT 
+          CASE WHEN p.category IS NULL OR p.category = '' THEN 'Uncategorized' ELSE p.category END as category,
+          COUNT(*) as count
+        FROM products p
+        GROUP BY category
+        ORDER BY count DESC
+        LIMIT 5
+      `, [], (err, categoryData) => {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        
+        stats.categoryBreakdown = categoryData || [];
+        
+        // Get recent products (last 5)
+        db.all(`
+          SELECT id, name, created_at
+          FROM products
+          ORDER BY created_at DESC
+          LIMIT 5
+        `, [], (err, recentProducts) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          
+          stats.recentProducts = recentProducts || [];
+          res.json(stats);
+        });
+      });
+    });
+  });
+});
+
+app.get('/api/dashboard/expiration-alerts', (req, res) => {
+  const now = new Date().toISOString().split('T')[0];
+  const sevenDays = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const thirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  
+  const alerts = {};
+  
+  // Expired items
+  db.all(`
+    SELECT 
+      ib.id, ib.product_id, ib.total_quantity, ib.expiry_date, ib.location,
+      p.name as product_name
+    FROM inventory_batches ib
+    JOIN products p ON ib.product_id = p.id
+    WHERE ib.expiry_date IS NOT NULL AND ib.expiry_date < ?
+    ORDER BY ib.expiry_date
+  `, [now], (err, expired) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    alerts.expired = expired || [];
+    
+    // Expiring within 7 days (urgent)
+    db.all(`
+      SELECT 
+        ib.id, ib.product_id, ib.total_quantity, ib.expiry_date, ib.location,
+        p.name as product_name
+      FROM inventory_batches ib
+      JOIN products p ON ib.product_id = p.id
+      WHERE ib.expiry_date IS NOT NULL 
+        AND ib.expiry_date >= ? 
+        AND ib.expiry_date <= ?
+      ORDER BY ib.expiry_date
+    `, [now, sevenDays], (err, urgent) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      alerts.urgent = urgent || [];
+      
+      // Expiring within 30 days (soon)
+      db.all(`
+        SELECT 
+          ib.id, ib.product_id, ib.total_quantity, ib.expiry_date, ib.location,
+          p.name as product_name
+        FROM inventory_batches ib
+        JOIN products p ON ib.product_id = p.id
+        WHERE ib.expiry_date IS NOT NULL 
+          AND ib.expiry_date > ? 
+          AND ib.expiry_date <= ?
+        ORDER BY ib.expiry_date
+        LIMIT 10
+      `, [sevenDays, thirtyDays], (err, soon) => {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        
+        alerts.soon = soon || [];
+        res.json(alerts);
+      });
+    });
+  });
+});
+
 // ========== BACKUP SYSTEM ==========
 
 function createBackup() {
@@ -609,7 +748,7 @@ app.delete('/api/inventory/batches/:id', (req, res) => {
 
 app.post('/api/database/reset', (req, res) => {
   db.run('DELETE FROM inventory_batches', (err) => {
-    if (err) return res.status(500).json({ error: 'Failed to delete batches: ' + err.message });
+    if (err) return res.status(500).json({ error: 'Failed to delete batches: ' + error.message });
     db.run('DELETE FROM products', (err) => {
       if (err) return res.status(500).json({ error: 'Failed to delete products: ' + err.message });
       db.run('DELETE FROM sqlite_sequence WHERE name="products" OR name="inventory_batches"', (err) => {
@@ -777,6 +916,7 @@ app.listen(PORT, () => {
   console.log('💰 Product-level pricing enabled');
   console.log(`💾 Backup system enabled - Max ${MAX_BACKUPS} backups retained`);
   console.log('📤 Backup restore & upload enabled');
+  console.log('📊 Dashboard with expiration alerts enabled');
   console.log('Checking for updates from GitHub...');
   checkGitHubVersion()
     .then(info => {
