@@ -16,6 +16,25 @@ fi
 echo "📍 Location: $CURRENT_DIR"
 echo ""
 
+# Determine which branch to use based on channel setting
+CHANNEL_FILE=".update-channel"
+if [ -f "$CHANNEL_FILE" ]; then
+    CHANNEL=$(cat "$CHANNEL_FILE" 2>/dev/null || echo "stable")
+else
+    CHANNEL="stable"
+fi
+
+# Map channel to branch
+if [ "$CHANNEL" = "beta" ]; then
+    BRANCH="develop"
+    echo "🧪 Update channel: Beta (develop branch)"
+else
+    BRANCH="main"
+    echo "✅ Update channel: Stable (main branch)"
+fi
+
+echo ""
+
 # Check for uncommitted changes
 if [ -n "$(git status --porcelain)" ]; then
     echo "⚠️  You have uncommitted changes:"
@@ -29,8 +48,10 @@ if [ -n "$(git status --porcelain)" ]; then
     fi
 fi
 
-echo "📥 Pulling latest changes from GitHub..."
-git pull origin main
+echo "📥 Pulling latest changes from GitHub ($BRANCH branch)..."
+git fetch origin
+git checkout "$BRANCH"
+git pull origin "$BRANCH"
 
 if [ $? -ne 0 ]; then
     echo "❌ Failed to pull changes from GitHub"
@@ -81,4 +102,5 @@ fi
 
 echo ""
 echo "🌐 Check your app: https://inv.z101c.duckdns.org"
+echo "📦 Channel: $CHANNEL ($BRANCH branch)"
 echo ""
