@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grocery Inventory</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/dashboard.css">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
@@ -35,7 +36,11 @@
                 <button class="close-sidebar" onclick="toggleMenu()">✕</button>
             </div>
             <nav class="nav-menu">
-                <a href="#" class="nav-item active" onclick="switchTab('products')">
+                <a href="#" class="nav-item active" onclick="switchTab('dashboard')">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" onclick="switchTab('products')">
                     <span class="nav-icon">📦</span>
                     <span class="nav-text">Products</span>
                 </a>
@@ -53,8 +58,98 @@
         <!-- Overlay for mobile -->
         <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMenu()"></div>
 
+        <!-- Dashboard Tab -->
+        <div id="dashboardTab" class="tab-content active">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h2 style="margin: 0;">📊 Dashboard</h2>
+                <button class="refresh-button" onclick="refreshDashboard()">🔄 Refresh</button>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="dashboard-grid">
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-label">Total Products</div>
+                    <div class="stat-value" id="dash-total-products">0</div>
+                </div>
+                <div class="stat-card stat-card-success">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-label">Total Items</div>
+                    <div class="stat-value" id="dash-total-items">0</div>
+                </div>
+                <div class="stat-card stat-card-warning">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-label">Total Value</div>
+                    <div class="stat-value" id="dash-total-value">$0.00</div>
+                </div>
+                <div class="stat-card stat-card-danger">
+                    <div class="stat-icon">⚠️</div>
+                    <div class="stat-label">Low Stock Items</div>
+                    <div class="stat-value" id="dash-low-stock">0</div>
+                </div>
+            </div>
+
+            <!-- Expiration Alerts -->
+            <div class="dashboard-section">
+                <h3>🚨 Expiration Alerts</h3>
+                <div class="alerts-container">
+                    <!-- Expired -->
+                    <div class="alert-box alert-box-expired">
+                        <div class="alert-header">
+                            <div class="alert-title">❌ Expired</div>
+                            <div class="alert-count" id="alert-expired-count">0</div>
+                        </div>
+                        <div class="alert-list" id="expiredList">
+                            <div class="empty-state-small">✓ All good!</div>
+                        </div>
+                    </div>
+
+                    <!-- Urgent (7 days) -->
+                    <div class="alert-box alert-box-urgent">
+                        <div class="alert-header">
+                            <div class="alert-title">⚠️ Urgent (7 days)</div>
+                            <div class="alert-count" id="alert-urgent-count">0</div>
+                        </div>
+                        <div class="alert-list" id="urgentList">
+                            <div class="empty-state-small">✓ All good!</div>
+                        </div>
+                    </div>
+
+                    <!-- Soon (30 days) -->
+                    <div class="alert-box alert-box-soon">
+                        <div class="alert-header">
+                            <div class="alert-title">⏰ Soon (30 days)</div>
+                            <div class="alert-count" id="alert-soon-count">0</div>
+                        </div>
+                        <div class="alert-list" id="soonList">
+                            <div class="empty-state-small">✓ All good!</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Breakdown & Recent Activity -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <!-- Category Breakdown -->
+                <div class="dashboard-section">
+                    <h3>📁 Category Breakdown</h3>
+                    <div class="category-breakdown" id="categoryBreakdown">
+                        <div class="empty-state-small">No categories yet</div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="dashboard-section">
+                    <h3>⏱️ Recent Products</h3>
+                    <div class="activity-list" id="recentActivity">
+                        <div class="empty-state-small">No recent products</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Products Tab -->
-        <div id="productsTab" class="tab-content active">
+        <div id="productsTab" class="tab-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
                 <h2 style="margin: 0;">Product Catalog</h2>
                 <button onclick="openAddProductModal()">➕ Add Product</button>
@@ -184,11 +279,12 @@
             <!-- About Subtab -->
             <div id="settings-about" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>🛒 Grocery Inventory v0.2.2</h3>
+                    <h3>🛒 Grocery Inventory v0.3.0</h3>
                     <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
                     
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Latest Changes</h4>
                     <ul class="changelog-list">
+                        <li>📊 <strong>v0.3.0</strong> - Dashboard with statistics and expiration alerts</li>
                         <li>♻️ <strong>v0.2.2</strong> - Backup restore functionality with upload support</li>
                         <li>✨ <strong>v0.2.1</strong> - Settings submenu with Backups, Updates, and About sections</li>
                         <li>💾 <strong>v0.2.0</strong> - Comprehensive backup system with server-side storage</li>
@@ -198,6 +294,8 @@
 
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Features</h4>
                     <ul class="changelog-list">
+                        <li>📊 Dashboard with real-time statistics</li>
+                        <li>🚨 Expiration alerts (expired, urgent, soon)</li>
                         <li>📦 Product catalog management</li>
                         <li>📋 Batch inventory tracking</li>
                         <li>📷 Barcode scanning</li>
@@ -368,6 +466,7 @@
 
     <!-- Load JavaScript modules -->
     <script src="js/core.js"></script>
+    <script src="js/dashboard.js"></script>
     <script src="js/products.js"></script>
     <script src="js/inventory.js"></script>
     <script src="js/settings.js"></script>
