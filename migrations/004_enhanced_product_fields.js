@@ -1,104 +1,84 @@
 /**
  * Migration 004: Enhanced Product Fields
  * 
- * Adds additional fields to products for better inventory management:
- * - product_image: Path or URL to product image
- * - allergen_info: Allergen information
- * - nutritional_data: JSON field for nutritional information
- * - storage_temp: Storage temperature requirement
+ * Adds new fields to products table:
+ * - product_image (file path/URL)
+ * - allergen_info (text field for allergen warnings)
+ * - nutritional_data (JSON field for nutritional information)
+ * - storage_temp (enum: frozen/refrigerated/dry/ambient)
  */
 
 module.exports = {
-    id: '004_enhanced_product_fields',
+    version: 4,
+    name: '004_enhanced_product_fields',
     description: 'Add product_image, allergen_info, nutritional_data, and storage_temp fields',
-    
-    async up(db) {
-        console.log('Running migration 004: Enhanced Product Fields');
-        
-        // Add product_image field
-        await db.run('ALTER TABLE products ADD COLUMN product_image TEXT');
+
+    up: async (db) => {
+        console.log('Running migration 004: Enhanced product fields...');
+
+        // Add product_image column
+        await db.run(`ALTER TABLE products ADD COLUMN product_image TEXT`);
         console.log('✓ Added product_image column');
-        
-        // Add allergen_info field
-        await db.run('ALTER TABLE products ADD COLUMN allergen_info TEXT');
+
+        // Add allergen_info column
+        await db.run(`ALTER TABLE products ADD COLUMN allergen_info TEXT`);
         console.log('✓ Added allergen_info column');
-        
-        // Add nutritional_data field (JSON)
-        await db.run('ALTER TABLE products ADD COLUMN nutritional_data TEXT');
+
+        // Add nutritional_data column (stored as JSON text)
+        await db.run(`ALTER TABLE products ADD COLUMN nutritional_data TEXT`);
         console.log('✓ Added nutritional_data column');
-        
-        // Add storage_temp field with CHECK constraint
+
+        // Add storage_temp column with check constraint
         await db.run(`
             ALTER TABLE products ADD COLUMN storage_temp TEXT 
-            CHECK(storage_temp IN ('frozen', 'refrigerated', 'dry', 'ambient', NULL))
-            DEFAULT NULL
+            CHECK(storage_temp IN ('frozen', 'refrigerated', 'dry', 'ambient')) 
+            DEFAULT 'ambient'
         `);
-        console.log('✓ Added storage_temp column with constraints');
-        
-        // Set default storage temperatures based on categories
-        const categoryStorageMap = {
-            1: 'refrigerated',  // Dairy
-            2: 'refrigerated',  // Produce (most)
-            3: 'refrigerated',  // Meat
-            4: 'ambient',       // Bakery
-            5: 'frozen',        // Frozen
-            6: 'dry',           // Dry Goods
-            7: 'ambient',       // Beverages (most)
-            8: 'dry',           // Snacks
-            9: 'ambient',       // Condiments
-            10: 'ambient',      // Cleaning
-            11: 'ambient',      // Personal Care
-            12: 'ambient'       // Other
-        };
-        
-        for (const [categoryId, storageTemp] of Object.entries(categoryStorageMap)) {
-            await db.run(
-                'UPDATE products SET storage_temp = ? WHERE category_id = ? AND storage_temp IS NULL',
-                storageTemp,
-                categoryId
-            );
+        console.log('✓ Added storage_temp column');
+
+        // Set default storage temperatures based on category
+        // This is a smart guess based on common category storage requirements
+        const storageMapping = [
+            { category: 'Frozen', temp: 'frozen' },
+            { category: 'Dairy', temp: 'refrigerated' },
+            { category: 'Meat', temp: 'refrigerated' },
+            { category: 'Produce', temp: 'refrigerated' },
+            { category: 'Bakery', temp: 'ambient' },
+            { category: 'Dry Goods', temp: 'dry' },
+            { category: 'Beverages', temp: 'ambient' },
+            { category: 'Snacks', temp: 'dry' },
+            { category: 'Condiments', temp: 'dry' },
+            { category: 'Cleaning', temp: 'ambient' },
+            { category: 'Personal Care', temp: 'ambient' }
+        ];
+
+        for (const mapping of storageMapping) {
+            await db.run(`
+                UPDATE products 
+                SET storage_temp = ? 
+                WHERE category_id = (SELECT id FROM categories WHERE name = ?)
+            `, [mapping.temp, mapping.category]);
+            console.log(`  Set ${mapping.category} products to ${mapping.temp}`);
         }
-        
-        console.log('✓ Set default storage temperatures based on categories');
-        
+
         console.log('Migration 004 completed successfully!');
     },
-    
-    async down(db) {
-        console.log('Rolling back migration 004: Enhanced Product Fields');
+
+    down: async (db) => {
+        console.log('Rolling back migration 004: Enhanced product fields...');
         
         // SQLite doesn't support DROP COLUMN, so we need to recreate the table
-        await db.run('ALTER TABLE products RENAME TO products_temp');
-        
-        // Recreate products table without new fields
         await db.run(`
-            CREATE TABLE products (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                barcode TEXT,
-                brand TEXT,
-                supplier TEXT,
-                item TEXT,
-                category_id INTEGER,
-                supplier_id INTEGER,
-                in_house_number TEXT,
-                case_cost REAL,
-                items_per_case INTEGER,
-                cost_per_item REAL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
+            CREATE TABLE products_backup AS SELECT 
+                id, name, barcode, brand, supplier, item, in_house_number, 
+                cost_per_case, items_per_case, cost_per_item, 
+                category_id, supplier_id,
+                created_at, updated_at
+            FROM products
         `);
         
-        // Copy data back (excluding new columns)
-        await db.run(`
-            INSERT INTO products (id, name, barcode, brand, supplier, item, category_id, supplier_id,
-                                 in_house_number, case_cost, items_per_case, cost_per_item, created_at)
-            SELECT id, name, barcode, brand, supplier, item, category_id, supplier_id,
-                   in_house_number, case_cost, items_per_case, cost_per_item, created_at
-            FROM products_temp
-        `);
-        
-        await db.run('DROP TABLE products_temp');
+        await db.run(`DROP TABLE products`);
+        await db.run(`ALTER TABLE products_backup RENAME TO products`);
         
         console.log('Migration 004 rolled back successfully!');
     }
