@@ -32,6 +32,14 @@ function switchSettingsTab(tabName) {
         loadBackups();
     } else if (tabName === 'about') {
         loadAboutInfo();
+    } else if (tabName === 'categories') {
+        if (typeof loadCategories === 'function') {
+            loadCategories();
+        }
+    } else if (tabName === 'suppliers') {
+        if (typeof loadSuppliers === 'function') {
+            loadSuppliers();
+        }
     }
 }
 
@@ -520,4 +528,9 @@ function showNotification(message, type = 'info') {
     setTimeout(() => {
         notification.remove();
     }, 3000);
+}
+
+// Show toast for compatibility with other modules
+function showToast(message, type) {
+    showNotification(message, type);
 }
