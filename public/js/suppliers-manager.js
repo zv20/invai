@@ -1,199 +1,142 @@
 /**
- * Suppliers Manager
- * Handles supplier CRUD operations and display
+ * Suppliers Manager - v0.7.4
+ * Handles supplier CRUD operations
  */
 
-class SuppliersManager {
-    constructor() {
-        this.suppliers = [];
-        this.init();
+let suppliers = [];
+let editingSupplierId = null;
+
+async function loadSuppliers() {
+    try {
+        const response = await fetch('/api/suppliers');
+        suppliers = await response.json();
+        renderSuppliersList();
+        
+        // Also update product modal dropdown
+        updateSupplierDropdown();
+    } catch (error) {
+        console.error('Error loading suppliers:', error);
     }
+}
 
-    async init() {
-        await this.loadSuppliers();
-        this.setupEventListeners();
+function renderSuppliersList() {
+    const container = document.getElementById('suppliersList');
+    if (!container) return;
+    
+    if (suppliers.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No suppliers yet. Click "Add Supplier" to create one.</p>';
+        return;
     }
-
-    async loadSuppliers() {
-        try {
-            const response = await fetch('/api/suppliers');
-            this.suppliers = await response.json();
-            this.renderSuppliersList();
-        } catch (error) {
-            console.error('Error loading suppliers:', error);
-            showToast('Failed to load suppliers', 'error');
-        }
-    }
-
-    renderSuppliersList() {
-        const container = document.getElementById('suppliersList');
-        if (!container) return;
-
-        if (this.suppliers.length === 0) {
-            container.innerHTML = '<p class="no-data">No suppliers found</p>';
-            return;
-        }
-
-        container.innerHTML = this.suppliers.map(supplier => `
-            <div class="supplier-item" data-id="${supplier.id}">
-                <div class="supplier-info">
-                    <h4>${supplier.name} ${supplier.is_active ? '' : '<span class="badge inactive">Inactive</span>'}</h4>
-                    <p>${supplier.contact_name || 'No contact name'}</p>
-                    ${supplier.contact_email ? `<p>📧 ${supplier.contact_email}</p>` : ''}
-                    ${supplier.contact_phone ? `<p>📞 ${supplier.contact_phone}</p>` : ''}
-                    ${supplier.notes ? `<p class="notes">${supplier.notes}</p>` : ''}
-                </div>
-                <div class="supplier-actions">
-                    <button class="btn-icon" onclick="suppliersManager.editSupplier(${supplier.id})" title="Edit">
-                        ✏️
-                    </button>
-                    <button class="btn-icon" onclick="suppliersManager.toggleSupplierStatus(${supplier.id})" title="${supplier.is_active ? 'Deactivate' : 'Activate'}">
-                        ${supplier.is_active ? '🔴' : '🟢'}
-                    </button>
-                    <button class="btn-icon" onclick="suppliersManager.deleteSupplier(${supplier.id})" title="Delete">
-                        🗑️
-                    </button>
-                </div>
+    
+    container.innerHTML = suppliers.map(sup => `
+        <div class="supplier-card" style="opacity: ${sup.is_active ? 1 : 0.6}">
+            <div class="supplier-info">
+                <h4>${sup.name} ${sup.is_active ? '' : '<span class="badge-inactive">Inactive</span>'}</h4>
+                ${sup.contact_name ? `<p><strong>Contact:</strong> ${sup.contact_name}</p>` : ''}
+                ${sup.contact_email ? `<p>📧 ${sup.contact_email}</p>` : ''}
+                ${sup.contact_phone ? `<p>📞 ${sup.contact_phone}</p>` : ''}
+                ${sup.notes ? `<p style="font-style: italic; color: #999; margin-top: 8px;">${sup.notes}</p>` : ''}
             </div>
-        `).join('');
-    }
+            <div class="supplier-actions">
+                <button class="btn-icon" onclick="editSupplier(${sup.id})" title="Edit">✏️</button>
+                <button class="btn-icon" onclick="deleteSupplier(${sup.id})" title="Delete">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
 
-    setupEventListeners() {
-        const addBtn = document.getElementById('addSupplierBtn');
-        if (addBtn) {
-            addBtn.addEventListener('click', () => this.showSupplierModal());
-        }
+function updateSupplierDropdown() {
+    const select = document.getElementById('prodSupplier');
+    if (select) {
+        select.innerHTML = '<option value="">Select supplier...</option>' +
+            suppliers.filter(s => s.is_active).map(sup => `<option value="${sup.id}">${sup.name}</option>`).join('');
     }
+}
 
-    showSupplierModal(supplierId = null) {
-        const supplier = supplierId ? this.suppliers.find(s => s.id === supplierId) : null;
-        
-        const modal = document.getElementById('supplierModal');
-        const form = document.getElementById('supplierForm');
-        
-        if (supplier) {
-            document.getElementById('supplierId').value = supplier.id;
-            document.getElementById('supplierName').value = supplier.name;
-            document.getElementById('supplierContactName').value = supplier.contact_name || '';
-            document.getElementById('supplierContactEmail').value = supplier.contact_email || '';
-            document.getElementById('supplierContactPhone').value = supplier.contact_phone || '';
-            document.getElementById('supplierAddress').value = supplier.address || '';
-            document.getElementById('supplierNotes').value = supplier.notes || '';
-            document.getElementById('supplierActive').checked = supplier.is_active;
-            document.getElementById('supplierModalTitle').textContent = 'Edit Supplier';
+function openAddSupplierModal() {
+    editingSupplierId = null;
+    document.getElementById('supplierModalTitle').textContent = 'Add Supplier';
+    document.getElementById('supplierForm').reset();
+    document.getElementById('supplierModal').style.display = 'block';
+}
+
+function editSupplier(id) {
+    const supplier = suppliers.find(s => s.id === id);
+    if (!supplier) return;
+    
+    editingSupplierId = id;
+    document.getElementById('supplierModalTitle').textContent = 'Edit Supplier';
+    document.getElementById('supplierName').value = supplier.name;
+    document.getElementById('supplierContactName').value = supplier.contact_name || '';
+    document.getElementById('supplierContactPhone').value = supplier.contact_phone || '';
+    document.getElementById('supplierContactEmail').value = supplier.contact_email || '';
+    document.getElementById('supplierAddress').value = supplier.address || '';
+    document.getElementById('supplierNotes').value = supplier.notes || '';
+    document.getElementById('supplierModal').style.display = 'block';
+}
+
+function closeSupplierModal() {
+    document.getElementById('supplierModal').style.display = 'none';
+    editingSupplierId = null;
+}
+
+async function deleteSupplier(id) {
+    const supplier = suppliers.find(s => s.id === id);
+    if (!confirm(`Delete supplier "${supplier.name}"? Products will be moved to "Unknown".`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/suppliers/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            showToast('Supplier deleted', 'success');
+            loadSuppliers();
         } else {
-            form.reset();
-            document.getElementById('supplierId').value = '';
-            document.getElementById('supplierActive').checked = true;
-            document.getElementById('supplierModalTitle').textContent = 'Add Supplier';
+            showToast('Failed to delete supplier', 'error');
         }
-        
-        modal.style.display = 'block';
+    } catch (error) {
+        console.error('Error deleting supplier:', error);
+        showToast('Failed to delete supplier', 'error');
     }
+}
 
-    async saveSupplier(event) {
-        event.preventDefault();
+// Form submit handler
+if (document.getElementById('supplierForm')) {
+    document.getElementById('supplierForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        const formData = new FormData(event.target);
-        const supplierId = formData.get('supplierId');
         const data = {
-            name: formData.get('name'),
-            contact_name: formData.get('contact_name'),
-            contact_email: formData.get('contact_email'),
-            contact_phone: formData.get('contact_phone'),
-            address: formData.get('address'),
-            notes: formData.get('notes'),
-            is_active: formData.get('is_active') === 'on' ? 1 : 0
+            name: document.getElementById('supplierName').value,
+            contact_name: document.getElementById('supplierContactName').value,
+            contact_phone: document.getElementById('supplierContactPhone').value,
+            contact_email: document.getElementById('supplierContactEmail').value,
+            address: document.getElementById('supplierAddress').value,
+            notes: document.getElementById('supplierNotes').value,
+            is_active: 1
         };
-
+        
         try {
-            const url = supplierId ? `/api/suppliers/${supplierId}` : '/api/suppliers';
-            const method = supplierId ? 'PUT' : 'POST';
+            const url = editingSupplierId 
+                ? `/api/suppliers/${editingSupplierId}` 
+                : '/api/suppliers';
+            const method = editingSupplierId ? 'PUT' : 'POST';
             
             const response = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-
+            
             if (response.ok) {
-                showToast(supplierId ? 'Supplier updated' : 'Supplier created', 'success');
-                this.closeSupplierModal();
-                await this.loadSuppliers();
+                showToast(editingSupplierId ? 'Supplier updated' : 'Supplier created', 'success');
+                closeSupplierModal();
+                loadSuppliers();
             } else {
-                const error = await response.json();
-                showToast(error.error || 'Failed to save supplier', 'error');
+                showToast('Failed to save supplier', 'error');
             }
         } catch (error) {
             console.error('Error saving supplier:', error);
             showToast('Failed to save supplier', 'error');
         }
-    }
-
-    editSupplier(id) {
-        this.showSupplierModal(id);
-    }
-
-    async toggleSupplierStatus(id) {
-        const supplier = this.suppliers.find(s => s.id === id);
-        
-        try {
-            const response = await fetch(`/api/suppliers/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_active: supplier.is_active ? 0 : 1 })
-            });
-
-            if (response.ok) {
-                showToast(`Supplier ${supplier.is_active ? 'deactivated' : 'activated'}`, 'success');
-                await this.loadSuppliers();
-            } else {
-                showToast('Failed to update supplier status', 'error');
-            }
-        } catch (error) {
-            console.error('Error updating supplier:', error);
-            showToast('Failed to update supplier', 'error');
-        }
-    }
-
-    async deleteSupplier(id) {
-        const supplier = this.suppliers.find(s => s.id === id);
-        if (!confirm(`Delete supplier "${supplier.name}"? Products will be moved to "Unknown".`)) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`/api/suppliers/${id}`, { method: 'DELETE' });
-            if (response.ok) {
-                showToast('Supplier deleted', 'success');
-                await this.loadSuppliers();
-            } else {
-                const error = await response.json();
-                showToast(error.error || 'Failed to delete supplier', 'error');
-            }
-        } catch (error) {
-            console.error('Error deleting supplier:', error);
-            showToast('Failed to delete supplier', 'error');
-        }
-    }
-
-    closeSupplierModal() {
-        document.getElementById('supplierModal').style.display = 'none';
-    }
-}
-
-// Global instance
-let suppliersManager;
-
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        if (document.getElementById('suppliersList')) {
-            suppliersManager = new SuppliersManager();
-        }
     });
-} else {
-    if (document.getElementById('suppliersList')) {
-        suppliersManager = new SuppliersManager();
-    }
 }

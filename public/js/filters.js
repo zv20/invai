@@ -1,181 +1,112 @@
 /**
- * Inventory Filters
+ * Inventory Filters - v0.7.4
  * Advanced filtering system for products
  */
 
-class InventoryFilters {
-    constructor() {
-        this.activeFilters = {
-            category: null,
-            supplier: null,
-            stockStatus: null,
-            expiryStatus: null,
-            storageTemp: null,
-            location: null,
-            search: ''
-        };
-        this.categories = [];
-        this.suppliers = [];
-        this.init();
-    }
+let activeFilters = {
+    category: '',
+    supplier: '',
+    stock: '',
+    expiry: ''
+};
 
-    async init() {
-        await this.loadFilterData();
-        this.setupEventListeners();
-        this.renderFilters();
-    }
+let allProducts = [];
+let categories = [];
+let suppliers = [];
 
-    async loadFilterData() {
-        try {
-            const [categoriesRes, suppliersRes] = await Promise.all([
-                fetch('/api/categories'),
-                fetch('/api/suppliers')
-            ]);
-            this.categories = await categoriesRes.json();
-            this.suppliers = await suppliersRes.json();
-        } catch (error) {
-            console.error('Error loading filter data:', error);
-        }
-    }
-
-    renderFilters() {
-        const container = document.getElementById('filterPanel');
-        if (!container) return;
-
-        container.innerHTML = `
-            <div class="filter-section">
-                <h3>Filters</h3>
-                <button class="btn-secondary" onclick="inventoryFilters.clearAllFilters()">Clear All</button>
-            </div>
-
-            <div class="filter-group">
-                <label>Category</label>
-                <select id="filterCategory" onchange="inventoryFilters.applyFilter('category', this.value)">
-                    <option value="">All Categories</option>
-                    ${this.categories.map(cat => 
-                        `<option value="${cat.id}">${cat.icon} ${cat.name}</option>`
-                    ).join('')}
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label>Supplier</label>
-                <select id="filterSupplier" onchange="inventoryFilters.applyFilter('supplier', this.value)">
-                    <option value="">All Suppliers</option>
-                    ${this.suppliers.filter(s => s.is_active).map(sup => 
-                        `<option value="${sup.id}">${sup.name}</option>`
-                    ).join('')}
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label>Stock Status</label>
-                <select id="filterStockStatus" onchange="inventoryFilters.applyFilter('stockStatus', this.value)">
-                    <option value="">All</option>
-                    <option value="in-stock">In Stock</option>
-                    <option value="low-stock">Low Stock</option>
-                    <option value="out-of-stock">Out of Stock</option>
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label>Expiry Status</label>
-                <select id="filterExpiryStatus" onchange="inventoryFilters.applyFilter('expiryStatus', this.value)">
-                    <option value="">All</option>
-                    <option value="expired">Expired</option>
-                    <option value="urgent">Expiring Soon (7 days)</option>
-                    <option value="soon">Expiring (30 days)</option>
-                    <option value="normal">Normal</option>
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label>Storage Temperature</label>
-                <select id="filterStorageTemp" onchange="inventoryFilters.applyFilter('storageTemp', this.value)">
-                    <option value="">All</option>
-                    <option value="frozen">❄️ Frozen</option>
-                    <option value="refrigerated">🧊 Refrigerated</option>
-                    <option value="dry">📦 Dry</option>
-                    <option value="ambient">🌡️ Ambient</option>
-                </select>
-            </div>
-
-            <div class="active-filters" id="activeFiltersDisplay"></div>
-        `;
-
-        this.updateActiveFiltersDisplay();
-    }
-
-    setupEventListeners() {
-        // Search input
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.activeFilters.search = e.target.value.toLowerCase();
-                this.applyAllFilters();
-            });
-        }
-    }
-
-    applyFilter(filterType, value) {
-        this.activeFilters[filterType] = value || null;
-        this.applyAllFilters();
-        this.updateActiveFiltersDisplay();
-    }
-
-    applyAllFilters() {
-        if (typeof window.loadProducts === 'function') {
-            window.loadProducts(this.activeFilters);
-        }
-    }
-
-    clearAllFilters() {
-        this.activeFilters = {
-            category: null,
-            supplier: null,
-            stockStatus: null,
-            expiryStatus: null,
-            storageTemp: null,
-            location: null,
-            search: ''
-        };
-
-        // Reset UI
-        document.querySelectorAll('#filterPanel select').forEach(select => select.value = '');
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) searchInput.value = '';
-
-        this.applyAllFilters();
-        this.updateActiveFiltersDisplay();
-    }
-
-    updateActiveFiltersDisplay() {
-        const display = document.getElementById('activeFiltersDisplay');
-        if (!display) return;
-
-        const activeCount = Object.values(this.activeFilters).filter(v => v).length;
+// Load filter options
+async function loadFilterOptions() {
+    try {
+        const [catRes, supRes] = await Promise.all([
+            fetch('/api/categories'),
+            fetch('/api/suppliers')
+        ]);
         
-        if (activeCount === 0) {
-            display.innerHTML = '';
-            return;
-        }
-
-        display.innerHTML = `<p><strong>${activeCount} filter(s) active</strong></p>`;
-    }
-
-    getActiveFilters() {
-        return this.activeFilters;
+        categories = await catRes.json();
+        suppliers = await supRes.json();
+        
+        populateFilterDropdowns();
+    } catch (error) {
+        console.error('Error loading filter options:', error);
     }
 }
 
-// Global instance
-let inventoryFilters;
+function populateFilterDropdowns() {
+    const categoryFilter = document.getElementById('filterCategory');
+    const supplierFilter = document.getElementById('filterSupplier');
+    
+    if (categoryFilter) {
+        categoryFilter.innerHTML = '<option value="">All Categories</option>' +
+            categories.map(cat => `<option value="${cat.id}">${cat.icon || ''} ${cat.name}</option>`).join('');
+    }
+    
+    if (supplierFilter) {
+        supplierFilter.innerHTML = '<option value="">All Suppliers</option>' +
+            suppliers.filter(s => s.is_active).map(sup => `<option value="${sup.id}">${sup.name}</option>`).join('');
+    }
+}
 
-// Initialize when DOM is ready
+function applyFilters() {
+    const categoryFilter = document.getElementById('filterCategory');
+    const supplierFilter = document.getElementById('filterSupplier');
+    const stockFilter = document.getElementById('filterStock');
+    const expiryFilter = document.getElementById('filterExpiry');
+    
+    activeFilters.category = categoryFilter ? categoryFilter.value : '';
+    activeFilters.supplier = supplierFilter ? supplierFilter.value : '';
+    activeFilters.stock = stockFilter ? stockFilter.value : '';
+    activeFilters.expiry = expiryFilter ? expiryFilter.value : '';
+    
+    updateFilterCount();
+    
+    // Reload products with filters
+    if (typeof loadProducts === 'function') {
+        loadProducts();
+    }
+}
+
+function clearAllFilters() {
+    activeFilters = {
+        category: '',
+        supplier: '',
+        stock: '',
+        expiry: ''
+    };
+    
+    document.getElementById('filterCategory').value = '';
+    document.getElementById('filterSupplier').value = '';
+    document.getElementById('filterStock').value = '';
+    document.getElementById('filterExpiry').value = '';
+    
+    updateFilterCount();
+    
+    if (typeof loadProducts === 'function') {
+        loadProducts();
+    }
+}
+
+function updateFilterCount() {
+    const count = Object.values(activeFilters).filter(v => v !== '').length;
+    const badge = document.getElementById('activeFilterCount');
+    const clearBtn = document.querySelector('.clear-filters-btn');
+    
+    if (badge) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'inline' : 'none';
+    }
+    
+    if (clearBtn) {
+        clearBtn.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+}
+
+function getActiveFilters() {
+    return activeFilters;
+}
+
+// Initialize when switching to inventory tab
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        inventoryFilters = new InventoryFilters();
-    });
+    document.addEventListener('DOMContentLoaded', loadFilterOptions);
 } else {
-    inventoryFilters = new InventoryFilters();
+    loadFilterOptions();
 }
