@@ -2,8 +2,8 @@
    Unified Inventory Module - List + Detail Views
    ========================================================================== */
 
+// Module variables (global vars are in core.js)
 let products = [];
-let selectedProductId = null;
 let currentProductDetail = null;
 
 // Load products for inventory list view
