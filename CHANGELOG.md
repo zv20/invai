@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8a] - 2026-01-22
+### Fixed
+- ✅ **Suppliers Phone/Email Not Saving** - Fixed field name mismatch between frontend and backend
+  - Frontend was sending `contact_phone` and `contact_email`
+  - Backend expected `phone` and `email`
+  - Suppliers now properly save and display phone and email information
+- ✅ **"Inactive" Badge Appearing on All Suppliers** - Default supplier status now correctly set to active
+- ✅ **Check for Updates Button Not Working** - Added missing `checkForUpdatesNow()` function handler
+- ✅ **Switch Channel Button Not Working** - Added missing `switchChannelAndUpdate()` function handler
+- ✅ **Category Color Picker Removed** - Temporarily removed color picker feature per user request
+  - Categories now default to standard purple color (#667eea)
+  - Color picker will be reimplemented in future update with better UX
+
+### Changed
+- Settings update buttons now provide visual feedback during operations
+- Channel switching includes confirmation dialog with clear warnings
+- Improved error handling for update operations
+
+### Documentation
+- Added BUG_REPORTING.md - Comprehensive guide for reporting bugs effectively
+  - Quick bug report templates
+  - Severity level guidelines
+  - Real-world examples
+  - Debug information gathering instructions
+  - Emergency procedures
+
 ## [0.7.8] - 2026-01-22
 ### Changed
 - **Repository Cleanup** - Organized scripts into dedicated subdirectories
@@ -214,6 +240,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **v0.7.8a** - Bug fixes for suppliers, categories, and update buttons
 - **v0.7.8** - Repository cleanup and script organization
 - **v0.7.7** - Complete categories & suppliers (UI + Database merged) + Maintenance updates
 - **v0.7.6** - Categories & suppliers UI (missing database)
@@ -245,6 +272,7 @@ update
 ```
 
 ### Version Commit Hashes
+- v0.7.8a: Check git log
 - v0.7.8: Check git log
 - v0.7.7: Check git log
 - v0.7.6: Check git log
