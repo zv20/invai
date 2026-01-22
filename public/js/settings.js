@@ -1,6 +1,7 @@
 /* ==========================================================================
-   Settings Management - v0.7.5c
+   Settings Management - v0.7.8a
    Version checking, updates, export/import, backup system, and settings
+   FIXED: Added missing button handlers for update buttons
    ========================================================================== */
 
 let updateCheckIntervalId = null;
@@ -65,7 +66,7 @@ async function loadAboutInfo() {
         if (!container) return;
         
         let html = `
-            <h3>🛒 Grocery Inventory v${data.currentVersion}</h3>
+            <h3>🛍️ Grocery Inventory v${data.currentVersion}</h3>
             <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
         `;
         
@@ -168,8 +169,78 @@ function setupUpdateChecker() {
 }
 
 /* ==========================================================================
-   Version Checking
+   Version Checking - NEW: Added button handlers
    ========================================================================== */
+
+// NEW: Manual check for updates button handler
+window.checkForUpdatesNow = async function() {
+    const btn = event?.target;
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⌛ Checking...';
+    }
+    
+    try {
+        await checkVersion();
+        showNotification('✓ Update check complete', 'success');
+    } catch (error) {
+        showNotification('✗ Failed to check for updates', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🔄 Check for Updates';
+        }
+    }
+};
+
+// NEW: Switch channel and update button handler
+window.switchChannelAndUpdate = async function() {
+    const select = document.getElementById('updateChannelSelect');
+    if (!select) {
+        showNotification('✗ Channel selector not found', 'error');
+        return;
+    }
+    
+    const newChannel = select.value;
+    const btn = event?.target;
+    
+    if (!confirm(`Switch to ${newChannel} channel and update?\n\nThis will:\n✓ Create a backup\n✓ Switch to ${newChannel} branch\n✓ Pull latest changes\n✓ Restart the server\n\nContinue?`)) {
+        return;
+    }
+    
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⌛ Switching...';
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/settings/switch-channel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel: newChannel })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`✓ Switched to ${newChannel} channel!\n\nBackup: ${data.backupFile}\nBranch: ${data.branch}\n\nServer will restart now.`);
+            location.reload();
+        } else {
+            showNotification(`✗ Failed: ${data.error}`, 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🔄 Switch & Update';
+            }
+        }
+    } catch (error) {
+        console.error('Channel switch error:', error);
+        showNotification('✗ Failed to switch channel', 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🔄 Switch & Update';
+        }
+    }
+};
 
 async function checkVersion() {
     try {
