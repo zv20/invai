@@ -86,6 +86,32 @@ let db = new sqlite3.Database('./inventory.db', async (err) => {
 });
 
 /**
+ * PRE-MIGRATION SAFETY FIX
+ * Ensures critical columns exist before migrations run
+ * This prevents migration failures and never blocks startup
+ */
+async function preMigrationFixes(db) {
+  return new Promise((resolve) => {
+    console.log('\n🔧 Running pre-migration safety checks...');
+    
+    // Fix 1: Ensure suppliers.is_active column exists
+    db.run(`ALTER TABLE suppliers ADD COLUMN is_active INTEGER DEFAULT 1`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.log('   ℹ️  Suppliers table may not exist yet (will be created by migrations)');
+      } else if (!err) {
+        console.log('   ✓ Added missing is_active column to suppliers table');
+      } else {
+        console.log('   ✓ Suppliers table schema already complete');
+      }
+      
+      // Always resolve - never block startup
+      console.log('✓ Pre-migration checks complete\n');
+      resolve();
+    });
+  });
+}
+
+/**
  * Initialize database with migration system
  */
 async function initializeDatabase() {
@@ -93,8 +119,11 @@ async function initializeDatabase() {
     // First, ensure basic tables exist (for first-time setup)
     await initDatabase();
     
+    // Run pre-migration fixes BEFORE migrations
+    await preMigrationFixes(db);
+    
     // Then run migration system
-    console.log('\n🔧 Checking database migrations...');
+    console.log('🔧 Checking database migrations...');
     
     const migrator = new MigrationRunner(db);
     await migrator.initialize();
@@ -606,15 +635,15 @@ app.get('/api/suppliers', (req, res) => {
 });
 
 app.post('/api/suppliers', (req, res) => {
-  const { name, contact_name, phone, email, address, notes } = req.body;
+  const { name, contact_name, phone, email, address, notes, is_active } = req.body;
   
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Supplier name is required' });
   }
   
   db.run(
-    `INSERT INTO suppliers (name, contact_name, phone, email, address, notes) VALUES (?, ?, ?, ?, ?, ?)`,
-    [name.trim(), contact_name || '', phone || '', email || '', address || '', notes || ''],
+    `INSERT INTO suppliers (name, contact_name, phone, email, address, notes, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [name.trim(), contact_name || '', phone || '', email || '', address || '', notes || '', is_active !== undefined ? is_active : 1],
     function(err) {
       if (err) {
         if (err.message.includes('UNIQUE constraint')) {
@@ -628,15 +657,15 @@ app.post('/api/suppliers', (req, res) => {
 });
 
 app.put('/api/suppliers/:id', (req, res) => {
-  const { name, contact_name, phone, email, address, notes } = req.body;
+  const { name, contact_name, phone, email, address, notes, is_active } = req.body;
   
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Supplier name is required' });
   }
   
   db.run(
-    `UPDATE suppliers SET name = ?, contact_name = ?, phone = ?, email = ?, address = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-    [name.trim(), contact_name || '', phone || '', email || '', address || '', notes || '', req.params.id],
+    `UPDATE suppliers SET name = ?, contact_name = ?, phone = ?, email = ?, address = ?, notes = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    [name.trim(), contact_name || '', phone || '', email || '', address || '', notes || '', is_active !== undefined ? is_active : 1, req.params.id],
     function(err) {
       if (err) {
         if (err.message.includes('UNIQUE constraint')) {
