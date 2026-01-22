@@ -1,26 +1,26 @@
 #!/usr/bin/env node
 
 /**
- * Migration Cleanup Script
+ * Migration Cleanup Script - Auto Mode
  * 
- * Removes old migration files after consolidation migration (004) has run.
- * This script should be run AFTER a successful update that includes migration 004.
+ * Automatically removes old migration files after consolidation.
+ * Can be run manually or triggered automatically after migrations.
  * 
- * Files to be removed:
- * - migrations/002_categories_suppliers.js (old version without is_active)
- * - migrations/003_fix_supplier_active_status.js (emergency fix)
+ * Files to be removed (after version 005 runs):
+ * - migrations/002_categories_suppliers_complete.js
+ * - migrations/004_consolidate_migrations.js
+ * - migrations/005_final_consolidation.js (self-delete)
  * 
  * Files to be kept:
- * - migrations/001_baseline.js (unchanged)
- * - migrations/002_categories_suppliers_complete.js (consolidated)
- * - migrations/004_consolidate_migrations.js (this consolidation)
+ * - migrations/001_complete_baseline.js (the ONE)
  * - migrations/migration-runner.js (system)
  * 
  * Usage:
  *   node scripts/cleanup-migrations.js
+ *   node scripts/cleanup-migrations.js --dry-run
  *   
- * Or run via npm:
- *   npm run cleanup-migrations
+ * Or via npm:
+ *   npm run cleanup
  */
 
 const fs = require('fs');
@@ -32,44 +32,62 @@ const DB_PATH = path.join(__dirname, '..', 'inventory.db');
 
 const OLD_MIGRATIONS = [
   '002_categories_suppliers.js',
-  '003_fix_supplier_active_status.js'
+  '002_categories_suppliers_complete.js',
+  '003_fix_supplier_active_status.js',
+  '004_consolidate_migrations.js',
+  '005_final_consolidation.js'
 ];
 
-console.log('\n🧹 Migration Cleanup Script v0.8.0');
-console.log('=====================================\n');
+const dryRun = process.argv.includes('--dry-run');
+const silent = process.argv.includes('--silent');
 
-// Step 1: Verify migration 004 has run
+function log(message) {
+  if (!silent) console.log(message);
+}
+
+log('\n🧹 Migration Cleanup Script v0.8.0 (Auto)');
+log('==========================================\n');
+
+if (dryRun) {
+  log('🔍 DRY RUN MODE - No files will be deleted\n');
+}
+
+// Step 1: Verify migration 005 has run
 function verifyConsolidationComplete() {
   return new Promise((resolve, reject) => {
+    if (!fs.existsSync(DB_PATH)) {
+      log('⚠️  Database not found - assuming fresh install');
+      resolve(false); // Don't fail, just skip
+      return;
+    }
+
     const db = new sqlite3.Database(DB_PATH, (err) => {
       if (err) {
-        console.error('❌ Could not open database:', err.message);
+        log('❌ Could not open database:', err.message);
         reject(err);
         return;
       }
 
       db.get(
-        'SELECT version FROM schema_migrations WHERE version = 4',
+        'SELECT version FROM schema_migrations WHERE version = 5',
         [],
         (err, row) => {
           db.close();
 
           if (err) {
-            console.error('❌ Error checking migration status:', err.message);
-            reject(err);
+            log('⚠️  Could not check migration status:', err.message);
+            resolve(false); // Don't fail, just skip
             return;
           }
 
           if (!row) {
-            console.error('❌ Migration 004 has not run yet!');
-            console.error('   Please run the update command first:');
-            console.error('   npm start (or your update script)\n');
-            reject(new Error('Migration 004 not complete'));
+            log('ℹ️  Migration 005 has not run yet - cleanup skipped');
+            resolve(false);
             return;
           }
 
-          console.log('✅ Migration 004 (consolidation) verified\n');
-          resolve();
+          log('✅ Migration 005 (final consolidation) verified\n');
+          resolve(true);
         }
       );
     });
@@ -78,33 +96,40 @@ function verifyConsolidationComplete() {
 
 // Step 2: Backup old migration files
 function backupOldMigrations() {
-  console.log('📦 Backing up old migration files...');
+  log('📦 Backing up old migration files...');
 
   const backupDir = path.join(MIGRATIONS_DIR, '.backup');
   
-  if (!fs.existsSync(backupDir)) {
+  if (!fs.existsSync(backupDir) && !dryRun) {
     fs.mkdirSync(backupDir, { recursive: true });
-    console.log(`   Created backup directory: ${backupDir}`);
+    log(`   Created backup directory: ${backupDir}`);
   }
+
+  let backedUp = 0;
 
   OLD_MIGRATIONS.forEach(filename => {
     const sourcePath = path.join(MIGRATIONS_DIR, filename);
     const backupPath = path.join(backupDir, filename);
 
     if (fs.existsSync(sourcePath)) {
-      fs.copyFileSync(sourcePath, backupPath);
-      console.log(`   ✅ Backed up: ${filename}`);
-    } else {
-      console.log(`   ⚠️  File not found (already removed?): ${filename}`);
+      if (!dryRun) {
+        fs.copyFileSync(sourcePath, backupPath);
+      }
+      log(`   ✅ ${dryRun ? '[DRY RUN] Would backup' : 'Backed up'}: ${filename}`);
+      backedUp++;
     }
   });
 
-  console.log('\n');
+  if (backedUp === 0) {
+    log('   ℹ️  No files to backup (already cleaned)');
+  }
+
+  log('');
 }
 
 // Step 3: Remove old migration files
 function removeOldMigrations() {
-  console.log('🗑️  Removing old migration files...');
+  log('🗑️  Removing old migration files...');
 
   let removedCount = 0;
 
@@ -112,46 +137,52 @@ function removeOldMigrations() {
     const filePath = path.join(MIGRATIONS_DIR, filename);
 
     if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      console.log(`   ✅ Removed: ${filename}`);
+      if (!dryRun) {
+        fs.unlinkSync(filePath);
+      }
+      log(`   ✅ ${dryRun ? '[DRY RUN] Would remove' : 'Removed'}: ${filename}`);
       removedCount++;
-    } else {
-      console.log(`   ⚠️  Already removed: ${filename}`);
     }
   });
 
-  console.log(`\n   Total files removed: ${removedCount}\n`);
+  if (removedCount === 0) {
+    log('   ℹ️  No files to remove (already cleaned)');
+  }
+
+  log(`\n   Total files ${dryRun ? 'to remove' : 'removed'}: ${removedCount}\n`);
 }
 
 // Step 4: Verify final state
 function verifyCleanup() {
-  console.log('🔍 Verifying cleanup...');
+  log('🔍 Verifying cleanup...');
 
   const remainingFiles = fs.readdirSync(MIGRATIONS_DIR)
     .filter(f => f.endsWith('.js') && f !== 'migration-runner.js')
     .sort();
 
-  console.log('\n📁 Remaining migration files:');
+  log('\n📁 Remaining migration files:');
   remainingFiles.forEach(f => {
-    console.log(`   - ${f}`);
+    log(`   - ${f}`);
   });
 
-  const expectedFiles = [
-    '001_baseline.js',
-    '002_categories_suppliers_complete.js',
-    '004_consolidate_migrations.js'
-  ];
-
-  const isClean = expectedFiles.every(f => remainingFiles.includes(f)) &&
-                  remainingFiles.length === expectedFiles.length;
+  const isClean = remainingFiles.length === 1 && 
+                  remainingFiles[0] === '001_complete_baseline.js';
 
   if (isClean) {
-    console.log('\n✅ Migration cleanup complete!');
-    console.log('   Your migrations directory is now clean.\n');
+    log('\n✅ Migration cleanup complete!');
+    log('   Your migrations directory is now clean.\n');
+    return true;
+  } else if (remainingFiles.length === 1) {
+    log('\n✅ Cleanup complete!');
+    log('   Single baseline migration remains.\n');
     return true;
   } else {
-    console.log('\n⚠️  Unexpected files found or files missing.');
-    console.log('   Please review the migrations directory manually.\n');
+    log('\n⚠️  Multiple migration files still present.');
+    if (dryRun) {
+      log('   Run without --dry-run to actually remove files.\n');
+    } else {
+      log('   Some files may not have been processed.\n');
+    }
     return false;
   }
 }
@@ -159,28 +190,36 @@ function verifyCleanup() {
 // Main execution
 async function main() {
   try {
-    await verifyConsolidationComplete();
+    const shouldCleanup = await verifyConsolidationComplete();
+    
+    if (!shouldCleanup && !dryRun) {
+      log('\n⏭️  Cleanup not needed yet - exiting.\n');
+      process.exit(0);
+    }
+
     backupOldMigrations();
     removeOldMigrations();
     const success = verifyCleanup();
 
-    console.log('=' .repeat(50));
-    console.log('\n📊 Summary:');
-    console.log('   - Old migrations backed up to: migrations/.backup/');
-    console.log('   - Old migration files removed');
-    console.log('   - Migration history consolidated in database');
-    console.log('   - Clean migration structure: 001 + 002 + 004\n');
-    
-    if (success) {
-      console.log('🎉 Your app now has a clean migration structure!');
-      console.log('   New installs will only see 3 migration files.\n');
+    if (!dryRun) {
+      log('=' .repeat(50));
+      log('\n📊 Summary:');
+      log('   - Old migrations backed up to: migrations/.backup/');
+      log('   - Old migration files removed');
+      log('   - Migration history consolidated in database');
+      log('   - Final structure: 001_complete_baseline.js only\n');
+      
+      if (success) {
+        log('🎉 Your app now has a single baseline migration!');
+        log('   Future migrations will start at version 2.\n');
+      }
     }
 
     process.exit(success ? 0 : 1);
   } catch (error) {
-    console.error('\n❌ Cleanup failed:', error.message);
-    console.error('\n   The cleanup script did not complete.');
-    console.error('   Your app is still functional - old migrations remain.\n');
+    log('\n❌ Cleanup failed:', error.message);
+    log('\n   The cleanup script did not complete.');
+    log('   Your app is still functional - old migrations remain.\n');
     process.exit(1);
   }
 }
