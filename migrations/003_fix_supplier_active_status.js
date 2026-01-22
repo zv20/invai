@@ -1,35 +1,50 @@
 /**
  * Migration 003: Fix Supplier Active Status
  * 
- * Problem: All existing suppliers have is_active = 0 or NULL,
- * causing them to display with opacity: 0.6 (faded appearance)
- * 
- * Solution: Set all suppliers to is_active = 1 by default
+ * Problem: Suppliers table missing is_active column
+ * Solution: Add column if missing, then set all suppliers to active
  */
 
 module.exports = {
     up: (db) => {
         return new Promise((resolve, reject) => {
+            // Try to add the column (will fail silently if it already exists)
             db.run(`
-                UPDATE suppliers 
-                SET is_active = 1 
-                WHERE is_active IS NULL OR is_active = 0
+                ALTER TABLE suppliers 
+                ADD COLUMN is_active INTEGER DEFAULT 1
             `, (err) => {
-                if (err) {
-                    console.error('Migration 003 UP failed:', err);
+                // Ignore "duplicate column" errors
+                if (err && !err.message.includes('duplicate column')) {
+                    console.error('Migration 003 ADD COLUMN failed:', err);
                     reject(err);
-                } else {
-                    console.log('✓ Migration 003: All suppliers set to active');
-                    resolve();
+                    return;
                 }
+                
+                if (err) {
+                    console.log('   ℹ️  Column is_active already exists');
+                }
+                
+                // Now update any NULL or 0 values to 1
+                db.run(`
+                    UPDATE suppliers 
+                    SET is_active = 1 
+                    WHERE is_active IS NULL OR is_active = 0
+                `, (err) => {
+                    if (err) {
+                        console.error('Migration 003 UPDATE failed:', err);
+                        reject(err);
+                    } else {
+                        console.log('✓ Migration 003: Ensured is_active column exists and set all suppliers to active');
+                        resolve();
+                    }
+                });
             });
         });
     },
 
     down: (db) => {
         return new Promise((resolve, reject) => {
-            // Rollback: Set all suppliers back to inactive
-            // (This is destructive, use with caution)
+            // SQLite doesn't support DROP COLUMN easily, so we just set all to 0
             db.run(`
                 UPDATE suppliers 
                 SET is_active = 0
