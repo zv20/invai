@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8] - 2026-01-22
+### Changed
+- **Repository Cleanup** - Organized scripts into dedicated subdirectories
+  - Created `/scripts/fixes/` for database fix scripts
+  - Created `/scripts/install/` for installation scripts
+  - Added comprehensive scripts/README.md documentation
+- **Code Organization** - Removed obsolete files from root directory
+  - Deleted BRANCH_RENAME.md (branch rename complete)
+  - Deleted server-update-endpoint.txt (unused code snippet)
+  - Deleted SYSTEM_UPDATE_PATCH.md (superseded by installers)
+  - Deleted fix_supplier_columns.js (never needed)
+- **Improved Maintainability** - Cleaner root directory structure for easier navigation
+
+### Documentation
+- Added `/scripts/README.md` with detailed usage instructions for all scripts
+- Updated file paths in script documentation
+- Enhanced troubleshooting guides
+
 ## [0.7.7] - 2026-01-22
 ### Maintenance & Infrastructure
 - **Branch Rename** - Renamed `develop` branch to `beta` for UI/branch consistency
@@ -29,24 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Update system is now more robust with intelligent fallback detection
-- Merged beta branch bugfixes and migrations into main
-- Complete, functional categories and suppliers system (UI + Database)
-
-## [0.7.7] - 2026-01-21
-### Added
-- **Migration 002** - Automated creation of categories and suppliers tables (from beta)
-- Complete integration of v0.7.6 UI with v0.7.5e database migrations
-
-### Fixed
-- ✅ **Categories menu empty on load** - Auto-loads when Settings tab opens (from v0.7.5e)
-- ✅ **Suppliers menu empty on load** - Auto-loads when Settings tab opens (from v0.7.5e)
-- ✅ **Color picker not working** - Categories table now includes color column (from v0.7.5e)
-- ✅ **Supplier phone column error** - Suppliers table properly structured with contact fields (from v0.7.5e)
-- ✅ **Update page not initializing** - Channel selection loads on tab open (from v0.7.5e)
-- ✅ **Backups not loading initially** - Backup list auto-populates (from v0.7.5e)
-- ✅ **Main branch missing Migration 002** - Now includes critical database tables for categories/suppliers
-
-### Changed
 - Merged beta branch bugfixes and migrations into main
 - Complete, functional categories and suppliers system (UI + Database)
 
@@ -214,6 +214,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **v0.7.8** - Repository cleanup and script organization
 - **v0.7.7** - Complete categories & suppliers (UI + Database merged) + Maintenance updates
 - **v0.7.6** - Categories & suppliers UI (missing database)
 - **v0.7.0** - Migration system & update channels
@@ -244,6 +245,7 @@ update
 ```
 
 ### Version Commit Hashes
+- v0.7.8: Check git log
 - v0.7.7: Check git log
 - v0.7.6: Check git log
 - v0.7.0: Check git log
