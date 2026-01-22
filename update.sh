@@ -26,8 +26,8 @@ fi
 
 # Map channel to branch
 if [ "$CHANNEL" = "beta" ]; then
-    BRANCH="develop"
-    echo "🧪 Update channel: Beta (develop branch)"
+    BRANCH="beta"
+    echo "🧪 Update channel: Beta (beta branch)"
 else
     BRANCH="main"
     echo "✅ Update channel: Stable (main branch)"
