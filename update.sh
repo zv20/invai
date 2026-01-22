@@ -20,8 +20,17 @@ echo ""
 CHANNEL_FILE=".update-channel"
 if [ -f "$CHANNEL_FILE" ]; then
     CHANNEL=$(cat "$CHANNEL_FILE" 2>/dev/null || echo "stable")
+    echo "📄 Using channel from .update-channel file"
 else
-    CHANNEL="stable"
+    # Fallback: Auto-detect from current git branch
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    if [ "$CURRENT_BRANCH" = "beta" ]; then
+        CHANNEL="beta"
+        echo "📍 No .update-channel file found, detected beta branch"
+    else
+        CHANNEL="stable"
+        echo "📍 No .update-channel file found, detected main branch"
+    fi
 fi
 
 # Map channel to branch
