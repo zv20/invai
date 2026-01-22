@@ -11,7 +11,7 @@ let selectedProductId = null;
 let editingProductId = null;
 let editingBatchId = null;
 let editingBatchProductId = null;
-let versionInfo = null;
+// Note: versionInfo is declared in settings.js where checkVersion() lives
 
 /* ==========================================================================
    Utility Functions
@@ -226,7 +226,7 @@ document.addEventListener('click', (e) => {
    ========================================================================== */
 
 function initializeApp() {
-    console.log('🚀 Starting Grocery Inventory App v0.7.8b...');
+    console.log('🚀 Starting Grocery Inventory App v0.7.8c...');
     
     // Start clock
     updateCurrentTime();
@@ -243,21 +243,34 @@ function initializeApp() {
         console.log('📊 Dashboard is active, waiting for dashboard.js to initialize...');
     }
     
-    // Version check after 2 seconds
-    setTimeout(checkVersion, 2000);
+    // FIXED: Only call checkVersion if it exists (settings.js may not be loaded yet)
+    setTimeout(() => {
+        if (typeof checkVersion === 'function') {
+            checkVersion();
+        } else {
+            console.warn('⚠️ checkVersion not available yet (settings.js not loaded)');
+        }
+    }, 2000);
     
-    // Setup auto-update checker
-    setupUpdateChecker();
+    // Setup auto-update checker (only if function exists)
+    if (typeof setupUpdateChecker === 'function') {
+        setupUpdateChecker();
+    }
     
-    // Load saved update interval preference
-    document.getElementById('updateCheckInterval').value = getUpdateInterval();
+    // Load saved update interval preference (only if function exists)
+    if (typeof getUpdateInterval === 'function') {
+        const intervalSelect = document.getElementById('updateCheckInterval');
+        if (intervalSelect) {
+            intervalSelect.value = getUpdateInterval();
+        }
+    }
     
-    console.log('✓ Grocery Inventory App v0.7.8b initialized');
+    console.log('✓ Grocery Inventory App v0.7.8c initialized');
 }
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
-    console.log('⏳ DOM loading...');
+    console.log('⌛ DOM loading...');
     document.addEventListener('DOMContentLoaded', initializeApp);
 } else {
     console.log('✓ DOM already ready');
