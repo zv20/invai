@@ -111,7 +111,11 @@ function switchTab(tabName) {
         loadProducts();
     }
     if (tabName === 'settings') {
-        document.getElementById('updateCheckInterval').value = getUpdateInterval();
+        // FIXED: Add null check before accessing element
+        const intervalSelect = document.getElementById('updateCheckInterval');
+        if (intervalSelect && typeof getUpdateInterval === 'function') {
+            intervalSelect.value = getUpdateInterval();
+        }
         // Initialize the Updates subtab (default active)
         if (typeof loadChannelSelector === 'function') {
             loadChannelSelector();
