@@ -1,7 +1,7 @@
 /* ==========================================================================
-   Settings Management - v0.7.8a
+   Settings Management - v0.7.8b
    Version checking, updates, export/import, backup system, and settings
-   FIXED: Added missing button handlers for update buttons
+   FIXED: Added channel selector initialization
    ========================================================================== */
 
 let updateCheckIntervalId = null;
@@ -35,7 +35,9 @@ function switchSettingsTab(tabName) {
     }
     
     // Load data for specific tabs
-    if (tabName === 'backups') {
+    if (tabName === 'updates') {
+        loadChannelSelector();
+    } else if (tabName === 'backups') {
         loadBackups();
     } else if (tabName === 'about') {
         loadAboutInfo();
@@ -47,6 +49,62 @@ function switchSettingsTab(tabName) {
         if (typeof loadSuppliers === 'function') {
             loadSuppliers();
         }
+    }
+}
+
+/* ==========================================================================
+   Channel Selector Initialization
+   ========================================================================== */
+
+async function loadChannelSelector() {
+    try {
+        const response = await fetch(`${API_URL}/api/settings/update-channel`);
+        const data = await response.json();
+        
+        const channelSelectorDiv = document.getElementById('channelSelector');
+        const currentStatusDiv = document.getElementById('currentStatus');
+        
+        if (channelSelectorDiv) {
+            channelSelectorDiv.innerHTML = `
+                <label for="updateChannelSelect" style="display: block; margin-bottom: 8px; font-weight: 600;">Select Update Channel:</label>
+                <select id="updateChannelSelect" style="padding: 8px; border-radius: 6px; border: 2px solid #e5e7eb; width: 100%; max-width: 300px;">
+                    ${data.availableChannels.map(ch => `
+                        <option value="${ch.id}" ${ch.id === data.channel ? 'selected' : ''}>
+                            ${ch.name} - ${ch.description}
+                        </option>
+                    `).join('')}
+                </select>
+            `;
+            
+            // Enable/disable switch button based on selection
+            const select = document.getElementById('updateChannelSelect');
+            const switchBtn = document.getElementById('switchChannelBtn');
+            
+            if (select && switchBtn) {
+                select.addEventListener('change', () => {
+                    const isDifferent = select.value !== data.channel;
+                    switchBtn.disabled = !isDifferent;
+                });
+            }
+        }
+        
+        if (currentStatusDiv) {
+            const targetBranch = data.channel === 'stable' ? 'main' : 'beta';
+            const statusColor = data.currentBranch === targetBranch ? '#10b981' : '#f59e0b';
+            const statusIcon = data.currentBranch === targetBranch ? '✅' : '⚠️';
+            
+            currentStatusDiv.innerHTML = `
+                <div style="margin: 15px 0; padding: 12px; background: #f9fafb; border-left: 4px solid ${statusColor}; border-radius: 6px;">
+                    <strong>${statusIcon} Current Status:</strong><br>
+                    <span style="margin-left: 10px;">Channel: <strong>${data.channel}</strong></span><br>
+                    <span style="margin-left: 10px;">Branch: <strong>${data.currentBranch}</strong></span>
+                </div>
+            `;
+        }
+        
+    } catch (error) {
+        console.error('Error loading channel selector:', error);
+        showNotification('✗ Failed to load channel settings', 'error');
     }
 }
 
@@ -188,7 +246,7 @@ window.checkForUpdatesNow = async function() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = '🔄 Check for Updates';
+            btn.textContent = '🔍 Check for Updates';
         }
     }
 };
@@ -229,7 +287,7 @@ window.switchChannelAndUpdate = async function() {
             showNotification(`✗ Failed: ${data.error}`, 'error');
             if (btn) {
                 btn.disabled = false;
-                btn.textContent = '🔄 Switch & Update';
+                btn.textContent = '🔄 Switch Channel & Update';
             }
         }
     } catch (error) {
@@ -237,7 +295,7 @@ window.switchChannelAndUpdate = async function() {
         showNotification('✗ Failed to switch channel', 'error');
         if (btn) {
             btn.disabled = false;
-            btn.textContent = '🔄 Switch & Update';
+            btn.textContent = '🔄 Switch Channel & Update';
         }
     }
 };
