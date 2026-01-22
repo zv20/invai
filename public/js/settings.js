@@ -1,11 +1,52 @@
 /* ==========================================================================
-   Settings Management - v0.7.8b
+   Settings Management - v0.7.8c
    Version checking, updates, export/import, backup system, and settings
-   FIXED: Added channel selector initialization
+   FIXED: Added comprehensive safety checks and error handling
    ========================================================================== */
 
+/* ==========================================================================
+   Configuration Constants
+   ========================================================================== */
+
+const CONFIG = {
+    NOTIFICATION_DURATION: 3000,           // 3 seconds
+    UPDATE_CHECK_DEFAULT: 86400000,        // 24 hours
+    UPDATE_CHECK_INTERVALS: {
+        NEVER: 0,
+        HOURLY: 3600000,                   // 1 hour
+        SIX_HOURS: 21600000,               // 6 hours
+        TWELVE_HOURS: 43200000,            // 12 hours
+        DAILY: 86400000,                   // 24 hours
+        WEEKLY: 604800000                  // 7 days
+    },
+    BACKUP_MAX_SIZE: 100 * 1024 * 1024,    // 100MB
+    BACKUP_MIN_SIZE: 100,                  // 100 bytes (SQLite header minimum)
+    SQLITE_SIGNATURE: 'SQLite format 3\0',
+    NOTIFICATION_Z_INDEX: 100001
+};
+
+// Update interval names helper
+const INTERVAL_NAMES = {
+    [CONFIG.UPDATE_CHECK_INTERVALS.NEVER]: 'Never',
+    [CONFIG.UPDATE_CHECK_INTERVALS.HOURLY]: 'Every Hour',
+    [CONFIG.UPDATE_CHECK_INTERVALS.SIX_HOURS]: 'Every 6 Hours',
+    [CONFIG.UPDATE_CHECK_INTERVALS.TWELVE_HOURS]: 'Every 12 Hours',
+    [CONFIG.UPDATE_CHECK_INTERVALS.DAILY]: 'Every 24 Hours',
+    [CONFIG.UPDATE_CHECK_INTERVALS.WEEKLY]: 'Weekly'
+};
+
+// Notification icons
+const NOTIFICATION_ICONS = {
+    success: '✓',
+    error: '✗',
+    warning: '⚠️',
+    info: 'ℹ️'
+};
+
 let updateCheckIntervalId = null;
+let isSettingUpChecker = false; // Mutex flag
 let currentSettingsTab = 'updates';
+let versionInfo = null;
 
 /* ==========================================================================
    Settings Tab Navigation
@@ -53,58 +94,82 @@ function switchSettingsTab(tabName) {
 }
 
 /* ==========================================================================
-   Channel Selector Initialization
+   Channel Selector Initialization - FIXED with defensive checks
    ========================================================================== */
 
 async function loadChannelSelector() {
     try {
         const response = await fetch(`${API_URL}/api/settings/update-channel`);
+        
+        // Check response validity
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
         
         const channelSelectorDiv = document.getElementById('channelSelector');
         const currentStatusDiv = document.getElementById('currentStatus');
+        const switchBtn = document.getElementById('switchChannelBtn');
         
-        if (channelSelectorDiv) {
-            channelSelectorDiv.innerHTML = `
-                <label for="updateChannelSelect" style="display: block; margin-bottom: 8px; font-weight: 600;">Select Update Channel:</label>
-                <select id="updateChannelSelect" style="padding: 8px; border-radius: 6px; border: 2px solid #e5e7eb; width: 100%; max-width: 300px;">
-                    ${data.availableChannels.map(ch => `
-                        <option value="${ch.id}" ${ch.id === data.channel ? 'selected' : ''}>
-                            ${ch.name} - ${ch.description}
-                        </option>
-                    `).join('')}
-                </select>
-            `;
-            
-            // Enable/disable switch button based on selection
-            const select = document.getElementById('updateChannelSelect');
-            const switchBtn = document.getElementById('switchChannelBtn');
-            
-            if (select && switchBtn) {
-                select.addEventListener('change', () => {
-                    const isDifferent = select.value !== data.channel;
-                    switchBtn.disabled = !isDifferent;
-                });
-            }
+        // DEFENSIVE CHECK: Exit if critical elements missing
+        if (!channelSelectorDiv || !currentStatusDiv) {
+            console.error('Channel selector UI elements not found');
+            return;
         }
         
-        if (currentStatusDiv) {
-            const targetBranch = data.channel === 'stable' ? 'main' : 'beta';
-            const statusColor = data.currentBranch === targetBranch ? '#10b981' : '#f59e0b';
-            const statusIcon = data.currentBranch === targetBranch ? '✅' : '⚠️';
-            
-            currentStatusDiv.innerHTML = `
-                <div style="margin: 15px 0; padding: 12px; background: #f9fafb; border-left: 4px solid ${statusColor}; border-radius: 6px;">
-                    <strong>${statusIcon} Current Status:</strong><br>
-                    <span style="margin-left: 10px;">Channel: <strong>${data.channel}</strong></span><br>
-                    <span style="margin-left: 10px;">Branch: <strong>${data.currentBranch}</strong></span>
-                </div>
-            `;
+        // Safely populate selector
+        channelSelectorDiv.innerHTML = `
+            <label for="updateChannelSelect" style="display: block; margin-bottom: 8px; font-weight: 600;">Select Update Channel:</label>
+            <select id="updateChannelSelect" style="padding: 8px; border-radius: 6px; border: 2px solid #e5e7eb; width: 100%; max-width: 300px;">
+                ${data.availableChannels.map(ch => `
+                    <option value="${ch.id}" ${ch.id === data.channel ? 'selected' : ''}>
+                        ${ch.name} - ${ch.description}
+                    </option>
+                `).join('')}
+            </select>
+        `;
+        
+        // Store channel data for later use
+        channelSelectorDiv.dataset.currentChannel = data.channel;
+        
+        // Setup event listener with cleanup
+        const select = document.getElementById('updateChannelSelect');
+        if (select && switchBtn) {
+            // Remove old listener to prevent duplicates (using onchange for simplicity)
+            select.onchange = function() {
+                const isDifferent = this.value !== data.channel;
+                switchBtn.disabled = !isDifferent;
+            };
         }
+        
+        // Update status display
+        const targetBranch = data.channel === 'stable' ? 'main' : 'beta';
+        const statusColor = data.currentBranch === targetBranch ? '#10b981' : '#f59e0b';
+        const statusIcon = data.currentBranch === targetBranch ? '✅' : '⚠️';
+        
+        currentStatusDiv.innerHTML = `
+            <div style="margin: 15px 0; padding: 12px; background: #f9fafb; border-left: 4px solid ${statusColor}; border-radius: 6px;">
+                <strong>${statusIcon} Current Status:</strong><br>
+                <span style="margin-left: 10px;">Channel: <strong>${data.channel}</strong></span><br>
+                <span style="margin-left: 10px;">Branch: <strong>${data.currentBranch}</strong></span>
+            </div>
+        `;
         
     } catch (error) {
         console.error('Error loading channel selector:', error);
-        showNotification('✗ Failed to load channel settings', 'error');
+        
+        // IMPROVED: Show user-friendly error in UI
+        const currentStatusDiv = document.getElementById('currentStatus');
+        if (currentStatusDiv) {
+            currentStatusDiv.innerHTML = `
+                <div style="margin: 15px 0; padding: 12px; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 6px;">
+                    <strong>⚠️ Failed to Load Channel Settings</strong><br>
+                    <span style="margin-left: 10px; color: #991b1b;">Cannot connect to update server</span>
+                </div>
+            `;
+        }
+        notify('Failed to load channel settings', 'error');
     }
 }
 
@@ -180,12 +245,12 @@ async function loadAboutInfo() {
 }
 
 /* ==========================================================================
-   Update Interval Management
+   Update Interval Management - FIXED with mutex
    ========================================================================== */
 
 function getUpdateInterval() {
-    const saved = localStorage.getItem('updateCheckInterval');
-    return saved ? parseInt(saved) : 86400000; // Default 24 hours
+    const saved = SafeStorage.getItem('updateCheckInterval');
+    return saved ? parseInt(saved) : CONFIG.UPDATE_CHECK_DEFAULT;
 }
 
 function saveUpdateInterval() {
@@ -193,46 +258,68 @@ function saveUpdateInterval() {
     if (!select) return;
     
     const interval = parseInt(select.value);
-    localStorage.setItem('updateCheckInterval', interval);
+    SafeStorage.setItem('updateCheckInterval', interval.toString());
     
     setupUpdateChecker();
     
-    const intervalNames = {
-        0: 'Never',
-        3600000: 'Every Hour',
-        21600000: 'Every 6 Hours',
-        43200000: 'Every 12 Hours',
-        86400000: 'Every 24 Hours',
-        604800000: 'Weekly'
-    };
-    
-    showNotification(`✓ Update check frequency: ${intervalNames[interval]}`, 'success');
+    notify(`Update check frequency: ${INTERVAL_NAMES[interval]}`, 'success');
 }
 
 function setupUpdateChecker() {
-    if (updateCheckIntervalId) {
+    // Prevent concurrent setup
+    if (isSettingUpChecker) {
+        console.log('Update checker setup already in progress...');
+        return;
+    }
+    
+    isSettingUpChecker = true;
+    
+    try {
+        // Clear existing interval
+        if (updateCheckIntervalId !== null) {
+            clearInterval(updateCheckIntervalId);
+            updateCheckIntervalId = null;
+            console.log('Cleared existing update check interval');
+        }
+
+        const interval = getUpdateInterval();
+        
+        if (interval === 0) {
+            console.log('Auto-update check disabled');
+            return;
+        }
+
+        console.log(`Setting up auto-update check every ${interval / 1000 / 60} minutes`);
+        
+        // Create new interval
+        updateCheckIntervalId = setInterval(() => {
+            console.log('Running scheduled update check...');
+            checkVersion();
+        }, interval);
+        
+        // Also check immediately on setup
+        checkVersion();
+        
+    } finally {
+        isSettingUpChecker = false;
+    }
+}
+
+// Add cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (updateCheckIntervalId !== null) {
         clearInterval(updateCheckIntervalId);
         updateCheckIntervalId = null;
     }
-
-    const interval = getUpdateInterval();
-    
-    if (interval === 0) {
-        console.log('Auto-update check disabled');
-        return;
-    }
-
-    console.log(`Auto-update check every ${interval / 1000 / 60} minutes`);
-    updateCheckIntervalId = setInterval(checkVersion, interval);
-}
+});
 
 /* ==========================================================================
-   Version Checking - NEW: Added button handlers
+   Version Checking - FIXED with proper event handling
    ========================================================================== */
 
-// NEW: Manual check for updates button handler
-window.checkForUpdatesNow = async function() {
-    const btn = event?.target;
+// Manual check for updates button handler
+window.checkForUpdatesNow = async function(event) {
+    const btn = event?.currentTarget || event?.target;
     if (btn) {
         btn.disabled = true;
         btn.textContent = '⌛ Checking...';
@@ -240,9 +327,10 @@ window.checkForUpdatesNow = async function() {
     
     try {
         await checkVersion();
-        showNotification('✓ Update check complete', 'success');
+        notify('Update check complete', 'success');
     } catch (error) {
-        showNotification('✗ Failed to check for updates', 'error');
+        console.error('Update check error:', error);
+        notify('Failed to check for updates', 'error');
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -251,18 +339,29 @@ window.checkForUpdatesNow = async function() {
     }
 };
 
-// NEW: Switch channel and update button handler
-window.switchChannelAndUpdate = async function() {
+// Switch channel and update button handler
+window.switchChannelAndUpdate = async function(event) {
+    const btn = event?.currentTarget || event?.target;
     const select = document.getElementById('updateChannelSelect');
+    
     if (!select) {
-        showNotification('✗ Channel selector not found', 'error');
+        notify('Channel selector not found', 'error');
         return;
     }
     
     const newChannel = select.value;
-    const btn = event?.target;
+    const channelDiv = document.getElementById('channelSelector');
+    const currentChannel = channelDiv?.dataset?.currentChannel;
     
-    if (!confirm(`Switch to ${newChannel} channel and update?\n\nThis will:\n✓ Create a backup\n✓ Switch to ${newChannel} branch\n✓ Pull latest changes\n✓ Restart the server\n\nContinue?`)) {
+    // Prevent switching if already on target channel
+    if (newChannel === currentChannel) {
+        notify('Already on selected channel', 'info');
+        return;
+    }
+    
+    const targetBranch = newChannel === 'stable' ? 'main' : 'beta';
+    
+    if (!confirm(`Switch to ${newChannel} channel and update?\n\nThis will:\n✓ Create a backup\n✓ Switch to ${targetBranch} branch\n✓ Pull latest changes\n✓ Restart the server\n\nContinue?`)) {
         return;
     }
     
@@ -278,21 +377,21 @@ window.switchChannelAndUpdate = async function() {
             body: JSON.stringify({ channel: newChannel })
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
         
-        if (response.ok) {
-            alert(`✓ Switched to ${newChannel} channel!\n\nBackup: ${data.backupFile}\nBranch: ${data.branch}\n\nServer will restart now.`);
-            location.reload();
-        } else {
-            showNotification(`✗ Failed: ${data.error}`, 'error');
-            if (btn) {
-                btn.disabled = false;
-                btn.textContent = '🔄 Switch Channel & Update';
-            }
-        }
+        alert(`✓ Switched to ${newChannel} channel!\n\nBackup: ${data.backupFile}\nBranch: ${data.branch}\n\nServer will restart now.`);
+        
+        // Give user time to read, then reload
+        setTimeout(() => location.reload(), 2000);
+        
     } catch (error) {
         console.error('Channel switch error:', error);
-        showNotification('✗ Failed to switch channel', 'error');
+        notify(`Failed to switch channel: ${error.message}`, 'error');
+        
         if (btn) {
             btn.disabled = false;
             btn.textContent = '🔄 Switch Channel & Update';
@@ -374,14 +473,14 @@ async function createBackup() {
         const data = await response.json();
         
         if (response.ok) {
-            showNotification(`✓ Backup created: ${data.filename}`, 'success');
+            notify(`Backup created: ${data.filename}`, 'success');
             loadBackups();
         } else {
-            showNotification(`✗ Backup failed: ${data.error}`, 'error');
+            notify(`Backup failed: ${data.error}`, 'error');
         }
     } catch (error) {
         console.error('Backup error:', error);
-        showNotification('✗ Failed to create backup', 'error');
+        notify('Failed to create backup', 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = '💾 Create Backup Now';
@@ -446,17 +545,17 @@ async function restoreBackup(filename) {
             alert(`✓ Database Restored!\n\nRestored from: ${data.restoredFrom}\nSafety backup: ${data.safetyBackup}\n\nPage will now reload.`);
             location.reload();
         } else {
-            showNotification(`✗ Restore failed: ${data.error}`, 'error');
+            notify(`Restore failed: ${data.error}`, 'error');
         }
     } catch (error) {
         console.error('Restore error:', error);
-        showNotification('✗ Failed to restore backup', 'error');
+        notify('Failed to restore backup', 'error');
     }
 }
 
 function downloadBackup(filename) {
     window.location.href = `${API_URL}/api/backup/download/${filename}`;
-    showNotification(`⬇️ Downloading: ${filename}`, 'success');
+    notify(`Downloading: ${filename}`, 'success');
 }
 
 async function deleteBackup(filename) {
@@ -472,14 +571,14 @@ async function deleteBackup(filename) {
         const data = await response.json();
         
         if (response.ok) {
-            showNotification(`✓ Backup deleted: ${filename}`, 'success');
+            notify(`Backup deleted: ${filename}`, 'success');
             loadBackups();
         } else {
-            showNotification(`✗ Failed to delete: ${data.error}`, 'error');
+            notify(`Failed to delete: ${data.error}`, 'error');
         }
     } catch (error) {
         console.error('Delete error:', error);
-        showNotification('✗ Failed to delete backup', 'error');
+        notify('Failed to delete backup', 'error');
     }
 }
 
@@ -492,8 +591,49 @@ async function handleUploadRestore(event) {
     const file = event.target.files[0];
     if (!file) return;
     
+    // Extension check
     if (!file.name.endsWith('.db')) {
-        showNotification('⚠️ Please select a valid .db file', 'error');
+        notify('Please select a valid .db file', 'warning');
+        event.target.value = '';
+        return;
+    }
+    
+    // Size check (max 100MB)
+    if (file.size > CONFIG.BACKUP_MAX_SIZE) {
+        notify('File too large (max 100MB)', 'error');
+        event.target.value = '';
+        return;
+    }
+    
+    // Minimum size check (SQLite header is at least 100 bytes)
+    if (file.size < CONFIG.BACKUP_MIN_SIZE) {
+        notify('File too small to be a valid database', 'error');
+        event.target.value = '';
+        return;
+    }
+    
+    // Validate SQLite file signature
+    try {
+        const headerBytes = await file.slice(0, 16).arrayBuffer();
+        const headerArray = new Uint8Array(headerBytes);
+        const sqliteSignature = CONFIG.SQLITE_SIGNATURE;
+        
+        let isValid = true;
+        for (let i = 0; i < sqliteSignature.length; i++) {
+            if (headerArray[i] !== sqliteSignature.charCodeAt(i)) {
+                isValid = false;
+                break;
+            }
+        }
+        
+        if (!isValid) {
+            notify('Invalid SQLite database file', 'error');
+            event.target.value = '';
+            return;
+        }
+    } catch (error) {
+        console.error('Error validating file:', error);
+        notify('Could not validate file', 'error');
         event.target.value = '';
         return;
     }
@@ -506,23 +646,35 @@ async function handleUploadRestore(event) {
     const formData = new FormData();
     formData.append('backup', file);
     
+    const uploadBtn = document.querySelector('button[onclick="triggerUploadRestore()"]');
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = '⌛ Uploading & Restoring...';
+    }
+    
     try {
         const response = await fetch(`${API_URL}/api/backup/upload`, {
             method: 'POST',
             body: formData
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
         
-        if (response.ok) {
-            alert(`✓ Database Restored!\n\nRestored from: ${data.originalFilename}\nSafety backup: ${data.safetyBackup}\n\nPage will now reload.`);
-            location.reload();
-        } else {
-            showNotification(`✗ Upload restore failed: ${data.error}`, 'error');
-        }
+        alert(`✓ Database Restored!\n\nRestored from: ${data.originalFilename}\nSafety backup: ${data.safetyBackup}\n\nPage will now reload.`);
+        location.reload();
+        
     } catch (error) {
         console.error('Upload restore error:', error);
-        showNotification('✗ Failed to restore from upload', 'error');
+        notify(`Upload restore failed: ${error.message}`, 'error');
+        
+        if (uploadBtn) {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = '📤 Upload & Restore';
+        }
     } finally {
         event.target.value = '';
     }
@@ -552,7 +704,7 @@ function formatAge(ms) {
 
 function exportCSV() {
     window.location.href = `${API_URL}/api/export/inventory`;
-    showNotification('📥 Exporting inventory...', 'success');
+    notify('Exporting inventory...', 'success');
 }
 
 function triggerImport() {
@@ -565,7 +717,7 @@ async function handleImport(event) {
     if (!file) return;
     
     if (!file.name.endsWith('.csv')) {
-        showNotification('⚠️ Please select a valid CSV file', 'error');
+        notify('Please select a valid CSV file', 'warning');
         event.target.value = '';
         return;
     }
@@ -592,11 +744,11 @@ async function handleImport(event) {
             alert(`✓ Import Successful!\n\nProducts created: ${result.productsCreated}\nProducts updated: ${result.productsUpdated}\nBatches created: ${result.batchesCreated}\nErrors: ${result.errors}\n\nThe page will now reload.`);
             location.reload();
         } else {
-            showNotification(`✗ Import Failed: ${result.error}`, 'error');
+            notify(`Import Failed: ${result.error}`, 'error');
         }
     } catch (error) {
         console.error('Import error:', error);
-        showNotification('✗ Failed to import CSV file', 'error');
+        notify('Failed to import CSV file', 'error');
     }
     
     event.target.value = '';
@@ -633,25 +785,32 @@ async function confirmReset() {
         
         if (response.ok) {
             alert('✓ Database reset successful!\n\nAll data has been deleted.\n\nThe page will now reload.');
-            localStorage.clear();
+            SafeStorage.clear();
             location.reload();
         } else {
-            showNotification('Error: ' + (data.error || 'Unknown error'), 'error');
+            notify('Error: ' + (data.error || 'Unknown error'), 'error');
         }
     } catch (error) {
         console.error('Reset error:', error);
-        showNotification('Failed to reset database', 'error');
+        notify('Failed to reset database', 'error');
     }
 }
 
 /* ==========================================================================
-   Notification Helper
+   Notification Helper - Standardized with icons
    ========================================================================== */
+
+function notify(message, type = 'info') {
+    const icon = NOTIFICATION_ICONS[type] || NOTIFICATION_ICONS.info;
+    const formattedMessage = `${icon} ${message}`;
+    showNotification(formattedMessage, type);
+}
 
 function showNotification(message, type = 'info') {
     const colors = {
         success: { bg: '#dcfce7', border: '#10b981', text: '#065f46' },
         error: { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' },
+        warning: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
         info: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' }
     };
     
@@ -667,7 +826,7 @@ function showNotification(message, type = 'info') {
         padding: 15px 20px;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 100001;
+        z-index: ${CONFIG.NOTIFICATION_Z_INDEX};
         font-weight: 600;
         max-width: 300px;
     `;
@@ -676,7 +835,7 @@ function showNotification(message, type = 'info') {
     
     setTimeout(() => {
         notification.remove();
-    }, 3000);
+    }, CONFIG.NOTIFICATION_DURATION);
 }
 
 // Show toast for compatibility with other modules
