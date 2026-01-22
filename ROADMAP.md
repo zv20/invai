@@ -4,53 +4,14 @@
 
 ---
 
-## Current Version: v0.7.0
-**Last Updated**: January 21, 2026
-
----
-
-## v0.7.4 - Categories & Suppliers Foundation
-**Status**: 🔄 Planned  
-**Focus**: Pre-defined data structure & filtering
-
-### Migration 002: Categories System
-- [ ] Create categories table (pre-defined list)
-- [ ] Default categories: Dairy, Produce, Meat, Bakery, Frozen, Dry Goods, Beverages, Snacks, Condiments, Cleaning, Personal Care, Other
-- [ ] Migrate products from text "item" field to category_id
-- [ ] Category management UI in Settings (add/edit/delete/reorder)
-- [ ] Category-based filtering on Inventory page
-- [ ] Color-coded category badges
-
-### Migration 003: Suppliers System
-- [ ] Create suppliers table (pre-defined, user-managed)
-- [ ] Migrate products from text "supplier" field to supplier_id
-- [ ] Supplier management UI in Settings (add/edit/delete)
-- [ ] Filter products by supplier
-- [ ] Supplier display on product cards and detail view
-
-### Migration 004: Enhanced Product Fields
-- [ ] Add product_image (file path/URL)
-- [ ] Add allergen_info (text field)
-- [ ] Add nutritional_data (JSON field - optional)
-- [ ] Add storage_temp (enum: frozen/refrigerated/dry/ambient)
-- [ ] Image upload in product modal
-- [ ] Display allergen warnings on product detail
-
-### Filtering System
-- [ ] Filter by category (dropdown/checkboxes)
-- [ ] Filter by supplier
-- [ ] Filter by stock status (in stock, low stock, out of stock)
-- [ ] Filter by expiry status (expired, urgent, soon, normal)
-- [ ] Filter by storage temperature
-- [ ] Filter by location
-- [ ] Combine multiple filters
-- [ ] Clear all filters button
-- [ ] Show active filter count
+## Current Version: v0.7.8
+**Last Updated**: January 22, 2026
 
 ---
 
 ## v0.8.0 - Inventory Audits & Change Tracking
 **Status**: 📋 Planned  
+**Target**: Q2 2026  
 **Focus**: Accountability and audit trails
 
 ### Audit System
@@ -97,6 +58,7 @@
 
 ## v0.9.0 - Reporting & Analytics
 **Status**: 📋 Planned  
+**Target**: Q3 2026  
 **Focus**: Business intelligence
 
 ### Advanced Reporting
@@ -132,6 +94,7 @@
 
 ## v0.10.0 - User Management & Security
 **Status**: 📋 Planned  
+**Target**: Q4 2026  
 **Focus**: Multi-user support and audit compliance
 
 ### User Authentication
@@ -164,6 +127,7 @@
 
 ## v0.11.0 - Mobile & API Integration
 **Status**: 📋 Planned  
+**Target**: Q1 2027  
 **Focus**: Accessibility and extensibility
 
 ### Progressive Web App (PWA)
@@ -199,7 +163,7 @@
 
 | Version  | Target Date | Status |
 |----------|-------------|--------|
-| v0.7.4   | Q1 2026     | 📋 Planned |
+| v0.7.8   | Q1 2026     | ✅ Current |
 | v0.8.0   | Q2 2026     | 📋 Planned |
 | v0.9.0   | Q3 2026     | 📋 Planned |
 | v0.10.0  | Q4 2026     | 📋 Planned |
@@ -211,44 +175,84 @@
 
 ## Completed Versions
 
+### ✅ v0.7.7/v0.7.8 - Categories & Suppliers + Repository Cleanup (Jan 21-22, 2026)
+
+**Migration 002: Categories & Suppliers System**
+- [x] Create categories table (pre-defined list)
+- [x] Default categories: Dairy, Produce, Meat, Bakery, Frozen, Dry Goods, Beverages, Snacks, Condiments, Cleaning, Personal Care, Other
+- [x] Migrate products from text "item" field to category_id
+- [x] Category management UI in Settings (add/edit/delete/reorder)
+- [x] Category-based filtering on Inventory page
+- [x] Color-coded category badges
+- [x] Create suppliers table (user-managed)
+- [x] Migrate products from text "supplier" field to supplier_id
+- [x] Supplier management UI in Settings (add/edit/delete)
+- [x] Filter products by supplier
+- [x] Supplier display on product cards and detail view
+
+**Filtering System**
+- [x] Filter by category (dropdown/checkboxes)
+- [x] Filter by supplier
+- [x] Filter by stock status (in stock, low stock, out of stock)
+- [x] Filter by expiry status (expired, urgent, soon, normal)
+- [x] Filter by location
+- [x] Combine multiple filters
+- [x] Clear all filters button
+- [x] Show active filter count
+
+**v0.7.8 Repository Cleanup**
+- [x] Reorganize scripts into `/scripts/fixes/` and `/scripts/install/`
+- [x] Create comprehensive scripts/README.md documentation
+- [x] Remove obsolete documentation files
+- [x] Clean migration directory (removed duplicate migrations)
+- [x] Improve update system with channel auto-detection
+
 ### ✅ v0.7.0 - Migration System & Update Channels (Jan 21, 2026)
-- Database migration system with version tracking
-- Update channel switching (Stable/Beta)
-- Automatic backups before migrations
-- Channel management UI in Settings
+- [x] Database migration system with version tracking
+- [x] Update channel switching (Stable/Beta)
+- [x] Automatic backups before migrations
+- [x] Channel management UI in Settings
+- [x] Migration runner with rollback support
 
 ### ✅ v0.6.0 - Smart Inventory Actions (Jan 21, 2026)
-- FIFO/FEFO batch suggestions
-- Quick actions on batches
-- Bulk operations
-- Browser notifications for low stock
+- [x] FIFO/FEFO batch suggestions
+- [x] Quick actions on batches (+1, +5, -1, -5, empty)
+- [x] Bulk operations (delete, location change, quantity adjust)
+- [x] Browser notifications for low stock
+- [x] Batch-level quantity management
 
 ### ✅ v0.5.1 - Dynamic About Section (Jan 20, 2026)
-- Changelog API
-- Auto-updating About section
+- [x] Changelog API endpoint
+- [x] Auto-updating About section in Settings
+- [x] Version display with release notes
 
 ### ✅ v0.5.0 - Compact Cards (Jan 20, 2026)
-- Compact product cards with barcode display
-- Location display with multi-location support
+- [x] Compact product cards with barcode display
+- [x] Location display with multi-location support
+- [x] Improved card layout and styling
 
 ### ✅ v0.4.0 - Unified Inventory (Jan 20, 2026)
-- Merged Products and Inventory tabs
-- Product detail view
+- [x] Merged Products and Inventory tabs
+- [x] Product detail view modal
+- [x] Batch management in detail view
 
 ### ✅ v0.3.0 - Dashboard (Jan 20, 2026)
-- Real-time statistics
-- Category breakdown
-- Recent activity feed
+- [x] Real-time statistics (total products, low stock, expiring soon)
+- [x] Category breakdown chart
+- [x] Recent activity feed
+- [x] Quick navigation to inventory
 
 ### ✅ v0.2.0 - Barcode Scanning (Jan 19, 2026)
-- Webcam barcode scanning
-- Product search by barcode
+- [x] Webcam barcode scanning integration
+- [x] Product search by barcode
+- [x] Scanner modal UI
 
 ### ✅ v0.1.0 - Initial Release (Jan 18, 2026)
-- Product management
-- Batch tracking
-- Inventory value calculations
-- CSV import/export
+- [x] Product management (CRUD)
+- [x] Batch tracking with expiry dates
+- [x] Inventory value calculations
+- [x] CSV import/export
+- [x] Basic dashboard statistics
 
 ---
 
@@ -270,6 +274,7 @@
    - Update version status to ✅ Completed
    - Move version to "Completed Versions" section
    - Update "Current Version" at top
+   - Update "Last Updated" date
 4. **When priorities change**: Reorder items or update timeline
 5. **When adding new features**: Add to appropriate version section
 6. **Commit changes with meaningful message**: e.g., "docs: Update roadmap - completed Migration 002"
@@ -303,5 +308,5 @@ The app will graduate to v1.0.0 when:
 
 ---
 
-**Last Reviewed**: January 21, 2026  
-**Next Review**: When starting v0.7.4 development
+**Last Reviewed**: January 22, 2026  
+**Next Review**: When starting v0.8.0 development
