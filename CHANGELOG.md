@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.8c] - 2026-01-22
 ### Fixed
+- ✅ **Duplicate Variable Declaration** - Removed duplicate `versionInfo` from core.js
+  - Variable now only declared in settings.js where it's used
+  - Eliminates "Can't create duplicate variable" SyntaxError
+  - Prevents variable collision between modules
+- ✅ **Premature checkVersion Call** - Made checkVersion() conditional in initialization
+  - Only calls if function exists (settings.js loaded)
+  - Prevents "Can't find variable: checkVersion" ReferenceError
+  - Graceful degradation with console warning if unavailable
+- ✅ **Version Display Inconsistency** - Updated hardcoded version strings to v0.7.8c
+  - Console logs now show correct version
+  - Consistent versioning across all modules
 - ✅ **Null Safety in Channel Selector** - Added defensive checks preventing crashes when API fails
   - loadChannelSelector() now gracefully handles missing DOM elements
   - Shows user-friendly error message in UI when API connection fails
@@ -39,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced file size validation and user feedback
 - Improved button state management during operations
 - Added comprehensive null checks throughout settings module
+- Conditional function calls in initialization for better module loading
+- Enhanced console logging with version consistency
 
 ### Technical
 - Added SafeStorage utility module for safe localStorage operations
@@ -47,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added comprehensive null checks and HTTP status validation
 - Created CONFIG object for all magic number constants
 - Better separation of concerns with utility functions
+- Removed duplicate global variable declarations
+- Made cross-module function calls conditional and safe
 
 ## [0.7.8b] - 2026-01-22
 ### Fixed
@@ -295,7 +310,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
-- **v0.7.8c** - Stability and safety hotfix
+- **v0.7.8c** - Critical stability hotfix (duplicate variables, initialization errors, version strings)
 - **v0.7.8b** - Hotfix for channel selector initialization
 - **v0.7.8a** - Bug fixes for suppliers, categories, and update buttons
 - **v0.7.8** - Repository cleanup and script organization
@@ -303,7 +318,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **v0.7.6** - Categories & suppliers UI (missing database)
 - **v0.7.0** - Migration system & update channels
 - **v0.6.0** - Smart inventory actions (FIFO/FEFO, notifications, quick actions, bulk ops)
-- **v0.5.1** - Dynamic About section with changelog API
+- **v0.7.1** - Dynamic About section with changelog API
 - **v0.5.0** - Compact cards with barcode & location
 - **v0.4.1** - Hotfix for duplicate variables
 - **v0.4.0** - Unified inventory with detail view
@@ -329,7 +344,7 @@ update
 ```
 
 ### Version Commit Hashes
-- v0.7.8c: Check git log
+- v0.7.8c: [5521f64](https://github.com/zv20/invai/commit/5521f64f9ddde7f8e3e98017fbf35d0e7c74d1b9) (latest)
 - v0.7.8b: Check git log
 - v0.7.8a: Check git log
 - v0.7.8: Check git log
