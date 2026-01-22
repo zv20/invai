@@ -30,8 +30,9 @@
 
 .category-info h4, .supplier-info h4 {
     margin: 0 0 5px 0;
-    color: #333;
+    color: #111827; /* FIXED: Darker color for better readability */
     font-size: 1.1rem;
+    font-weight: 600; /* FIXED: Bold for better visual hierarchy */
 }
 
 .category-info p, .supplier-info p {
