@@ -1,8 +1,8 @@
 /**
  * Suppliers Manager - v0.7.8e
  * Handles supplier CRUD operations
- * NEW: Added active/inactive toggle functionality
- * FIXED: Changed contact_phone/contact_email to phone/email to match database schema
+ * FIXED v0.7.8e: Updated version number for supplier active status fix
+ * FIXED v0.7.8a: Changed contact_phone/contact_email to phone/email to match database schema
  */
 
 let suppliers = [];
@@ -67,7 +67,7 @@ function updateSupplierDropdown() {
     }
 }
 
-// NEW: Toggle supplier active status
+// Toggle supplier active status
 window.toggleSupplierStatus = async function(id, newStatus) {
     const supplier = suppliers.find(s => s.id === id);
     if (!supplier) return;

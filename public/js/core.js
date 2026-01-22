@@ -230,7 +230,7 @@ document.addEventListener('click', (e) => {
    ========================================================================== */
 
 function initializeApp() {
-    console.log('🚀 Starting Grocery Inventory App v0.7.8d...');
+    console.log('🚀 Starting Grocery Inventory App v0.7.8e...');
     
     // Start clock
     updateCurrentTime();
@@ -269,7 +269,7 @@ function initializeApp() {
         }
     }
     
-    console.log('✓ Grocery Inventory App v0.7.8d initialized');
+    console.log('✓ Grocery Inventory App v0.7.8e initialized');
 }
 
 // Initialize when DOM is ready
