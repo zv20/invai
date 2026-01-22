@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8c] - 2026-01-22
+### Fixed
+- ✅ **Null Safety in Channel Selector** - Added defensive checks preventing crashes when API fails
+  - loadChannelSelector() now gracefully handles missing DOM elements
+  - Shows user-friendly error message in UI when API connection fails
+  - Prevents null reference errors during channel switching
+- ✅ **localStorage Crashes** - Created SafeStorage wrapper to handle private browsing/quota errors
+  - All localStorage operations now wrapped in try-catch
+  - Graceful fallback to default values when storage unavailable
+  - User notifications when settings cannot be saved
+- ✅ **Event Handler Safety** - Fixed switchChannelAndUpdate() and checkForUpdatesNow() button handlers
+  - Proper event parameter handling instead of global event object
+  - Better button state management during async operations
+  - Added channel validation before switching
+- ✅ **Memory Leak in Update Checker** - Added mutex pattern to prevent multiple interval creation
+  - setupUpdateChecker() now prevents concurrent execution
+  - Proper cleanup of intervals on page unload
+  - Immediate update check on setup
+- ✅ **File Upload Security** - Added SQLite signature validation for backup uploads
+  - Validates file signature matches SQLite format
+  - Size limits: minimum 100 bytes, maximum 100MB
+  - Prevents upload of corrupted or malicious files
+- ✅ **API Connection Validation** - Added connectivity check before settings operations
+  - Validates API_URL is defined and reachable
+  - Shows error state in UI when connection fails
+  - Provides retry button for failed connections
+
+### Improved
+- Code organization with CONFIG constants (removed magic numbers)
+- Standardized error message formatting (consistent ✗/✓/⚠️ icons)
+- Better error messaging with graceful UI degradation
+- Enhanced file size validation and user feedback
+- Improved button state management during operations
+- Added comprehensive null checks throughout settings module
+
+### Technical
+- Added SafeStorage utility module for safe localStorage operations
+- Implemented mutex safeguards for async interval management
+- Improved error boundaries throughout settings.js
+- Added comprehensive null checks and HTTP status validation
+- Created CONFIG object for all magic number constants
+- Better separation of concerns with utility functions
+
 ## [0.7.8b] - 2026-01-22
 ### Fixed
 - ✅ **Channel Selector Not Loading on Initial Settings Tab Open** - Fixed initialization timing
@@ -252,6 +295,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **v0.7.8c** - Stability and safety hotfix
 - **v0.7.8b** - Hotfix for channel selector initialization
 - **v0.7.8a** - Bug fixes for suppliers, categories, and update buttons
 - **v0.7.8** - Repository cleanup and script organization
@@ -285,6 +329,7 @@ update
 ```
 
 ### Version Commit Hashes
+- v0.7.8c: Check git log
 - v0.7.8b: Check git log
 - v0.7.8a: Check git log
 - v0.7.8: Check git log
