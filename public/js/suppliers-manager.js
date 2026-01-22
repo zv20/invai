@@ -1,6 +1,7 @@
 /**
- * Suppliers Manager - v0.7.8a
+ * Suppliers Manager - v0.7.8e
  * Handles supplier CRUD operations
+ * NEW: Added active/inactive toggle functionality
  * FIXED: Changed contact_phone/contact_email to phone/email to match database schema
  */
 
@@ -35,13 +36,22 @@ function renderSuppliersList() {
     container.innerHTML = suppliers.map(sup => `
         <div class="supplier-card" style="opacity: ${sup.is_active ? 1 : 0.6}">
             <div class="supplier-info">
-                <h4>${sup.name}</h4>
+                <h4>
+                    ${sup.name}
+                    ${!sup.is_active ? '<span class="badge-inactive">Inactive</span>' : ''}
+                </h4>
                 ${sup.contact_name ? `<p><strong>Contact:</strong> ${sup.contact_name}</p>` : ''}
                 ${sup.email ? `<p>📧 ${sup.email}</p>` : ''}
                 ${sup.phone ? `<p>📞 ${sup.phone}</p>` : ''}
                 ${sup.notes ? `<p style="font-style: italic; color: #999; margin-top: 8px;">${sup.notes}</p>` : ''}
             </div>
             <div class="supplier-actions">
+                <button 
+                    class="btn-icon" 
+                    onclick="toggleSupplierStatus(${sup.id}, ${sup.is_active ? 0 : 1})" 
+                    title="${sup.is_active ? 'Mark as Inactive' : 'Mark as Active'}">
+                    ${sup.is_active ? '✅' : '❌'}
+                </button>
                 <button class="btn-icon" onclick="editSupplier(${sup.id})" title="Edit">✏️</button>
                 <button class="btn-icon" onclick="deleteSupplier(${sup.id})" title="Delete">🗑️</button>
             </div>
@@ -57,6 +67,41 @@ function updateSupplierDropdown() {
     }
 }
 
+// NEW: Toggle supplier active status
+window.toggleSupplierStatus = async function(id, newStatus) {
+    const supplier = suppliers.find(s => s.id === id);
+    if (!supplier) return;
+    
+    try {
+        const response = await fetch(`/api/suppliers/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: supplier.name,
+                contact_name: supplier.contact_name,
+                phone: supplier.phone,
+                email: supplier.email,
+                address: supplier.address,
+                notes: supplier.notes,
+                is_active: newStatus
+            })
+        });
+        
+        if (response.ok) {
+            showNotification(
+                `${supplier.name} marked as ${newStatus ? 'active' : 'inactive'}`, 
+                'success'
+            );
+            window.loadSuppliers();
+        } else {
+            showNotification('Failed to update supplier status', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating supplier status:', error);
+        showNotification('Failed to update supplier status', 'error');
+    }
+};
+
 // Make globally accessible
 window.openAddSupplierModal = function() {
     editingSupplierId = null;
@@ -71,6 +116,7 @@ window.openAddSupplierModal = function() {
     
     document.getElementById('supplierModalTitle').textContent = 'Add Supplier';
     form.reset();
+    document.getElementById('supplierIsActive').checked = true; // Default to active
     modal.style.display = 'block';
 };
 
@@ -88,6 +134,7 @@ window.editSupplier = function(id) {
     document.getElementById('supplierContactEmail').value = supplier.email || '';
     document.getElementById('supplierAddress').value = supplier.address || '';
     document.getElementById('supplierNotes').value = supplier.notes || '';
+    document.getElementById('supplierIsActive').checked = supplier.is_active ? true : false;
     modal.style.display = 'block';
 };
 
@@ -105,14 +152,14 @@ window.deleteSupplier = async function(id) {
     try {
         const response = await fetch(`/api/suppliers/${id}`, { method: 'DELETE' });
         if (response.ok) {
-            showToast('Supplier deleted', 'success');
+            showNotification('Supplier deleted', 'success');
             window.loadSuppliers();
         } else {
-            showToast('Failed to delete supplier', 'error');
+            showNotification('Failed to delete supplier', 'error');
         }
     } catch (error) {
         console.error('Error deleting supplier:', error);
-        showToast('Failed to delete supplier', 'error');
+        showNotification('Failed to delete supplier', 'error');
     }
 };
 
@@ -129,7 +176,9 @@ function setupSupplierForm() {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // FIXED: Changed contact_phone/contact_email to phone/email
+            // Read checkbox value for active status
+            const isActiveCheckbox = document.getElementById('supplierIsActive');
+            
             const data = {
                 name: document.getElementById('supplierName').value,
                 contact_name: document.getElementById('supplierContactName').value,
@@ -137,7 +186,7 @@ function setupSupplierForm() {
                 email: document.getElementById('supplierContactEmail').value,
                 address: document.getElementById('supplierAddress').value,
                 notes: document.getElementById('supplierNotes').value,
-                is_active: 1
+                is_active: isActiveCheckbox.checked ? 1 : 0
             };
             
             try {
@@ -153,16 +202,16 @@ function setupSupplierForm() {
                 });
                 
                 if (response.ok) {
-                    showToast(editingSupplierId ? 'Supplier updated' : 'Supplier created', 'success');
+                    showNotification(editingSupplierId ? 'Supplier updated' : 'Supplier created', 'success');
                     window.closeSupplierModal();
                     window.loadSuppliers();
                 } else {
                     const error = await response.json();
-                    showToast(error.error || 'Failed to save supplier', 'error');
+                    showNotification(error.error || 'Failed to save supplier', 'error');
                 }
             } catch (error) {
                 console.error('Error saving supplier:', error);
-                showToast('Failed to save supplier', 'error');
+                showNotification('Failed to save supplier', 'error');
             }
         });
     }
