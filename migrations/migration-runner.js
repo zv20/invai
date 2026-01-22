@@ -19,7 +19,8 @@ class MigrationRunner {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           version INTEGER NOT NULL UNIQUE,
           name TEXT NOT NULL,
-          applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          status TEXT DEFAULT 'completed'
         )
       `, (err) => {
         if (err) reject(err);
@@ -93,6 +94,36 @@ class MigrationRunner {
   }
 
   /**
+   * Run auto-cleanup if needed
+   */
+  async runAutoCleanup() {
+    if (!global.needsMigrationCleanup) {
+      return { cleaned: false, message: 'No cleanup needed' };
+    }
+
+    console.log('\n🧹 Auto-cleanup triggered...');
+
+    try {
+      const cleanup = require('./cleanup-old-migrations');
+      const result = cleanup.cleanupOldMigrations();
+      const verified = cleanup.verifyCleanup();
+
+      if (verified) {
+        console.log('✅ Auto-cleanup completed successfully!\n');
+        global.needsMigrationCleanup = false;
+        return { cleaned: true, ...result };
+      } else {
+        console.warn('⚠️  Auto-cleanup completed with warnings\n');
+        return { cleaned: true, verified: false, ...result };
+      }
+    } catch (err) {
+      console.error('❌ Auto-cleanup failed:', err.message);
+      console.log('💡 You can manually run: node migrations/cleanup-old-migrations.js\n');
+      return { cleaned: false, error: err.message };
+    }
+  }
+
+  /**
    * Run all pending migrations
    */
   async runPendingMigrations(backupFunction) {
@@ -142,6 +173,11 @@ class MigrationRunner {
           throw err;
         }
       }
+    }
+
+    // Check if cleanup is needed after all migrations
+    if (global.needsMigrationCleanup) {
+      await this.runAutoCleanup();
     }
 
     if (migrationsRun === 0) {
