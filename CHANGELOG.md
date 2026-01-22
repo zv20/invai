@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.7] - 2026-01-22
+### Maintenance & Infrastructure
+- **Branch Rename** - Renamed `develop` branch to `beta` for UI/branch consistency
+- **Update Script Enhanced** - Added git branch auto-detection fallback when `.update-channel` file is missing
+- **Database Fix Scripts** - Created `fix_suppliers_table.js` and `fix_supplier_columns.js` for migration recovery
+- **Migration Cleanup** - Removed duplicate migration files (002_categories.js, 003_suppliers.js, 004_enhanced_product_fields.js)
+- **Documentation** - Updated all references from `develop` to `beta` across codebase
+  - server.js (3 instances)
+  - update.sh
+  - SYSTEM_UPDATE_PATCH.md
+  - README.md
+  - .github/workflows/update-checker.yml
+
+### Fixed
+- Update script now correctly detects current branch if channel file is missing
+- Prevents accidental branch switching during updates
+- Enhanced error handling in update workflow
+
+### Added
+- **Migration 002** - Automated creation of categories and suppliers tables (from beta)
+- Complete integration of v0.7.6 UI with v0.7.5e database migrations
+
+### Changed
+- Update system is now more robust with intelligent fallback detection
+- Merged beta branch bugfixes and migrations into main
+- Complete, functional categories and suppliers system (UI + Database)
+
 ## [0.7.7] - 2026-01-21
 ### Added
 - **Migration 002** - Automated creation of categories and suppliers tables (from beta)
@@ -187,7 +214,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
-- **v0.7.7** - Complete categories & suppliers (UI + Database merged)
+- **v0.7.7** - Complete categories & suppliers (UI + Database merged) + Maintenance updates
 - **v0.7.6** - Categories & suppliers UI (missing database)
 - **v0.7.0** - Migration system & update channels
 - **v0.6.0** - Smart inventory actions (FIFO/FEFO, notifications, quick actions, bulk ops)
