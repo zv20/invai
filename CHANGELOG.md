@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8b] - 2026-01-22
+### Fixed
+- ✅ **Channel Selector Not Loading on Initial Settings Tab Open** - Fixed initialization timing
+  - Channel selector dropdown now populates immediately when Settings tab is clicked
+  - Current status (channel/branch) displays on first load
+  - "Switch Channel & Update" button now functional from initial page load
+  - Previously required switching between settings sub-tabs to trigger initialization
+
+### Changed
+- Added `loadChannelSelector()` call to `switchTab('settings')` function in core.js
+- Improved Settings tab initialization flow for better user experience
+
 ## [0.7.8a] - 2026-01-22
 ### Fixed
 - ✅ **Suppliers Phone/Email Not Saving** - Fixed field name mismatch between frontend and backend
@@ -240,6 +252,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **v0.7.8b** - Hotfix for channel selector initialization
 - **v0.7.8a** - Bug fixes for suppliers, categories, and update buttons
 - **v0.7.8** - Repository cleanup and script organization
 - **v0.7.7** - Complete categories & suppliers (UI + Database merged) + Maintenance updates
@@ -272,6 +285,7 @@ update
 ```
 
 ### Version Commit Hashes
+- v0.7.8b: Check git log
 - v0.7.8a: Check git log
 - v0.7.8: Check git log
 - v0.7.7: Check git log
