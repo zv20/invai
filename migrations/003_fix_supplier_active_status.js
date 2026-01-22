@@ -6,6 +6,9 @@
  */
 
 module.exports = {
+    version: 3,
+    description: 'Fix supplier active status column',
+    
     up: (db) => {
         return new Promise((resolve, reject) => {
             // Try to add the column (will fail silently if it already exists)
