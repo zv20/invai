@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8d] - 2026-01-22
+### Fixed
+- ✅ **Settings Tab Crash** - Fixed TypeError when opening Settings tab
+  - Added null check for `updateCheckInterval` element before accessing
+  - Checks if `getUpdateInterval` function exists before calling
+  - Prevents crash: "null is not an object (evaluating 'document.getElementById('updateCheckInterval').value')"
+  - Settings tab now opens without errors
+
+### Technical
+- Enhanced `switchTab` function with defensive null checks
+- Improved DOM element access safety in tab switching logic
+
 ## [0.7.8c] - 2026-01-22
 ### Fixed
 - ✅ **Duplicate Variable Declaration** - Removed duplicate `versionInfo` from core.js
@@ -310,6 +322,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **v0.7.8d** - Critical hotfix for Settings tab crash
 - **v0.7.8c** - Critical stability hotfix (duplicate variables, initialization errors, version strings)
 - **v0.7.8b** - Hotfix for channel selector initialization
 - **v0.7.8a** - Bug fixes for suppliers, categories, and update buttons
@@ -318,7 +331,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **v0.7.6** - Categories & suppliers UI (missing database)
 - **v0.7.0** - Migration system & update channels
 - **v0.6.0** - Smart inventory actions (FIFO/FEFO, notifications, quick actions, bulk ops)
-- **v0.7.1** - Dynamic About section with changelog API
+- **v0.5.1** - Dynamic About section with changelog API
 - **v0.5.0** - Compact cards with barcode & location
 - **v0.4.1** - Hotfix for duplicate variables
 - **v0.4.0** - Unified inventory with detail view
@@ -344,7 +357,8 @@ update
 ```
 
 ### Version Commit Hashes
-- v0.7.8c: [5521f64](https://github.com/zv20/invai/commit/5521f64f9ddde7f8e3e98017fbf35d0e7c74d1b9) (latest)
+- v0.7.8d: [90db121](https://github.com/zv20/invai/commit/90db12141bfe797501638de6fe29ade4751e97d0) (latest)
+- v0.7.8c: [5521f64](https://github.com/zv20/invai/commit/5521f64f9ddde7f8e3e98017fbf35d0e7c74d1b9)
 - v0.7.8b: Check git log
 - v0.7.8a: Check git log
 - v0.7.8: Check git log
