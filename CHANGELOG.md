@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8e] - 2026-01-22
+### Fixed
+- ✅ **Supplier Names Appearing Too Light/Faded** - Fixed visual clarity issue
+  - **Root Cause**: All existing suppliers had `is_active = 0`, causing `opacity: 0.6` to be applied
+  - CSS was correct (`color: #111827` dark + `font-weight: 600` bold), but opacity made text appear light gray
+  - Created Migration 003 to set all suppliers to `is_active = 1`
+  - Supplier names now display with full opacity (dark and bold)
+  - Users can still toggle suppliers inactive if needed
+  - New suppliers default to active status
+
+### Changed
+- Supplier cards now render at full opacity when active
+- Inactive suppliers retain 60% opacity for visual distinction
+- Toggle button functionality preserved (✅ active / ❌ inactive)
+
+### Technical
+- Added `migrations/003_fix_supplier_active_status.js`
+- Updated `suppliers-manager.js` version to 0.7.8e
+- Database migration automatically runs on server restart
+- All existing suppliers updated to active status
+
 ## [0.7.8d] - 2026-01-22
 ### Fixed
 - ✅ **Settings Tab Crash** - Fixed TypeError when opening Settings tab
@@ -322,6 +343,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **v0.7.8e** - Supplier visibility fix (inactive status causing faded appearance)
 - **v0.7.8d** - Critical hotfix for Settings tab crash
 - **v0.7.8c** - Critical stability hotfix (duplicate variables, initialization errors, version strings)
 - **v0.7.8b** - Hotfix for channel selector initialization
@@ -331,7 +353,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **v0.7.6** - Categories & suppliers UI (missing database)
 - **v0.7.0** - Migration system & update channels
 - **v0.6.0** - Smart inventory actions (FIFO/FEFO, notifications, quick actions, bulk ops)
-- **v0.5.1** - Dynamic About section with changelog API
+- **v0.7.1** - Dynamic About section with changelog API
 - **v0.5.0** - Compact cards with barcode & location
 - **v0.4.1** - Hotfix for duplicate variables
 - **v0.4.0** - Unified inventory with detail view
@@ -357,7 +379,8 @@ update
 ```
 
 ### Version Commit Hashes
-- v0.7.8d: [90db121](https://github.com/zv20/invai/commit/90db12141bfe797501638de6fe29ade4751e97d0) (latest)
+- v0.7.8e: [53c1252](https://github.com/zv20/invai/commit/53c1252e4433e7b7a2c38e37c92301c38f893e4c) (latest)
+- v0.7.8d: [90db121](https://github.com/zv20/invai/commit/90db12141bfe797501638de6fe29ade4751e97d0)
 - v0.7.8c: [5521f64](https://github.com/zv20/invai/commit/5521f64f9ddde7f8e3e98017fbf35d0e7c74d1b9)
 - v0.7.8b: Check git log
 - v0.7.8a: Check git log
