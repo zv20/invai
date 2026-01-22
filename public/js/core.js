@@ -112,6 +112,10 @@ function switchTab(tabName) {
     }
     if (tabName === 'settings') {
         document.getElementById('updateCheckInterval').value = getUpdateInterval();
+        // Initialize the Updates subtab (default active)
+        if (typeof loadChannelSelector === 'function') {
+            loadChannelSelector();
+        }
     }
 }
 
@@ -222,7 +226,7 @@ document.addEventListener('click', (e) => {
    ========================================================================== */
 
 function initializeApp() {
-    console.log('🚀 Starting Grocery Inventory App v0.7.0...');
+    console.log('🚀 Starting Grocery Inventory App v0.7.8b...');
     
     // Start clock
     updateCurrentTime();
@@ -248,7 +252,7 @@ function initializeApp() {
     // Load saved update interval preference
     document.getElementById('updateCheckInterval').value = getUpdateInterval();
     
-    console.log('✓ Grocery Inventory App v0.7.0 initialized');
+    console.log('✓ Grocery Inventory App v0.7.8b initialized');
 }
 
 // Initialize when DOM is ready
