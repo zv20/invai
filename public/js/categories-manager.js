@@ -1,6 +1,7 @@
 /**
- * Categories Manager - v0.7.5b
+ * Categories Manager - v0.7.8a
  * Handles category CRUD operations
+ * UPDATED: Removed color picker (temporary removal per user request)
  */
 
 let categories = [];
@@ -31,8 +32,9 @@ function renderCategoriesList() {
         return;
     }
     
+    // Removed color from border-left style
     container.innerHTML = categories.map(cat => `
-        <div class="category-card" style="border-left: 4px solid ${cat.color}">
+        <div class="category-card">
             <div class="category-icon">${cat.icon || '🏷️'}</div>
             <div class="category-info">
                 <h4>${cat.name}</h4>
@@ -68,7 +70,6 @@ window.openAddCategoryModal = function() {
     
     document.getElementById('categoryModalTitle').textContent = 'Add Category';
     form.reset();
-    document.getElementById('categoryColor').value = '#667eea';
     modal.style.display = 'block';
 };
 
@@ -82,7 +83,7 @@ window.editCategory = function(id) {
     document.getElementById('categoryModalTitle').textContent = 'Edit Category';
     document.getElementById('categoryName').value = category.name;
     document.getElementById('categoryDescription').value = category.description || '';
-    document.getElementById('categoryColor').value = category.color;
+    // Removed color input population
     modal.style.display = 'block';
 };
 
@@ -127,7 +128,7 @@ function setupCategoryForm() {
             const data = {
                 name: document.getElementById('categoryName').value,
                 description: document.getElementById('categoryDescription').value,
-                color: document.getElementById('categoryColor').value
+                color: '#667eea'  // Default color since picker is removed
             };
             
             try {
