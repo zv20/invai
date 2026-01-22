@@ -1,6 +1,7 @@
 /**
- * Suppliers Manager - v0.7.5b
+ * Suppliers Manager - v0.7.8a
  * Handles supplier CRUD operations
+ * FIXED: Changed contact_phone/contact_email to phone/email to match database schema
  */
 
 let suppliers = [];
@@ -34,10 +35,10 @@ function renderSuppliersList() {
     container.innerHTML = suppliers.map(sup => `
         <div class="supplier-card" style="opacity: ${sup.is_active ? 1 : 0.6}">
             <div class="supplier-info">
-                <h4>${sup.name} ${sup.is_active ? '' : '<span class="badge-inactive">Inactive</span>'}</h4>
+                <h4>${sup.name}</h4>
                 ${sup.contact_name ? `<p><strong>Contact:</strong> ${sup.contact_name}</p>` : ''}
-                ${sup.contact_email ? `<p>📧 ${sup.contact_email}</p>` : ''}
-                ${sup.contact_phone ? `<p>📞 ${sup.contact_phone}</p>` : ''}
+                ${sup.email ? `<p>📧 ${sup.email}</p>` : ''}
+                ${sup.phone ? `<p>📞 ${sup.phone}</p>` : ''}
                 ${sup.notes ? `<p style="font-style: italic; color: #999; margin-top: 8px;">${sup.notes}</p>` : ''}
             </div>
             <div class="supplier-actions">
@@ -83,8 +84,8 @@ window.editSupplier = function(id) {
     document.getElementById('supplierModalTitle').textContent = 'Edit Supplier';
     document.getElementById('supplierName').value = supplier.name;
     document.getElementById('supplierContactName').value = supplier.contact_name || '';
-    document.getElementById('supplierContactPhone').value = supplier.contact_phone || '';
-    document.getElementById('supplierContactEmail').value = supplier.contact_email || '';
+    document.getElementById('supplierContactPhone').value = supplier.phone || '';
+    document.getElementById('supplierContactEmail').value = supplier.email || '';
     document.getElementById('supplierAddress').value = supplier.address || '';
     document.getElementById('supplierNotes').value = supplier.notes || '';
     modal.style.display = 'block';
@@ -128,11 +129,12 @@ function setupSupplierForm() {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            // FIXED: Changed contact_phone/contact_email to phone/email
             const data = {
                 name: document.getElementById('supplierName').value,
                 contact_name: document.getElementById('supplierContactName').value,
-                contact_phone: document.getElementById('supplierContactPhone').value,
-                contact_email: document.getElementById('supplierContactEmail').value,
+                phone: document.getElementById('supplierContactPhone').value,
+                email: document.getElementById('supplierContactEmail').value,
                 address: document.getElementById('supplierAddress').value,
                 notes: document.getElementById('supplierNotes').value,
                 is_active: 1
