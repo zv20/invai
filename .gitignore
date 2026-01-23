@@ -1,20 +1,33 @@
 # Dependencies
 node_modules/
-npm-debug.log
-yarn-error.log
+package-lock.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# JWT Metadata (auto-generated)
+.jwt-meta.json
 
 # Database
 *.db
 *.db-journal
 *.db-shm
 *.db-wal
-data/
 
-# Environment
-.env
-.env.local
+# Logs
+logs/
+*.log
 
-# OS
+# Backups
+backups/
+
+# Temp files
+temp/
+tmp/
+
+# OS files
 .DS_Store
 Thumbs.db
 
@@ -23,10 +36,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+*~
 
-# Logs
-logs/
-*.log
-
-# User Settings
+# Update channel preference
 .update-channel
