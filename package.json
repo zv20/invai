@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "jwt:status": "node scripts/jwt-status.js",
+    "jwt:rotate": "node scripts/rotate-jwt.js",
+    "jwt:generate": "node scripts/generate-jwt.js"
   },
   "keywords": ["inventory", "grocery", "management", "analytics", "reports", "security"],
   "author": "zv20",
