@@ -1,6 +1,6 @@
 # 🚀 Quick Start: Security Update v0.8.1
 
-## ⚡ Fast Setup (5 minutes)
+## ⚡ Super Fast Setup (3 minutes)
 
 ### Step 1: Pull Latest Changes
 
@@ -23,23 +23,19 @@ This script will:
 - ✅ Add user management system
 - ✅ Secure the database reset endpoint
 
-### Step 3: Configure Environment
+### Step 3: Configure Admin Password (Optional)
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set:
+Edit `.env` and set your admin password:
 
 ```env
-JWT_SECRET=put-a-random-32-character-string-here-change-this
 ADMIN_PASSWORD=your-secure-password-here
 ```
 
-**Generate a strong JWT_SECRET:**
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
+**Note:** JWT_SECRET is now **auto-generated**! No need to set it manually.
 
 ### Step 4: Install Dependencies
 
@@ -61,9 +57,22 @@ New packages:
 npm start
 ```
 
-On first start, default admin user is created:
-- Username: `admin`
-- Password: (from your `.env` file)
+**What happens automatically on first run:**
+
+```
+🔐 Checking JWT Secret configuration...
+🔑 No JWT_SECRET found. Generating secure secret...
+✅ JWT_SECRET automatically generated and saved to .env
+   Length: 128 characters (very secure!)
+   🔒 This secret is unique to your installation
+
+✅ Default admin user created: admin
+⚠️  Please change the admin password after first login!
+
+Server running on port 3000
+```
+
+**That's it! No manual JWT configuration needed.** 🎉
 
 ### Step 6: Login
 
@@ -96,6 +105,22 @@ curl -X GET http://localhost:3000/api/products \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
+## 🔐 JWT Secret Management
+
+### Check JWT Status
+
+```bash
+npm run jwt:status
+```
+
+### Manually Rotate Secret (Every 90 Days Recommended)
+
+```bash
+npm run jwt:rotate
+```
+
+**See full details:** [JWT Auto-Management Guide](./JWT_AUTO_MANAGEMENT.md)
+
 ## 🚨 Troubleshooting
 
 ### Script Doesn't Apply Changes?
@@ -110,16 +135,11 @@ If needed, restore backup:
 mv server.pre-security.js server.js
 ```
 
-### "JWT_SECRET not found" Error?
+### No JWT_SECRET Generated?
 
-Make sure `.env` file exists:
+Manually generate it:
 ```bash
-ls -la .env
-```
-
-Check JWT_SECRET is set:
-```bash
-grep JWT_SECRET .env
+npm run jwt:generate
 ```
 
 ### All API Calls Return 401?
@@ -140,9 +160,9 @@ See [SECURITY_UPDATE_v0.8.1.md](./SECURITY_UPDATE_v0.8.1.md) for frontend migrat
 
 ## 📚 Resources
 
-- **Full Documentation:** [SECURITY_UPDATE_v0.8.1.md](./SECURITY_UPDATE_v0.8.1.md)
+- **JWT Auto-Management:** [JWT_AUTO_MANAGEMENT.md](./JWT_AUTO_MANAGEMENT.md)
+- **Full Security Docs:** [SECURITY_UPDATE_v0.8.1.md](./SECURITY_UPDATE_v0.8.1.md)
 - **API Reference:** See protected endpoints section in docs
-- **Frontend Examples:** Check docs for fetch() examples with auth
 
 ## ✅ Verify Setup
 
@@ -162,9 +182,9 @@ curl http://localhost:3000/api/products \
 
 ## 🔒 Security Checklist
 
-- [ ] JWT_SECRET is 32+ characters and random
+- [x] JWT_SECRET auto-generated (128 characters)
 - [ ] Admin password is strong and unique
-- [ ] `.env` file is in `.gitignore`
+- [x] `.env` file is in `.gitignore`
 - [ ] Changed admin password after first login
 - [ ] Tested authentication flow
 - [ ] Frontend updated to handle auth
@@ -173,10 +193,11 @@ curl http://localhost:3000/api/products \
 
 ## 🆘 Need Help?
 
-1. Check [SECURITY_UPDATE_v0.8.1.md](./SECURITY_UPDATE_v0.8.1.md) for detailed docs
-2. Review logs in `logs/` directory
-3. Test with curl commands above
-4. Check GitHub issues: https://github.com/zv20/invai/issues
+1. Check [JWT_AUTO_MANAGEMENT.md](./JWT_AUTO_MANAGEMENT.md) for JWT details
+2. Check [SECURITY_UPDATE_v0.8.1.md](./SECURITY_UPDATE_v0.8.1.md) for detailed docs
+3. Review logs in `logs/` directory
+4. Test with curl commands above
+5. Check GitHub issues: https://github.com/zv20/invai/issues
 
 ---
 
