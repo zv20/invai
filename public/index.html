@@ -259,7 +259,7 @@
             </div>
         </div>
 
-        <!-- Settings Tab -->
+        <!-- Reports Tab -->
         <div id="reportsTab" class="tab-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="margin: 0;">📊 Reports & Analytics</h2>
@@ -281,8 +281,7 @@
 
         <!-- Settings Tab -->
         <div id="settingsTab" class="tab-content">
-        <div id="settingsTab" class="tab-content">
-            <h2 style="margin-bottom: 20px;">Settings</h2>
+            <h2 style="margin-bottom: 20px;">⚙️ Settings</h2>
             <div class="settings-nav">
                 <button class="settings-nav-item active" onclick="switchSettingsTab('updates')">🔄 Updates</button>
                 <button class="settings-nav-item" onclick="switchSettingsTab('categories')">🏷️ Categories</button>
@@ -294,78 +293,18 @@
 
             <!-- Updates Tab -->
             <div id="settings-updates" class="settings-subtab active">
-            <!-- Display Tab (NEW v0.8.0) -->
-            <div id="settings-display" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>🎨 Appearance</h3>
-                    <div class="form-group">
-                        <label>Theme</label>
-                        <select id="themeSelector" onchange="changeTheme(this.value)">
-                            <option value="auto">Auto (System)</option>
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
-                        </select>
-                        <div class="help-text">Choose your preferred color scheme</div>
-                    </div>
-                </div>
-            </div>
-                <div class="settings-section">
-            <!-- Display Tab (NEW v0.8.0) -->
-            <div id="settings-display" class="settings-subtab">
-                <div class="settings-section">
-                    <h3>🎨 Appearance</h3>
-                    <div class="form-group">
-                        <label>Theme</label>
-                        <select id="themeSelector" onchange="changeTheme(this.value)">
-                            <option value="auto">Auto (System)</option>
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
-                        </select>
-                        <div class="help-text">Choose your preferred color scheme</div>
-                    </div>
-                </div>
-            </div>
-                    <h3>Update Channel</h3>
-            <!-- Display Tab (NEW v0.8.0) -->
-            <div id="settings-display" class="settings-subtab">
-                <div class="settings-section">
-                    <h3>🎨 Appearance</h3>
-                    <div class="form-group">
-                        <label>Theme</label>
-                        <select id="themeSelector" onchange="changeTheme(this.value)">
-                            <option value="auto">Auto (System)</option>
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
-                        </select>
-                        <div class="help-text">Choose your preferred color scheme</div>
-                    </div>
-                </div>
-            </div>
+                    <h3>🔄 Update Channel</h3>
                     <div id="channelSelector"></div>
-            <!-- Display Tab (NEW v0.8.0) -->
-            <div id="settings-display" class="settings-subtab">
-                <div class="settings-section">
-                    <h3>🎨 Appearance</h3>
-                    <div class="form-group">
-                        <label>Theme</label>
-                        <select id="themeSelector" onchange="changeTheme(this.value)">
-                            <option value="auto">Auto (System)</option>
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
-                        </select>
-                        <div class="help-text">Choose your preferred color scheme</div>
-                    </div>
-                </div>
-            </div>
                     <div id="currentStatus"></div>
                     <div class="btn-group">
-                        <button id="checkUpdatesBtn" onclick="checkForUpdatesNow()">🔍 Check for Updates</button>
-                        <button id="switchChannelBtn" onclick="switchChannelAndUpdate()" disabled>🔄 Switch Channel & Update</button>
+                        <button id="checkUpdatesBtn" onclick="checkForUpdatesNow(event)">🔍 Check for Updates</button>
+                        <button id="switchChannelBtn" onclick="switchChannelAndUpdate(event)" disabled>🔄 Switch Channel & Update</button>
                     </div>
-                    <div id="updateResults" class="hidden"></div>
+                    <div id="versionStatus" style="display: none; margin-top: 15px; padding: 15px; border-radius: 8px;"></div>
                 </div>
                 <div class="settings-section">
-                    <h3>System Information</h3>
+                    <h3>ℹ️ System Information</h3>
                     <p><strong>Running Version:</strong> <span id="settingsVersion">Checking...</span></p>
                     <p style="margin-top: 10px;"><strong>Latest Version:</strong> <span id="latestVersion">Checking...</span></p>
                     <p style="margin-top: 10px;"><strong>Database:</strong> SQLite</p>
@@ -400,17 +339,17 @@
             <!-- Backups Tab -->
             <div id="settings-backups" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>Database Backups</h3>
+                    <h3>💾 Database Backups</h3>
                     <p style="margin-bottom: 15px;">Create and manage database backups. System automatically keeps the last 10 backups.</p>
                     <div class="btn-group">
                         <button onclick="createBackup()">💾 Create Backup Now</button>
-                        <button class="btn-import" onclick="triggerUploadRestore()">♻️ Upload & Restore</button>
+                        <button class="btn-import" onclick="triggerUploadRestore()">📤 Upload & Restore</button>
                     </div>
                     <input type="file" id="backupUploadInput" accept=".db" onchange="handleUploadRestore(event)" style="display: none;">
                     <div class="help-text" style="margin-top: 10px;">Create new backups or upload an existing backup file to restore</div>
                     <h4 style="margin-top: 25px; margin-bottom: 15px;">Backup History</h4>
                     <div id="backupList" class="backup-list">
-                        <div style="text-align: center; padding: 20px; color: #9ca3af;">📂 No backups yet</div>
+                        <div style="text-align: center; padding: 20px; color: #9ca3af;">📂 Loading backups...</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -419,7 +358,7 @@
                         <button class="btn-export" onclick="exportCSV()">💾 Export to CSV</button>
                         <button class="btn-import" onclick="triggerImport()">📂 Import from CSV</button>
                     </div>
-                    <input type="file" id="csvFileInput" accept=".csv" onchange="handleImport(event)">
+                    <input type="file" id="csvFileInput" accept=".csv" onchange="handleImport(event)" style="display: none;">
                     <div class="help-text" style="margin-top: 10px;">Export your inventory data or import from a backup CSV file</div>
                 </div>
             </div>
@@ -427,10 +366,11 @@
             <!-- About Tab -->
             <div id="settings-about" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>🛍️ Grocery Inventory v0.7.4</h3>
+                    <h3>🛍️ Grocery Inventory v0.8.0</h3>
                     <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Latest Changes</h4>
                     <ul class="changelog-list">
+                        <li>🎨 <strong>v0.8.0</strong> - Dark Mode, Keyboard Shortcuts, Command Palette, Reports & Activity Log</li>
                         <li>🏷️ <strong>v0.7.4</strong> - Categories & Suppliers Foundation with Filtering</li>
                         <li>🔧 <strong>v0.7.0</strong> - Migration System & Update Channels</li>
                         <li>💡 <strong>v0.6.0</strong> - Smart Inventory Actions (FIFO/FEFO, Quick Actions, Notifications)</li>
@@ -440,6 +380,12 @@
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Features</h4>
                     <ul class="changelog-list">
                         <li>📊 Dashboard with real-time statistics</li>
+                        <li>🌙 Dark mode with system preference detection</li>
+                        <li>⌨️ Keyboard shortcuts for power users</li>
+                        <li>🎯 Command palette for quick actions</li>
+                        <li>📊 Reports and analytics</li>
+                        <li>📝 Activity log tracking</li>
+                        <li>⭐ Favorites system</li>
                         <li>🏷️ Categories & Suppliers management</li>
                         <li>🎛️ Advanced filtering system</li>
                         <li>🚨 Expiration alerts (expired, urgent, soon)</li>
@@ -451,6 +397,12 @@
                         <li>💾 Automated backups with retention</li>
                         <li>📊 CSV import/export</li>
                     </ul>
+                    <h4 style="margin-top: 25px; margin-bottom: 10px;">Links</h4>
+                    <p><a href="https://github.com/zv20/invai" target="_blank" style="color: #667eea; text-decoration: underline;">🔗 GitHub Repository</a></p>
+                    <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/blob/beta/CHANGELOG.md" target="_blank" style="color: #667eea; text-decoration: underline;">📋 Full Changelog</a></p>
+                    <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/issues" target="_blank" style="color: #667eea; text-decoration: underline;">📝 Report an Issue</a></p>
+                    <h4 style="margin-top: 25px; margin-bottom: 10px;">License</h4>
+                    <p>MIT License - Free to use and modify</p>
                 </div>
             </div>
 
