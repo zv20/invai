@@ -226,6 +226,15 @@ function initializeApp() {
     checkConnection();
     setInterval(checkConnection, 30000);
     
+    // Load categories and suppliers for product form dropdowns (BUG #3 FIX)
+    console.log('📂 Loading categories and suppliers...');
+    if (typeof loadCategories === 'function') {
+        loadCategories().catch(err => console.error('Failed to load categories:', err));
+    }
+    if (typeof loadSuppliers === 'function') {
+        loadSuppliers().catch(err => console.error('Failed to load suppliers:', err));
+    }
+    
     // Load initial data for active tab
     const activeTab = document.querySelector('.tab-content.active');
     if (activeTab && activeTab.id === 'dashboardTab') {
