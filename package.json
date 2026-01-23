@@ -1,13 +1,13 @@
 {
   "name": "grocery-inventory",
   "version": "0.8.0",
-  "description": "Professional inventory management system for grocery stores",
+  "description": "Professional inventory management system with intelligence and analytics",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": ["inventory", "grocery", "management"],
+  "keywords": ["inventory", "grocery", "management", "analytics", "reports"],
   "author": "zv20",
   "license": "MIT",
   "dependencies": {
@@ -16,7 +16,6 @@
     "cors": "^2.8.5",
     "multer": "^1.4.5-lts.1",
     "node-cache": "^5.1.2",
-    "csv-writer": "^1.6.0",
     "winston": "^3.11.0",
     "winston-daily-rotate-file": "^4.7.1"
   },
