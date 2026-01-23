@@ -128,6 +128,12 @@ const KeyboardShortcuts = {
 
 // Command Palette
 const CommandPalette = {
+  init() {
+    // CommandPalette creates itself on first toggle
+    // No initialization needed
+    console.log('✓ Command palette ready');
+  },
+
   isOpen() {
     const palette = document.getElementById('commandPalette');
     return palette && palette.classList.contains('show');

@@ -93,22 +93,6 @@
                 </div>
             </div>
 
-            <!-- Activity Feed & Alerts Row -->
-            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px;">
-                <div class="dashboard-section">
-                    <h3>📝 Recent Activity</h3>
-                    <div id="activityFeed" class="activity-feed">
-                        <div class="empty-state-small">Loading...</div>
-                    </div>
-                </div>
-                <div class="dashboard-section">
-                    <h3>⭐ Favorites</h3>
-                    <div id="favoritesWidget">
-                        <div class="empty-state-small">No favorites yet</div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Expiration Alerts -->
             <div class="dashboard-section">
                 <h3>🚨 Expiration Alerts</h3>
@@ -275,7 +259,7 @@
             </div>
         </div>
 
-        <!-- Reports Tab (NEW v0.8.0) -->
+        <!-- Settings Tab -->
         <div id="reportsTab" class="tab-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="margin: 0;">📊 Reports & Analytics</h2>
@@ -297,10 +281,10 @@
 
         <!-- Settings Tab -->
         <div id="settingsTab" class="tab-content">
+        <div id="settingsTab" class="tab-content">
             <h2 style="margin-bottom: 20px;">Settings</h2>
             <div class="settings-nav">
                 <button class="settings-nav-item active" onclick="switchSettingsTab('updates')">🔄 Updates</button>
-                <button class="settings-nav-item" onclick="switchSettingsTab('display')">🎨 Display</button>
                 <button class="settings-nav-item" onclick="switchSettingsTab('categories')">🏷️ Categories</button>
                 <button class="settings-nav-item" onclick="switchSettingsTab('suppliers')">📦 Suppliers</button>
                 <button class="settings-nav-item" onclick="switchSettingsTab('backups')">💾 Backups</button>
@@ -310,9 +294,69 @@
 
             <!-- Updates Tab -->
             <div id="settings-updates" class="settings-subtab active">
+            <!-- Display Tab (NEW v0.8.0) -->
+            <div id="settings-display" class="settings-subtab">
                 <div class="settings-section">
+                    <h3>🎨 Appearance</h3>
+                    <div class="form-group">
+                        <label>Theme</label>
+                        <select id="themeSelector" onchange="changeTheme(this.value)">
+                            <option value="auto">Auto (System)</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                        <div class="help-text">Choose your preferred color scheme</div>
+                    </div>
+                </div>
+            </div>
+                <div class="settings-section">
+            <!-- Display Tab (NEW v0.8.0) -->
+            <div id="settings-display" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>🎨 Appearance</h3>
+                    <div class="form-group">
+                        <label>Theme</label>
+                        <select id="themeSelector" onchange="changeTheme(this.value)">
+                            <option value="auto">Auto (System)</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                        <div class="help-text">Choose your preferred color scheme</div>
+                    </div>
+                </div>
+            </div>
                     <h3>Update Channel</h3>
+            <!-- Display Tab (NEW v0.8.0) -->
+            <div id="settings-display" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>🎨 Appearance</h3>
+                    <div class="form-group">
+                        <label>Theme</label>
+                        <select id="themeSelector" onchange="changeTheme(this.value)">
+                            <option value="auto">Auto (System)</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                        <div class="help-text">Choose your preferred color scheme</div>
+                    </div>
+                </div>
+            </div>
                     <div id="channelSelector"></div>
+            <!-- Display Tab (NEW v0.8.0) -->
+            <div id="settings-display" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>🎨 Appearance</h3>
+                    <div class="form-group">
+                        <label>Theme</label>
+                        <select id="themeSelector" onchange="changeTheme(this.value)">
+                            <option value="auto">Auto (System)</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                        <div class="help-text">Choose your preferred color scheme</div>
+                    </div>
+                </div>
+            </div>
                     <div id="currentStatus"></div>
                     <div class="btn-group">
                         <button id="checkUpdatesBtn" onclick="checkForUpdatesNow()">🔍 Check for Updates</button>
@@ -329,29 +373,96 @@
                 </div>
             </div>
 
-            <!-- Display Tab (NEW v0.8.0) -->
-            <div id="settings-display" class="settings-subtab">
+            <!-- Categories Tab (v0.7.4) -->
+            <div id="settings-categories" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>🎨 Appearance</h3>
-                    <div class="form-group">
-                        <label>Theme</label>
-                        <select id="themeSelector" onchange="changeTheme(this.value)">
-                            <option value="auto">Auto (System)</option>
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
-                        </select>
-                        <div class="help-text">Choose your preferred color scheme</div>
+                    <h3>🏷️ Categories Management</h3>
+                    <p style="margin-bottom: 15px;">Organize your products into categories for better filtering and reporting.</p>
+                    <button onclick="openAddCategoryModal()">➕ Add Category</button>
+                    <div id="categoriesList" class="categories-list" style="margin-top: 20px;">
+                        <div class="loading">Loading categories...</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Other settings tabs remain -->
+            <!-- Suppliers Tab (v0.7.4) -->
+            <div id="settings-suppliers" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>📦 Suppliers Management</h3>
+                    <p style="margin-bottom: 15px;">Manage your supplier contacts and track products by supplier.</p>
+                    <button onclick="openAddSupplierModal()">➕ Add Supplier</button>
+                    <div id="suppliersList" class="suppliers-list" style="margin-top: 20px;">
+                        <div class="loading">Loading suppliers...</div>
+                    </div>
+                </div>
+            </div>
 
+            <!-- Backups Tab -->
+            <div id="settings-backups" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>Database Backups</h3>
+                    <p style="margin-bottom: 15px;">Create and manage database backups. System automatically keeps the last 10 backups.</p>
+                    <div class="btn-group">
+                        <button onclick="createBackup()">💾 Create Backup Now</button>
+                        <button class="btn-import" onclick="triggerUploadRestore()">♻️ Upload & Restore</button>
+                    </div>
+                    <input type="file" id="backupUploadInput" accept=".db" onchange="handleUploadRestore(event)" style="display: none;">
+                    <div class="help-text" style="margin-top: 10px;">Create new backups or upload an existing backup file to restore</div>
+                    <h4 style="margin-top: 25px; margin-bottom: 15px;">Backup History</h4>
+                    <div id="backupList" class="backup-list">
+                        <div style="text-align: center; padding: 20px; color: #9ca3af;">📂 No backups yet</div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>📊 Data Management</h3>
+                    <div class="btn-group">
+                        <button class="btn-export" onclick="exportCSV()">💾 Export to CSV</button>
+                        <button class="btn-import" onclick="triggerImport()">📂 Import from CSV</button>
+                    </div>
+                    <input type="file" id="csvFileInput" accept=".csv" onchange="handleImport(event)">
+                    <div class="help-text" style="margin-top: 10px;">Export your inventory data or import from a backup CSV file</div>
+                </div>
+            </div>
+
+            <!-- About Tab -->
+            <div id="settings-about" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>🛍️ Grocery Inventory v0.7.4</h3>
+                    <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
+                    <h4 style="margin-top: 25px; margin-bottom: 10px;">Latest Changes</h4>
+                    <ul class="changelog-list">
+                        <li>🏷️ <strong>v0.7.4</strong> - Categories & Suppliers Foundation with Filtering</li>
+                        <li>🔧 <strong>v0.7.0</strong> - Migration System & Update Channels</li>
+                        <li>💡 <strong>v0.6.0</strong> - Smart Inventory Actions (FIFO/FEFO, Quick Actions, Notifications)</li>
+                        <li>🔄 <strong>v0.4.0</strong> - Unified Inventory with click-through detail view</li>
+                        <li>📊 <strong>v0.3.0</strong> - Dashboard with statistics and expiration alerts</li>
+                    </ul>
+                    <h4 style="margin-top: 25px; margin-bottom: 10px;">Features</h4>
+                    <ul class="changelog-list">
+                        <li>📊 Dashboard with real-time statistics</li>
+                        <li>🏷️ Categories & Suppliers management</li>
+                        <li>🎛️ Advanced filtering system</li>
+                        <li>🚨 Expiration alerts (expired, urgent, soon)</li>
+                        <li>💡 Smart batch suggestions (FIFO/FEFO)</li>
+                        <li>⚡ Quick actions for batch adjustments</li>
+                        <li>📦 Product catalog management</li>
+                        <li>📋 Batch inventory tracking</li>
+                        <li>📷 Barcode scanning</li>
+                        <li>💾 Automated backups with retention</li>
+                        <li>📊 CSV import/export</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Danger Zone Tab -->
+            <div id="settings-danger" class="settings-subtab">
+                <div class="settings-section">
+                    <h3>⚠️ Danger Zone</h3>
+                    <p style="margin-bottom: 15px; color: #dc2626;"><strong>Warning:</strong> Actions in this section are permanent and cannot be undone. Please create a backup before proceeding.</p>
+                    <button class="btn-danger" onclick="confirmReset()">🗑️ Reset All Data</button>
+                </div>
+            </div>
         </div>
-    </div>
-
-    <div id="versionFooter" class="version-footer" onclick="checkVersion()" title="Click to check for updates">
-        <span id="footerVersionText">v0.8.0</span>
     </div>
 
     <!-- Command Palette (NEW v0.8.0) -->
@@ -362,6 +473,240 @@
         </div>
     </div>
 
+    <div id="versionFooter" class="version-footer" onclick="checkVersion()" title="Click to check for updates">
+        <span id="footerVersionText">v0.8.0</span>
+    </div>
+
+    <!-- Scanner Modal -->
+    <div id="scannerModal" class="modal">
+        <div class="modal-content scanner-content">
+            <div class="modal-header">
+                <h2>📷 Barcode Scanner</h2>
+                <button class="close-modal" onclick="closeScanner()">✕ Close</button>
+            </div>
+            <div id="reader"></div>
+            <div class="scanner-info">
+                <strong>💡 Tips:</strong>
+                <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+                    <li>Allow camera access when prompted</li>
+                    <li>Hold barcode steady in camera view</li>
+                    <li>Works with UPC, EAN, QR codes</li>
+                </ul>
+            </div>
+            <div id="scannerResult" class="scanner-result">
+                <strong>✓ Scanned:</strong> <span id="scannedCode"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="productModalTitle">Add Product</h2>
+                <button class="close-modal" onclick="closeProductModal()">✕ Close</button>
+            </div>
+            <form id="productForm">
+                <div class="form-row">
+                    <div>
+                        <label>Product Name *</label>
+                        <input type="text" id="prodName" required placeholder="e.g., Coca Cola 2L">
+                    </div>
+                    <div>
+                        <label>Brand</label>
+                        <input type="text" id="prodBrand" placeholder="e.g., Coca-Cola">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Supplier</label>
+                        <select id="prodSupplier">
+                            <option value="">Select supplier...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Category</label>
+                        <select id="prodCategory">
+                            <option value="">Select category...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Barcode / UPC</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="prodBarcode" placeholder="Scan or enter" style="flex: 1;">
+                            <button type="button" class="btn-scan-inline" onclick="openScanner('product-form')" title="Scan barcode">
+                                📷
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label>In-House Number</label>
+                        <input type="text" id="prodInhouse" placeholder="Internal SKU">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Items Per Case *</label>
+                        <input type="number" id="prodPerCase" required min="1" placeholder="e.g., 12" oninput="calcCostPerItem()">
+                        <div class="help-text">How many items in each case</div>
+                    </div>
+                    <div>
+                        <label>Cost Per Case</label>
+                        <input type="number" id="prodCostPerCase" step="0.01" min="0" placeholder="e.g., 24.00" oninput="calcCostPerItem()">
+                        <div class="help-text" id="costPerItemDisplay">Cost per item: $0.00</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Notes</label>
+                        <textarea id="prodNotes" rows="2" placeholder="Product notes..."></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1;">Save Product</button>
+                    <button type="button" onclick="closeProductModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Batch Modal -->
+    <div id="batchModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="batchModalTitle">Add Inventory Batch</h2>
+                <button class="close-modal" onclick="closeBatchModal()">✕ Close</button>
+            </div>
+            <form id="batchForm">
+                <div class="form-row">
+                    <div>
+                        <label>Number of Cases *</label>
+                        <input type="number" id="batchCases" required min="1" placeholder="e.g., 5" oninput="calcBatchTotal()">
+                    </div>
+                    <div>
+                        <label>Total Items</label>
+                        <input type="number" id="batchTotal" readonly style="background: #f3f4f6;">
+                        <div class="help-text" id="batchCalc">Auto-calculated</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Expiration Date</label>
+                        <input type="date" id="batchExpiry">
+                    </div>
+                    <div>
+                        <label>Location</label>
+                        <input type="text" id="batchLocation" placeholder="e.g., Aisle 3">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Batch Notes</label>
+                        <textarea id="batchNotes" rows="2" placeholder="Delivery notes..."></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1;">Save Batch</button>
+                    <button type="button" onclick="closeBatchModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Category Modal (v0.7.4) -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="categoryModalTitle">Add Category</h2>
+                <button class="close-modal" onclick="closeCategoryModal()">✕ Close</button>
+            </div>
+            <form id="categoryForm">
+                <div class="form-row">
+                    <div>
+                        <label>Category Name *</label>
+                        <input type="text" id="categoryName" required placeholder="e.g., Beverages">
+                    </div>
+                    <div>
+                        <label>Color</label>
+                        <input type="color" id="categoryColor" value="#667eea">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Description</label>
+                        <textarea id="categoryDescription" rows="2" placeholder="Category description..."></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1;">Save Category</button>
+                    <button type="button" onclick="closeCategoryModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Supplier Modal (v0.7.4) -->
+    <div id="supplierModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="supplierModalTitle">Add Supplier</h2>
+                <button class="close-modal" onclick="closeSupplierModal()">✕ Close</button>
+            </div>
+            <form id="supplierForm">
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Supplier Name *</label>
+                        <input type="text" id="supplierName" required placeholder="e.g., Sysco Foods">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Contact Name</label>
+                        <input type="text" id="supplierContactName" placeholder="e.g., John Smith">
+                    </div>
+                    <div>
+                        <label>Contact Phone</label>
+                        <input type="tel" id="supplierContactPhone" placeholder="e.g., (555) 123-4567">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Contact Email</label>
+                        <input type="email" id="supplierContactEmail" placeholder="e.g., sales@sysco.com">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Address</label>
+                        <textarea id="supplierAddress" rows="2" placeholder="Supplier address..."></textarea>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label>Notes</label>
+                        <textarea id="supplierNotes" rows="2" placeholder="Supplier notes..."></textarea>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div style="grid-column: 1 / -1;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="supplierIsActive" checked style="width: auto;">
+                            <span>Active (uncheck to mark as inactive)</span>
+                        </label>
+                        <div class="help-text">Inactive suppliers won't appear in product dropdowns</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1;">Save Supplier</button>
+                    <button type="button" onclick="closeSupplierModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Load JavaScript modules -->
     <!-- Load JavaScript modules in CORRECT ORDER -->
     <!-- CRITICAL: v0.8.0 modules MUST load BEFORE core.js -->
     <script src="js/utils.js"></script>
