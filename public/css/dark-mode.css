@@ -1,0 +1,94 @@
+/**
+ * Dark Mode Styles
+ * v0.8.0
+ */
+
+/* Light theme (default) */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f3f4f6;
+  --bg-tertiary: #e5e7eb;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --border-color: #d1d5db;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --overlay: rgba(0, 0, 0, 0.5);
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --bg-primary: #1f2937;
+  --bg-secondary: #111827;
+  --bg-tertiary: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --border-color: #4b5563;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --overlay: rgba(0, 0, 0, 0.7);
+}
+
+/* Apply theme variables */
+body {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.container {
+  background-color: var(--bg-primary);
+}
+
+.header {
+  background: var(--bg-primary);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.sidebar {
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-color);
+}
+
+.modal-content,
+.dashboard-section,
+.stat-card,
+.product-card,
+.batch-card,
+.settings-section {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+input,
+textarea,
+select {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.sidebar-overlay {
+  background: var(--overlay);
+}
+
+/* Theme toggle button */
+#themeToggle {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#themeToggle:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
