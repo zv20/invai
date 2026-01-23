@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="css/filters.css">
     <link rel="stylesheet" href="css/categories.css">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- v0.8.1: Authentication Check - MUST load first -->
+    <script src="/js/auth.js"></script>
 </head>
 <body>
     <div class="container">
@@ -26,6 +28,7 @@
                 <button id="darkModeToggle" class="icon-btn" title="Toggle theme">🌙</button>
                 <div id="status" class="status">Connecting...</div>
                 <div class="current-time" id="currentTime"></div>
+                <button onclick="logout()" class="icon-btn" title="Logout" style="margin-left: 10px;">🚪</button>
             </div>
         </div>
 
@@ -366,10 +369,11 @@
             <!-- About Tab -->
             <div id="settings-about" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>🛍️ Grocery Inventory v0.8.0</h3>
+                    <h3>🛍️ Grocery Inventory v0.8.1</h3>
                     <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Latest Changes</h4>
                     <ul class="changelog-list">
+                        <li>🔐 <strong>v0.8.1</strong> - Authentication & Authorization, User Management, Login System</li>
                         <li>🎨 <strong>v0.8.0</strong> - Dark Mode, Keyboard Shortcuts, Command Palette, Reports & Activity Log</li>
                         <li>🏷️ <strong>v0.7.4</strong> - Categories & Suppliers Foundation with Filtering</li>
                         <li>🔧 <strong>v0.7.0</strong> - Migration System & Update Channels</li>
@@ -379,6 +383,8 @@
                     </ul>
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Features</h4>
                     <ul class="changelog-list">
+                        <li>🔐 JWT-based authentication & authorization</li>
+                        <li>👥 User management with role-based access</li>
                         <li>📊 Dashboard with real-time statistics</li>
                         <li>🌙 Dark mode with system preference detection</li>
                         <li>⌨️ Keyboard shortcuts for power users</li>
@@ -426,7 +432,7 @@
     </div>
 
     <div id="versionFooter" class="version-footer" onclick="checkVersion()" title="Click to check for updates">
-        <span id="footerVersionText">v0.8.0</span>
+        <span id="footerVersionText">v0.8.1</span>
     </div>
 
     <!-- Scanner Modal -->
