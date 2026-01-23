@@ -155,289 +155,293 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key-here-
     // Add security middleware and routes before existing route handlers
     const firstRoutePos = serverCode.indexOf('// ========== v0.8.0: ACTIVITY LOG API ==========');
     if (firstRoutePos !== -1) {
-      const securitySection = `
-// ========== v0.8.1: AUTHENTICATION & AUTHORIZATION ==========
-
-/**
- * Authentication Middleware
- * Verifies JWT token and attaches user to request
- */
-const authenticate = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  
-  const token = authHeader.substring(7);
-  
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
-  }
-};
-
-/**
- * Authorization Middleware
- * Checks if user has required role
- */
-const authorize = (...allowedRoles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-    
-    next();
-  };
-};
-
-/**
- * Login Route
- * Authenticates user and returns JWT token
- */
-app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
-  
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password required' });
-  }
-  
-  db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
-    if (err) {
-      logger.error('Login error:', err);
-      return res.status(500).json({ error: 'Database error' });
-    }
-    
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    
-    bcrypt.compare(password, user.password, (err, match) => {
-      if (err) {
-        logger.error('Password comparison error:', err);
-        return res.status(500).json({ error: 'Authentication error' });
-      }
+      // Build the security section code (avoiding template literal nesting issues)
+      const securitySection = [
+        '',
+        '// ========== v0.8.1: AUTHENTICATION & AUTHORIZATION ==========',
+        '',
+        '/**',
+        ' * Authentication Middleware',
+        ' * Verifies JWT token and attaches user to request',
+        ' */',
+        'const authenticate = (req, res, next) => {',
+        '  const authHeader = req.headers.authorization;',
+        '  ',
+        '  if (!authHeader || !authHeader.startsWith(\'Bearer \')) {',
+        '    return res.status(401).json({ error: \'Authentication required\' });',
+        '  }',
+        '  ',
+        '  const token = authHeader.substring(7);',
+        '  ',
+        '  try {',
+        '    const decoded = jwt.verify(token, process.env.JWT_SECRET);',
+        '    req.user = decoded;',
+        '    next();',
+        '  } catch (error) {',
+        '    return res.status(401).json({ error: \'Invalid or expired token\' });',
+        '  }',
+        '};',
+        '',
+        '/**',
+        ' * Authorization Middleware',
+        ' * Checks if user has required role',
+        ' */',
+        'const authorize = (...allowedRoles) => {',
+        '  return (req, res, next) => {',
+        '    if (!req.user) {',
+        '      return res.status(401).json({ error: \'Authentication required\' });',
+        '    }',
+        '    ',
+        '    if (!allowedRoles.includes(req.user.role)) {',
+        '      return res.status(403).json({ error: \'Insufficient permissions\' });',
+        '    }',
+        '    ',
+        '    next();',
+        '  };',
+        '};',
+        '',
+        '/**',
+        ' * Login Route',
+        ' * Authenticates user and returns JWT token',
+        ' */',
+        'app.post(\'/api/auth/login\', (req, res) => {',
+        '  const { username, password } = req.body;',
+        '  ',
+        '  if (!username || !password) {',
+        '    return res.status(400).json({ error: \'Username and password required\' });',
+        '  }',
+        '  ',
+        '  db.get(\'SELECT * FROM users WHERE username = ?\', [username], (err, user) => {',
+        '    if (err) {',
+        '      logger.error(\'Login error:\', err);',
+        '      return res.status(500).json({ error: \'Database error\' });',
+        '    }',
+        '    ',
+        '    if (!user) {',
+        '      return res.status(401).json({ error: \'Invalid credentials\' });',
+        '    }',
+        '    ',
+        '    bcrypt.compare(password, user.password, (err, match) => {',
+        '      if (err) {',
+        '        logger.error(\'Password comparison error:\', err);',
+        '        return res.status(500).json({ error: \'Authentication error\' });',
+        '      }',
+        '      ',
+        '      if (!match) {',
+        '        return res.status(401).json({ error: \'Invalid credentials\' });',
+        '      }',
+        '      ',
+        '      // Generate JWT token',
+        '      const token = jwt.sign(',
+        '        { id: user.id, username: user.username, role: user.role },',
+        '        process.env.JWT_SECRET,',
+        '        { expiresIn: \'24h\' }',
+        '      );',
+        '      ',
+        '      logger.info("User logged in: " + username);',
+        '      ',
+        '      res.json({',
+        '        token,',
+        '        user: {',
+        '          id: user.id,',
+        '          username: user.username,',
+        '          role: user.role',
+        '        }',
+        '      });',
+        '    });',
+        '  });',
+        '});',
+        '',
+        '/**',
+        ' * Get Current User',
+        ' * Returns authenticated user\'s information',
+        ' */',
+        'app.get(\'/api/auth/me\', authenticate, (req, res) => {',
+        '  db.get(',
+        '    \'SELECT id, username, role, created_at FROM users WHERE id = ?\',',
+        '    [req.user.id],',
+        '    (err, user) => {',
+        '      if (err) {',
+        '        logger.error(\'Get user error:\', err);',
+        '        return res.status(500).json({ error: \'Database error\' });',
+        '      }',
+        '      ',
+        '      if (!user) {',
+        '        return res.status(404).json({ error: \'User not found\' });',
+        '      }',
+        '      ',
+        '      res.json(user);',
+        '    }',
+        '  );',
+        '});',
+        '',
+        '/**',
+        ' * Change Password',
+        ' * Allows authenticated users to change their password',
+        ' */',
+        'app.post(\'/api/auth/change-password\', authenticate, (req, res) => {',
+        '  const { currentPassword, newPassword } = req.body;',
+        '  ',
+        '  if (!currentPassword || !newPassword) {',
+        '    return res.status(400).json({ error: \'Current and new password required\' });',
+        '  }',
+        '  ',
+        '  if (newPassword.length < 6) {',
+        '    return res.status(400).json({ error: \'New password must be at least 6 characters\' });',
+        '  }',
+        '  ',
+        '  db.get(\'SELECT * FROM users WHERE id = ?\', [req.user.id], (err, user) => {',
+        '    if (err) {',
+        '      logger.error(\'Change password error:\', err);',
+        '      return res.status(500).json({ error: \'Database error\' });',
+        '    }',
+        '    ',
+        '    if (!user) {',
+        '      return res.status(404).json({ error: \'User not found\' });',
+        '    }',
+        '    ',
+        '    bcrypt.compare(currentPassword, user.password, (err, match) => {',
+        '      if (err) {',
+        '        logger.error(\'Password comparison error:\', err);',
+        '        return res.status(500).json({ error: \'Authentication error\' });',
+        '      }',
+        '      ',
+        '      if (!match) {',
+        '        return res.status(401).json({ error: \'Current password is incorrect\' });',
+        '      }',
+        '      ',
+        '      bcrypt.hash(newPassword, 10, (err, hash) => {',
+        '        if (err) {',
+        '          logger.error(\'Password hashing error:\', err);',
+        '          return res.status(500).json({ error: \'Failed to hash password\' });',
+        '        }',
+        '        ',
+        '        db.run(',
+        '          \'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?\',',
+        '          [hash, req.user.id],',
+        '          (err) => {',
+        '            if (err) {',
+        '              logger.error(\'Password update error:\', err);',
+        '              return res.status(500).json({ error: \'Failed to update password\' });',
+        '            }',
+        '            ',
+        '            logger.info("Password changed for user: " + user.username);',
+        '            res.json({ message: \'Password changed successfully\' });',
+        '          }',
+        '        );',
+        '      });',
+        '    });',
+        '  });',
+        '});',
+        '',
+        '/**',
+        ' * Logout Route',
+        ' * Invalidates current session (client should delete token)',
+        ' */',
+        'app.post(\'/api/auth/logout\', authenticate, (req, res) => {',
+        '  logger.info("User logged out: " + req.user.username);',
+        '  res.json({ message: \'Logged out successfully\' });',
+        '});',
+        '',
+        '/**',
+        ' * List Users (Admin only)',
+        ' */',
+        'app.get(\'/api/users\', authenticate, authorize(\'admin\'), (req, res) => {',
+        '  db.all(',
+        '    \'SELECT id, username, role, created_at, updated_at FROM users ORDER BY created_at DESC\',',
+        '    [],',
+        '    (err, users) => {',
+        '      if (err) {',
+        '        logger.error(\'List users error:\', err);',
+        '        return res.status(500).json({ error: \'Database error\' });',
+        '      }',
+        '      res.json(users);',
+        '    }',
+        '  );',
+        '});',
+        '',
+        '/**',
+        ' * Create User (Admin only)',
+        ' */',
+        'app.post(\'/api/users\', authenticate, authorize(\'admin\'), (req, res) => {',
+        '  const { username, password, role } = req.body;',
+        '  ',
+        '  if (!username || !password) {',
+        '    return res.status(400).json({ error: \'Username and password required\' });',
+        '  }',
+        '  ',
+        '  if (password.length < 6) {',
+        '    return res.status(400).json({ error: \'Password must be at least 6 characters\' });',
+        '  }',
+        '  ',
+        '  if (!["user", "admin"].includes(role)) {',
+        '    return res.status(400).json({ error: \'Invalid role\' });',
+        '  }',
+        '  ',
+        '  bcrypt.hash(password, 10, (err, hash) => {',
+        '    if (err) {',
+        '      logger.error(\'Password hashing error:\', err);',
+        '      return res.status(500).json({ error: \'Failed to hash password\' });',
+        '    }',
+        '    ',
+        '    db.run(',
+        '      \'INSERT INTO users (username, password, role) VALUES (?, ?, ?)\',',
+        '      [username, hash, role],',
+        '      function(err) {',
+        '        if (err) {',
+        '          if (err.message.includes(\'UNIQUE constraint\')) {',
+        '            return res.status(409).json({ error: \'Username already exists\' });',
+        '          }',
+        '          logger.error(\'Create user error:\', err);',
+        '          return res.status(500).json({ error: \'Failed to create user\' });',
+        '        }',
+        '        ',
+        '        logger.info("User created: " + username + " (" + role + ") by " + req.user.username);',
+        '        res.json({ id: this.lastID, message: \'User created successfully\' });',
+        '      }',
+        '    );',
+        '  });',
+        '});',
+        '',
+        '/**',
+        ' * Delete User (Admin only)',
+        ' */',
+        'app.delete(\'/api/users/:id\', authenticate, authorize(\'admin\'), (req, res) => {',
+        '  const userId = parseInt(req.params.id);',
+        '  ',
+        '  if (userId === req.user.id) {',
+        '    return res.status(400).json({ error: \'Cannot delete your own account\' });',
+        '  }',
+        '  ',
+        '  db.get(\'SELECT username FROM users WHERE id = ?\', [userId], (err, user) => {',
+        '    if (err) {',
+        '      logger.error(\'Delete user error:\', err);',
+        '      return res.status(500).json({ error: \'Database error\' });',
+        '    }',
+        '    ',
+        '    if (!user) {',
+        '      return res.status(404).json({ error: \'User not found\' });',
+        '    }',
+        '    ',
+        '    db.run(\'DELETE FROM users WHERE id = ?\', [userId], function(err) {',
+        '      if (err) {',
+        '        logger.error(\'Delete user error:\', err);',
+        '        return res.status(500).json({ error: \'Failed to delete user\' });',
+        '      }',
+        '      ',
+        '      if (this.changes === 0) {',
+        '        return res.status(404).json({ error: \'User not found\' });',
+        '      }',
+        '      ',
+        '      logger.info("User deleted: " + user.username + " by " + req.user.username);',
+        '      res.json({ message: \'User deleted successfully\' });',
+        '    });',
+        '  });',
+        '});',
+        '',
+        ''
+      ].join('\n');
       
-      if (!match) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
-      
-      // Generate JWT token
-      const token = jwt.sign(
-        { id: user.id, username: user.username, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-      
-      logger.info(`User logged in: ${username}`);
-      
-      res.json({
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          role: user.role
-        }
-      });
-    });
-  });
-});
-
-/**
- * Get Current User
- * Returns authenticated user's information
- */
-app.get('/api/auth/me', authenticate, (req, res) => {
-  db.get(
-    'SELECT id, username, role, created_at FROM users WHERE id = ?',
-    [req.user.id],
-    (err, user) => {
-      if (err) {
-        logger.error('Get user error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-      
-      res.json(user);
-    }
-  );
-});
-
-/**
- * Change Password
- * Allows authenticated users to change their password
- */
-app.post('/api/auth/change-password', authenticate, (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-  
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'Current and new password required' });
-  }
-  
-  if (newPassword.length < 6) {
-    return res.status(400).json({ error: 'New password must be at least 6 characters' });
-  }
-  
-  db.get('SELECT * FROM users WHERE id = ?', [req.user.id], (err, user) => {
-    if (err) {
-      logger.error('Change password error:', err);
-      return res.status(500).json({ error: 'Database error' });
-    }
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    bcrypt.compare(currentPassword, user.password, (err, match) => {
-      if (err) {
-        logger.error('Password comparison error:', err);
-        return res.status(500).json({ error: 'Authentication error' });
-      }
-      
-      if (!match) {
-        return res.status(401).json({ error: 'Current password is incorrect' });
-      }
-      
-      bcrypt.hash(newPassword, 10, (err, hash) => {
-        if (err) {
-          logger.error('Password hashing error:', err);
-          return res.status(500).json({ error: 'Failed to hash password' });
-        }
-        
-        db.run(
-          'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-          [hash, req.user.id],
-          (err) => {
-            if (err) {
-              logger.error('Password update error:', err);
-              return res.status(500).json({ error: 'Failed to update password' });
-            }
-            
-            logger.info(`Password changed for user: ${user.username}`);
-            res.json({ message: 'Password changed successfully' });
-          }
-        );
-      });
-    });
-  });
-});
-
-/**
- * Logout Route
- * Invalidates current session (client should delete token)
- */
-app.post('/api/auth/logout', authenticate, (req, res) => {
-  logger.info(`User logged out: ${req.user.username}`);
-  res.json({ message: 'Logged out successfully' });
-});
-
-/**
- * List Users (Admin only)
- */
-app.get('/api/users', authenticate, authorize('admin'), (req, res) => {
-  db.all(
-    'SELECT id, username, role, created_at, updated_at FROM users ORDER BY created_at DESC',
-    [],
-    (err, users) => {
-      if (err) {
-        logger.error('List users error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      res.json(users);
-    }
-  );
-});
-
-/**
- * Create User (Admin only)
- */
-app.post('/api/users', authenticate, authorize('admin'), (req, res) => {
-  const { username, password, role } = req.body;
-  
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password required' });
-  }
-  
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
-  }
-  
-  if (!['user', 'admin'].includes(role)) {
-    return res.status(400).json({ error: 'Invalid role' });
-  }
-  
-  bcrypt.hash(password, 10, (err, hash) => {
-    if (err) {
-      logger.error('Password hashing error:', err);
-      return res.status(500).json({ error: 'Failed to hash password' });
-    }
-    
-    db.run(
-      'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-      [username, hash, role],
-      function(err) {
-        if (err) {
-          if (err.message.includes('UNIQUE constraint')) {
-            return res.status(409).json({ error: 'Username already exists' });
-          }
-          logger.error('Create user error:', err);
-          return res.status(500).json({ error: 'Failed to create user' });
-        }
-        
-        logger.info(`User created: ${username} (${role}) by ${req.user.username}`);
-        res.json({ id: this.lastID, message: 'User created successfully' });
-      }
-    );
-  });
-});
-
-/**
- * Delete User (Admin only)
- */
-app.delete('/api/users/:id', authenticate, authorize('admin'), (req, res) => {
-  const userId = parseInt(req.params.id);
-  
-  if (userId === req.user.id) {
-    return res.status(400).json({ error: 'Cannot delete your own account' });
-  }
-  
-  db.get('SELECT username FROM users WHERE id = ?', [userId], (err, user) => {
-    if (err) {
-      logger.error('Delete user error:', err);
-      return res.status(500).json({ error: 'Database error' });
-    }
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    db.run('DELETE FROM users WHERE id = ?', [userId], function(err) {
-      if (err) {
-        logger.error('Delete user error:', err);
-        return res.status(500).json({ error: 'Failed to delete user' });
-      }
-      
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-      
-      logger.info(`User deleted: ${user.username} by ${req.user.username}`);
-      res.json({ message: 'User deleted successfully' });
-    });
-  });
-});
-
-`;
       serverCode = serverCode.slice(0, firstRoutePos) + securitySection + serverCode.slice(firstRoutePos);
       console.log('  ✓ Added authentication routes');
       console.log('  ✓ Added user management routes');
