@@ -203,22 +203,19 @@ document.getElementById('productSearch').addEventListener('input', () => {
 function initializeApp() {
     console.log('🚀 Starting Grocery Inventory App v0.8.0...');
     
-    // Initialize dark mode
+    // Check if dark mode is loaded (it self-initializes)
     if (typeof DarkMode !== 'undefined') {
-        DarkMode.init();
         console.log('✓ Dark mode initialized');
     }
     
-    // Initialize keyboard shortcuts
+    // Check if keyboard shortcuts are loaded (they self-initialize)
     if (typeof KeyboardShortcuts !== 'undefined') {
-        KeyboardShortcuts.init();
         console.log('✓ Keyboard shortcuts initialized');
     }
     
-    // Initialize command palette
+    // Check if command palette is available (no init needed)
     if (typeof CommandPalette !== 'undefined') {
-        CommandPalette.init();
-        console.log('✓ Command palette initialized');
+        console.log('✓ Command palette available');
     }
     
     // Start clock
@@ -232,7 +229,7 @@ function initializeApp() {
     // Load initial data for active tab
     const activeTab = document.querySelector('.tab-content.active');
     if (activeTab && activeTab.id === 'dashboardTab') {
-        console.log('📊assboard is active, waiting for dashboard.js to initialize...');
+        console.log('📊 Dashboard is active, waiting for dashboard.js to initialize...');
     }
     
     // Check for updates
