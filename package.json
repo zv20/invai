@@ -1,6 +1,6 @@
 {
   "name": "grocery-inventory",
-  "version": "0.7.8f",
+  "version": "0.7.8g",
   "description": "Professional inventory management system for grocery stores",
   "main": "server.js",
   "scripts": {
