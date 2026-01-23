@@ -101,7 +101,7 @@ function switchTab(tabName) {
         }
         // Load activity feed
         if (typeof ActivityLog !== 'undefined') {
-            ActivityLog.loadActivityFeed();
+            ActivityLog.loadRecentActivity();
         }
     }
     if (tabName === 'inventory') {
