@@ -1,166 +1,173 @@
 /**
  * Command Palette Module
- * Quick action access (Ctrl+K)
+ * Quick command access (Ctrl+K)
  * v0.8.0
  */
 
-const CommandPalette = (() => {
-  let isOpen = false;
-  const commands = [
-    { id: 'new-product', label: '➕ Add New Product', action: () => openAddProductModal() },
-    { id: 'new-batch', label: '📦 Add New Batch', action: () => openAddBatchModal() },
-    { id: 'new-category', label: '🏷️ Add New Category', action: () => openAddCategoryModal() },
-    { id: 'new-supplier', label: '🏢 Add New Supplier', action: () => openAddSupplierModal() },
-    { id: 'goto-dashboard', label: '📊 Go to Dashboard', action: () => switchTab('dashboard') },
-    { id: 'goto-inventory', label: '📦 Go to Inventory', action: () => switchTab('inventory') },
-    { id: 'goto-reports', label: '📈 Go to Reports', action: () => switchTab('reports') },
-    { id: 'goto-settings', label: '⚙️ Go to Settings', action: () => switchTab('settings') },
-    { id: 'export-csv', label: '💾 Export to CSV', action: () => exportCSV() },
-    { id: 'create-backup', label: '💾 Create Backup', action: () => createBackup() },
-    { id: 'toggle-theme', label: '🌙 Toggle Dark Mode', action: () => DarkMode.toggle() }
+let paletteOpen = false;
+let paletteCommands = [];
+
+// Initialize command palette
+function initCommandPalette() {
+  buildCommandList();
+  createPaletteDOM();
+}
+
+// Build command list
+function buildCommandList() {
+  paletteCommands = [
+    // Navigation
+    { id: 'nav-dashboard', name: 'Go to Dashboard', category: 'Navigation', action: () => switchTab('dashboard'), icon: '🏘️' },
+    { id: 'nav-inventory', name: 'Go to Inventory', category: 'Navigation', action: () => switchTab('inventory'), icon: '📦' },
+    { id: 'nav-reports', name: 'Go to Reports', category: 'Navigation', action: () => switchTab('reports'), icon: '📊' },
+    { id: 'nav-settings', name: 'Go to Settings', category: 'Navigation', action: () => switchTab('settings'), icon: '⚙️' },
+    
+    // Actions
+    { id: 'action-new-product', name: 'Add New Product', category: 'Actions', action: () => openAddProductModal?.(), icon: '➕' },
+    { id: 'action-new-batch', name: 'Add New Batch', category: 'Actions', action: () => openAddBatchModal?.(), icon: '📦' },
+    { id: 'action-export', name: 'Export Inventory', category: 'Actions', action: () => window.location.href = '/api/export/inventory', icon: '💾' },
+    { id: 'action-backup', name: 'Create Backup', category: 'Actions', action: () => createBackup?.(), icon: '💾' },
+    
+    // Reports
+    { id: 'report-stock', name: 'Stock Value Report', category: 'Reports', action: () => { switchTab('reports'); setTimeout(() => loadReport?.('stock-value'), 300); }, icon: '💰' },
+    { id: 'report-expiration', name: 'Expiration Report', category: 'Reports', action: () => { switchTab('reports'); setTimeout(() => loadReport?.('expiration'), 300); }, icon: '⏰' },
+    { id: 'report-low-stock', name: 'Low Stock Report', category: 'Reports', action: () => { switchTab('reports'); setTimeout(() => loadReport?.('low-stock'), 300); }, icon: '⚠️' },
+    
+    // Settings
+    { id: 'setting-dark-mode', name: 'Toggle Dark Mode', category: 'Settings', action: () => toggleTheme?.(), icon: '🌙' },
+    { id: 'setting-shortcuts', name: 'Show Keyboard Shortcuts', category: 'Settings', action: () => showShortcutsHelp?.(), icon: '⌨️' }
   ];
+}
 
-  /**
-   * Initialize command palette
-   */
-  function init() {
-    createPaletteHTML();
-  }
-
-  /**
-   * Create palette HTML
-   */
-  function createPaletteHTML() {
-    const palette = document.createElement('div');
-    palette.id = 'commandPalette';
-    palette.className = 'command-palette';
-    palette.style.display = 'none';
-    
-    palette.innerHTML = `
-      <div class="command-palette-overlay" onclick="CommandPalette.close()"></div>
-      <div class="command-palette-content">
-        <input type="text" id="commandSearch" placeholder="Type a command..." />
-        <div id="commandList" class="command-list"></div>
+// Create palette DOM
+function createPaletteDOM() {
+  const palette = document.createElement('div');
+  palette.id = 'commandPalette';
+  palette.className = 'command-palette hidden';
+  palette.innerHTML = `
+    <div class="command-palette-backdrop" onclick="closeCommandPalette()"></div>
+    <div class="command-palette-content">
+      <div class="command-palette-search">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="commandPaletteInput" placeholder="Type a command..." autocomplete="off">
+        <kbd class="esc-hint">ESC</kbd>
       </div>
-    `;
+      <div id="commandPaletteResults" class="command-palette-results"></div>
+    </div>
+  `;
+  
+  document.body.appendChild(palette);
+  
+  // Add event listeners
+  const input = document.getElementById('commandPaletteInput');
+  input.addEventListener('input', handlePaletteSearch);
+  input.addEventListener('keydown', handlePaletteKeydown);
+}
 
-    document.body.appendChild(palette);
-
-    // Setup search
-    const searchInput = document.getElementById('commandSearch');
-    searchInput.addEventListener('input', (e) => filterCommands(e.target.value));
-    searchInput.addEventListener('keydown', handleCommandKeydown);
+// Toggle palette
+function toggleCommandPalette() {
+  if (paletteOpen) {
+    closeCommandPalette();
+  } else {
+    openCommandPalette();
   }
+}
 
-  /**
-   * Toggle palette visibility
-   */
-  function toggle() {
-    if (isOpen) {
-      close();
-    } else {
-      open();
+// Open palette
+function openCommandPalette() {
+  const palette = document.getElementById('commandPalette');
+  if (!palette) return;
+  
+  palette.classList.remove('hidden');
+  paletteOpen = true;
+  
+  const input = document.getElementById('commandPaletteInput');
+  input.value = '';
+  input.focus();
+  
+  renderPaletteResults(paletteCommands);
+}
+
+// Close palette
+function closeCommandPalette() {
+  const palette = document.getElementById('commandPalette');
+  if (!palette) return;
+  
+  palette.classList.add('hidden');
+  paletteOpen = false;
+}
+
+// Handle search
+function handlePaletteSearch(e) {
+  const query = e.target.value.toLowerCase();
+  
+  if (!query) {
+    renderPaletteResults(paletteCommands);
+    return;
+  }
+  
+  const filtered = paletteCommands.filter(cmd => 
+    cmd.name.toLowerCase().includes(query) ||
+    cmd.category.toLowerCase().includes(query)
+  );
+  
+  renderPaletteResults(filtered);
+}
+
+// Handle keydown in palette
+function handlePaletteKeydown(e) {
+  if (e.key === 'Escape') {
+    closeCommandPalette();
+  } else if (e.key === 'Enter') {
+    const firstResult = document.querySelector('.command-item');
+    if (firstResult) {
+      firstResult.click();
     }
   }
+}
 
-  /**
-   * Open palette
-   */
-  function open() {
-    const palette = document.getElementById('commandPalette');
-    const searchInput = document.getElementById('commandSearch');
-    
-    palette.style.display = 'flex';
-    isOpen = true;
-    
-    setTimeout(() => {
-      searchInput.focus();
-      filterCommands('');
-    }, 50);
+// Render results
+function renderPaletteResults(commands) {
+  const container = document.getElementById('commandPaletteResults');
+  if (!container) return;
+  
+  if (commands.length === 0) {
+    container.innerHTML = '<div class="no-results">No commands found</div>';
+    return;
   }
+  
+  // Group by category
+  const grouped = commands.reduce((acc, cmd) => {
+    if (!acc[cmd.category]) acc[cmd.category] = [];
+    acc[cmd.category].push(cmd);
+    return acc;
+  }, {});
+  
+  container.innerHTML = Object.entries(grouped).map(([category, cmds]) => `
+    <div class="command-category">
+      <div class="category-title">${category}</div>
+      ${cmds.map(cmd => `
+        <div class="command-item" onclick="executeCommand('${cmd.id}')">
+          <span class="command-icon">${cmd.icon}</span>
+          <span class="command-name">${cmd.name}</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
 
-  /**
-   * Close palette
-   */
-  function close() {
-    const palette = document.getElementById('commandPalette');
-    const searchInput = document.getElementById('commandSearch');
-    
-    palette.style.display = 'none';
-    searchInput.value = '';
-    isOpen = false;
+// Execute command
+function executeCommand(commandId) {
+  const command = paletteCommands.find(c => c.id === commandId);
+  if (command && command.action) {
+    closeCommandPalette();
+    command.action();
   }
+}
 
-  /**
-   * Filter commands by search term
-   */
-  function filterCommands(term) {
-    const filtered = commands.filter(cmd => 
-      cmd.label.toLowerCase().includes(term.toLowerCase())
-    );
-
-    const commandList = document.getElementById('commandList');
-    commandList.innerHTML = filtered.map((cmd, index) => `
-      <div class="command-item ${index === 0 ? 'selected' : ''}" data-id="${cmd.id}" onclick="CommandPalette.execute('${cmd.id}')">
-        ${cmd.label}
-      </div>
-    `).join('');
-  }
-
-  /**
-   * Handle keyboard navigation
-   */
-  function handleCommandKeydown(e) {
-    const commandList = document.getElementById('commandList');
-    const items = commandList.querySelectorAll('.command-item');
-    const selectedIndex = Array.from(items).findIndex(item => item.classList.contains('selected'));
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (selectedIndex < items.length - 1) {
-        items[selectedIndex].classList.remove('selected');
-        items[selectedIndex + 1].classList.add('selected');
-        items[selectedIndex + 1].scrollIntoView({ block: 'nearest' });
-      }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (selectedIndex > 0) {
-        items[selectedIndex].classList.remove('selected');
-        items[selectedIndex - 1].classList.add('selected');
-        items[selectedIndex - 1].scrollIntoView({ block: 'nearest' });
-      }
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (items[selectedIndex]) {
-        const commandId = items[selectedIndex].dataset.id;
-        execute(commandId);
-      }
-    } else if (e.key === 'Escape') {
-      close();
-    }
-  }
-
-  /**
-   * Execute command
-   */
-  function execute(commandId) {
-    const command = commands.find(cmd => cmd.id === commandId);
-    if (command) {
-      close();
-      setTimeout(() => command.action(), 100);
-    }
-  }
-
-  return {
-    init,
-    toggle,
-    open,
-    close,
-    execute
-  };
-})();
-
-// Make globally available
-if (typeof window !== 'undefined') {
-  window.CommandPalette = CommandPalette;
+// Initialize
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initCommandPalette);
+} else {
+  initCommandPalette();
 }

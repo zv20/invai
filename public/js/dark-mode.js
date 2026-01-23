@@ -1,98 +1,98 @@
 /**
  * Dark Mode Module
- * Theme switcher with persistence
+ * Theme switching functionality
  * v0.8.0
  */
 
-const DarkMode = (() => {
-  const STORAGE_KEY = 'theme-preference';
-  let currentTheme = 'light';
+const THEME_KEY = 'invai_theme';
+const THEMES = {
+  LIGHT: 'light',
+  DARK: 'dark',
+  AUTO: 'auto'
+};
 
-  /**
-   * Initialize dark mode
-   */
-  function init() {
-    // Load saved preference or detect system preference
-    currentTheme = loadPreference() || detectSystemPreference();
-    applyTheme(currentTheme);
-    updateToggleButton();
+let currentTheme = THEMES.LIGHT;
+
+// Initialize theme on page load
+function initTheme() {
+  const savedTheme = localStorage.getItem(THEME_KEY) || THEMES.AUTO;
+  applyTheme(savedTheme);
+  updateThemeToggle(savedTheme);
+}
+
+// Apply theme
+function applyTheme(theme) {
+  currentTheme = theme;
+  
+  let effectiveTheme = theme;
+  
+  // Handle auto theme
+  if (theme === THEMES.AUTO) {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    effectiveTheme = prefersDark ? THEMES.DARK : THEMES.LIGHT;
   }
-
-  /**
-   * Load saved theme preference
-   */
-  function loadPreference() {
-    try {
-      return localStorage.getItem(STORAGE_KEY);
-    } catch (e) {
-      return null;
-    }
+  
+  // Apply to document
+  if (effectiveTheme === THEMES.DARK) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
   }
+  
+  // Save preference
+  localStorage.setItem(THEME_KEY, theme);
+}
 
-  /**
-   * Save theme preference
-   */
-  function savePreference(theme) {
-    try {
-      localStorage.setItem(STORAGE_KEY, theme);
-    } catch (e) {
-      console.warn('Cannot save theme preference:', e);
-    }
-  }
+// Toggle theme
+function toggleTheme() {
+  const newTheme = currentTheme === THEMES.LIGHT ? THEMES.DARK : THEMES.LIGHT;
+  applyTheme(newTheme);
+  updateThemeToggle(newTheme);
+  showNotification(`Switched to ${newTheme} mode`, 'success');
+}
 
-  /**
-   * Detect system color scheme preference
-   */
-  function detectSystemPreference() {
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
-  }
-
-  /**
-   * Toggle theme
-   */
-  function toggle() {
-    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
-    applyTheme(currentTheme);
-    savePreference(currentTheme);
-    updateToggleButton();
-  }
-
-  /**
-   * Apply theme
-   */
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    currentTheme = theme;
-  }
-
-  /**
-   * Update toggle button text
-   */
-  function updateToggleButton() {
-    const button = document.getElementById('themeToggle');
-    if (button) {
-      button.textContent = currentTheme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
-    }
-  }
-
-  /**
-   * Get current theme
-   */
-  function getCurrentTheme() {
-    return currentTheme;
-  }
-
-  return {
-    init,
-    toggle,
-    getCurrentTheme
+// Update theme toggle button
+function updateThemeToggle(theme) {
+  const toggleBtn = document.getElementById('themeToggle');
+  if (!toggleBtn) return;
+  
+  const icons = {
+    light: '☀️',
+    dark: '🌙',
+    auto: '🔄'
   };
-})();
+  
+  toggleBtn.innerHTML = icons[theme] || icons.light;
+  toggleBtn.title = `Current theme: ${theme}`;
+}
 
-// Make globally available
-if (typeof window !== 'undefined') {
-  window.DarkMode = DarkMode;
+// Set specific theme
+function setTheme(theme) {
+  if (!Object.values(THEMES).includes(theme)) {
+    console.error('Invalid theme:', theme);
+    return;
+  }
+  applyTheme(theme);
+  updateThemeToggle(theme);
+}
+
+// Get current theme
+function getCurrentTheme() {
+  return currentTheme;
+}
+
+// Listen for system theme changes
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    if (currentTheme === THEMES.AUTO) {
+      applyTheme(THEMES.AUTO);
+    }
+  });
+}
+
+// Initialize on load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initTheme);
+} else {
+  initTheme();
 }
