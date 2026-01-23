@@ -1,90 +1,113 @@
-/**
- * Favorites Module
- * Manage favorite products for quick access
- * v0.8.0
- */
+// Favorites Module
+// Manage favorite products for quick access
 
-// Toggle favorite status
-async function toggleFavorite(productId) {
-  try {
-    const response = await fetch(`/api/products/${productId}/favorite`, {
-      method: 'POST'
-    });
-    
-    if (!response.ok) throw new Error('Failed to toggle favorite');
-    
-    const result = await response.json();
-    showNotification(result.message, 'success');
-    
-    // Refresh UI
-    if (window.location.pathname === '/' && currentTab === 'inventory') {
-      loadProducts();
+const Favorites = {
+  favorites: new Set(),
+
+  async init() {
+    await this.loadFavorites();
+  },
+
+  async loadFavorites() {
+    try {
+      const response = await fetch('/api/products');
+      const products = await response.json();
+      
+      products.forEach(product => {
+        if (product.is_favorite === 1) {
+          this.favorites.add(product.id);
+        }
+      });
+      
+      this.updateUI();
+    } catch (error) {
+      console.error('Error loading favorites:', error);
     }
-    
-    return result;
-  } catch (error) {
-    console.error('Error toggling favorite:', error);
-    showNotification('Failed to update favorite', 'error');
-  }
-}
+  },
 
-// Load favorite products
-async function loadFavorites() {
-  try {
-    const response = await fetch('/api/products/favorites');
-    if (!response.ok) throw new Error('Failed to load favorites');
-    
-    const favorites = await response.json();
-    renderFavorites(favorites);
-    return favorites;
-  } catch (error) {
-    console.error('Error loading favorites:', error);
-    return [];
-  }
-}
+  async toggleFavorite(productId) {
+    try {
+      const isFavorite = this.favorites.has(productId);
+      
+      const response = await fetch(`/api/products/${productId}/favorite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_favorite: !isFavorite })
+      });
 
-// Render favorites widget
-function renderFavorites(favorites) {
-  const container = document.getElementById('favoritesContainer');
-  if (!container) return;
+      if (response.ok) {
+        if (isFavorite) {
+          this.favorites.delete(productId);
+        } else {
+          this.favorites.add(productId);
+        }
+        this.updateUI();
+        showNotification(
+          isFavorite ? 'Removed from favorites' : 'Added to favorites',
+          'success'
+        );
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      showNotification('Failed to update favorite', 'error');
+    }
+  },
 
-  if (!favorites || favorites.length === 0) {
-    container.innerHTML = '<p class="text-gray-500 text-sm italic p-4">No favorite products yet</p>';
-    return;
-  }
+  isFavorite(productId) {
+    return this.favorites.has(productId);
+  },
 
-  container.innerHTML = favorites.map(product => `
-    <div class="favorite-item p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition"
-         onclick="openProductDetail(${product.id})">
-      <div class="flex items-center justify-between">
-        <div class="flex-1">
-          <div class="font-medium text-sm text-gray-900">⭐ ${product.name}</div>
-          ${product.brand ? `<div class="text-xs text-gray-600 mt-1">${product.brand}</div>` : ''}
+  updateUI() {
+    // Update favorite stars in product cards
+    document.querySelectorAll('.favorite-btn').forEach(btn => {
+      const productId = parseInt(btn.dataset.productId);
+      if (this.isFavorite(productId)) {
+        btn.classList.add('active');
+        btn.textContent = '⭐';
+      } else {
+        btn.classList.remove('active');
+        btn.textContent = '☆';
+      }
+    });
+
+    // Update favorites count
+    const countEl = document.getElementById('favoritesCount');
+    if (countEl) {
+      countEl.textContent = this.favorites.size;
+    }
+  },
+
+  getFavorites() {
+    return Array.from(this.favorites);
+  },
+
+  async loadFavoritesWidget() {
+    const widget = document.getElementById('favoritesWidget');
+    if (!widget) return;
+
+    try {
+      const response = await fetch('/api/products');
+      const products = await response.json();
+      const favoriteProducts = products.filter(p => p.is_favorite === 1).slice(0, 5);
+
+      if (favoriteProducts.length === 0) {
+        widget.innerHTML = '<div class="empty-state">No favorites yet</div>';
+        return;
+      }
+
+      const html = favoriteProducts.map(product => `
+        <div class="favorite-item" onclick="openProductDetail(${product.id})">
+          <div class="favorite-name">${product.name}</div>
+          <div class="favorite-meta">${product.category_name || 'Uncategorized'}</div>
         </div>
-        <button onclick="event.stopPropagation(); toggleFavorite(${product.id})" 
-                class="text-yellow-500 hover:text-gray-400 transition" 
-                title="Remove from favorites">
-          ⭐
-        </button>
-      </div>
-      ${product.total_quantity !== undefined ? `
-        <div class="mt-2 text-xs text-gray-600">
-          Stock: ${product.total_quantity} items
-        </div>
-      ` : ''}
-    </div>
-  `).join('');
-}
+      `).join('');
 
-// Add favorite star to product cards
-function addFavoriteButton(productCard, productId, isFavorite) {
-  const button = document.createElement('button');
-  button.className = 'favorite-btn absolute top-2 right-2 text-2xl hover:scale-110 transition';
-  button.innerHTML = isFavorite ? '⭐' : '☆';
-  button.title = isFavorite ? 'Remove from favorites' : 'Add to favorites';
-  button.onclick = (e) => {
-    e.stopPropagation();
-    toggleFavorite(productId);
-  };
-  productCard.appendChild(button);
-}
+      widget.innerHTML = html;
+    } catch (error) {
+      console.error('Error loading favorites widget:', error);
+    }
+  }
+};
+
+// Initialize favorites
+Favorites.init();
