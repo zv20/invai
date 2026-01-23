@@ -7,6 +7,11 @@ const https = require('https');
 const multer = require('multer');
 const { execSync } = require('child_process');
 const MigrationRunner = require('./migrations/migration-runner');
+const ActivityLogger = require('./lib/activity-logger');
+const CSVExporter = require('./lib/csv-export');
+const CacheManager = require('./lib/cache-manager');
+const winston = require('winston');
+const DailyRotateFile = require('winston-daily-rotate-file');
 
 const packageJson = require('./package.json');
 const app = express();
@@ -16,6 +21,47 @@ const GITHUB_REPO = 'zv20/invai';
 const BACKUP_DIR = path.join(__dirname, 'backups');
 const MAX_BACKUPS = 10;
 const UPDATE_CHANNEL_FILE = path.join(__dirname, '.update-channel');
+
+// Initialize modules
+const cache = new CacheManager();
+let activityLogger;
+let csvExporter;
+
+// Initialize logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new DailyRotateFile({
+      filename: 'logs/app-%DATE%.log',
+      datePattern: 'YYYY-MM-DD',
+      maxSize: '20m',
+      maxFiles: '14d'
+    }),
+    new DailyRotateFile({
+      filename: 'logs/error-%DATE%.log',
+      datePattern: 'YYYY-MM-DD',
+      level: 'error',
+      maxSize: '20m',
+      maxFiles: '30d'
+    })
+  ]
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple()
+  }));
+}
+
+// Ensure log directory exists
+if (!fs.existsSync(path.join(__dirname, 'logs'))) {
+  fs.mkdirSync(path.join(__dirname, 'logs'), { recursive: true });
+  console.log('Created logs directory');
+}
 
 // Configure multer for file uploads
 const upload = multer({
@@ -82,6 +128,10 @@ let db = new sqlite3.Database('./inventory.db', async (err) => {
   } else {
     console.log('Connected to SQLite database');
     await initializeDatabase();
+    // Initialize activity logger and CSV exporter after database is ready
+    activityLogger = new ActivityLogger(db);
+    csvExporter = new CSVExporter(db);
+    logger.info('Activity logger and CSV exporter initialized');
   }
 });
 
@@ -353,6 +403,259 @@ function getCurrentBranch() {
   }
 }
 
+// ========== v0.8.0: ACTIVITY LOG API ==========
+
+app.get('/api/activity-log', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const activities = await activityLogger.getRecent(limit);
+    res.json(activities);
+  } catch (error) {
+    logger.error('Activity log error:', error);
+    res.status(500).json({ error: 'Failed to load activity log' });
+  }
+});
+
+app.get('/api/activity-log/:entityType/:entityId', async (req, res) => {
+  try {
+    const { entityType, entityId } = req.params;
+    const activities = await activityLogger.getForEntity(entityType, parseInt(entityId));
+    res.json(activities);
+  } catch (error) {
+    logger.error('Entity history error:', error);
+    res.status(500).json({ error: 'Failed to load entity history' });
+  }
+});
+
+// ========== v0.8.0: REPORTS API ==========
+
+app.get('/api/reports/stock-value', async (req, res) => {
+  try {
+    const cacheKey = 'report:stock-value';
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
+    const query = `
+      SELECT 
+        p.id, p.name,
+        c.name as category,
+        s.name as supplier,
+        COALESCE(SUM(ib.total_quantity), 0) as quantity,
+        p.cost_per_case / NULLIF(p.items_per_case, 0) as unit_cost,
+        COALESCE(SUM((p.cost_per_case / NULLIF(p.items_per_case, 0)) * ib.total_quantity), 0) as total_value
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN suppliers s ON p.supplier_id = s.id
+      LEFT JOIN inventory_batches ib ON p.id = ib.product_id
+      GROUP BY p.id
+      ORDER BY total_value DESC
+    `;
+
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        logger.error('Stock value report error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      const totalValue = rows.reduce((sum, r) => sum + (r.total_value || 0), 0);
+      const totalItems = rows.reduce((sum, r) => sum + r.quantity, 0);
+      
+      const result = {
+        products: rows,
+        totalValue,
+        totalItems
+      };
+      
+      cache.set(cacheKey, result, 60000); // 1 minute cache
+      res.json(result);
+    });
+  } catch (error) {
+    logger.error('Stock value report error:', error);
+    res.status(500).json({ error: 'Failed to generate report' });
+  }
+});
+
+app.get('/api/reports/expiration', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        p.name as product_name,
+        ib.total_quantity as quantity,
+        ib.expiry_date,
+        ib.location,
+        JULIANDAY(ib.expiry_date) - JULIANDAY('now') as days_until_expiry
+      FROM inventory_batches ib
+      JOIN products p ON ib.product_id = p.id
+      WHERE ib.expiry_date IS NOT NULL
+      ORDER BY ib.expiry_date
+    `;
+
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        logger.error('Expiration report error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      const expired = rows.filter(r => r.days_until_expiry < 0);
+      const urgent = rows.filter(r => r.days_until_expiry >= 0 && r.days_until_expiry <= 7);
+      const soon = rows.filter(r => r.days_until_expiry > 7 && r.days_until_expiry <= 30);
+      
+      res.json({ expired, urgent, soon, all: rows });
+    });
+  } catch (error) {
+    logger.error('Expiration report error:', error);
+    res.status(500).json({ error: 'Failed to generate report' });
+  }
+});
+
+app.get('/api/reports/low-stock', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        p.id, p.name,
+        c.name as category,
+        s.name as supplier,
+        COALESCE(SUM(ib.total_quantity), 0) as quantity,
+        p.reorder_point
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN suppliers s ON p.supplier_id = s.id
+      LEFT JOIN inventory_batches ib ON p.id = ib.product_id
+      GROUP BY p.id
+      HAVING quantity < p.reorder_point AND p.reorder_point > 0
+      ORDER BY quantity
+    `;
+
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        logger.error('Low stock report error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ products: rows });
+    });
+  } catch (error) {
+    logger.error('Low stock report error:', error);
+    res.status(500).json({ error: 'Failed to generate report' });
+  }
+});
+
+app.get('/api/reports/turnover', async (req, res) => {
+  try {
+    // Placeholder for turnover report - foundation for future implementation
+    res.json({ 
+      message: 'Turnover report coming in v0.9.0',
+      products: []
+    });
+  } catch (error) {
+    logger.error('Turnover report error:', error);
+    res.status(500).json({ error: 'Failed to generate report' });
+  }
+});
+
+app.get('/api/reports/export/:type', async (req, res) => {
+  try {
+    const { type } = req.params;
+    let csv;
+    
+    switch(type) {
+      case 'stock-value':
+        csv = await csvExporter.exportStockValue();
+        break;
+      case 'expiration':
+        csv = await csvExporter.exportExpiration();
+        break;
+      case 'low-stock':
+        csv = await csvExporter.exportLowStock();
+        break;
+      default:
+        return res.status(400).json({ error: 'Invalid report type' });
+    }
+    
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=${type}_${new Date().toISOString().split('T')[0]}.csv`);
+    res.send(csv);
+  } catch (error) {
+    logger.error('CSV export error:', error);
+    res.status(500).json({ error: 'Failed to export report' });
+  }
+});
+
+// ========== v0.8.0: FAVORITES API ==========
+
+app.post('/api/products/:id/favorite', (req, res) => {
+  const { id } = req.params;
+  const { is_favorite } = req.body;
+  
+  db.run(
+    'UPDATE products SET is_favorite = ? WHERE id = ?',
+    [is_favorite ? 1 : 0, id],
+    async function(err) {
+      if (err) {
+        logger.error('Favorite update error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Log activity
+      if (activityLogger) {
+        await activityLogger.log(
+          'update',
+          'product',
+          id,
+          'Product',
+          is_favorite ? 'Added to favorites' : 'Removed from favorites'
+        );
+      }
+      
+      cache.invalidatePattern('products');
+      res.json({ success: true, is_favorite });
+    }
+  );
+});
+
+// ========== v0.8.0: PREFERENCES API ==========
+
+app.get('/api/preferences', (req, res) => {
+  db.get(
+    'SELECT * FROM user_preferences WHERE user_id = 1',
+    [],
+    (err, row) => {
+      if (err) {
+        logger.error('Preferences get error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(row || { theme: 'auto' });
+    }
+  );
+});
+
+app.post('/api/preferences', (req, res) => {
+  const { theme } = req.body;
+  
+  db.run(
+    `INSERT OR REPLACE INTO user_preferences (user_id, theme, updated_at) VALUES (1, ?, CURRENT_TIMESTAMP)`,
+    [theme],
+    function(err) {
+      if (err) {
+        logger.error('Preferences save error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, theme });
+    }
+  );
+});
+
+// ========== v0.8.0: HEALTH CHECK ==========
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    version: VERSION,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    cacheStats: cache.getStats()
+  });
+});
+
 // ========== UPDATE CHANNEL MANAGEMENT ==========
 
 app.get('/api/settings/update-channel', (req, res) => {
@@ -551,7 +854,7 @@ app.get('/api/categories', (req, res) => {
   });
 });
 
-app.post('/api/categories', (req, res) => {
+app.post('/api/categories', async (req, res) => {
   const { name, description, color, icon } = req.body;
   
   if (!name || !name.trim()) {
@@ -561,19 +864,25 @@ app.post('/api/categories', (req, res) => {
   db.run(
     `INSERT INTO categories (name, description, color, icon) VALUES (?, ?, ?, ?)`,
     [name.trim(), description || '', color || '#9333ea', icon || '📦'],
-    function(err) {
+    async function(err) {
       if (err) {
         if (err.message.includes('UNIQUE constraint')) {
           return res.status(409).json({ error: 'Category name already exists' });
         }
         return res.status(500).json({ error: err.message });
       }
+      
+      // Log activity
+      if (activityLogger) {
+        await activityLogger.log('create', 'category', this.lastID, name, `Created category: ${name}`);
+      }
+      
       res.json({ id: this.lastID, message: 'Category created successfully' });
     }
   );
 });
 
-app.put('/api/categories/:id', (req, res) => {
+app.put('/api/categories/:id', async (req, res) => {
   const { name, description, color, icon, display_order } = req.body;
   
   if (!name || !name.trim()) {
@@ -583,7 +892,7 @@ app.put('/api/categories/:id', (req, res) => {
   db.run(
     `UPDATE categories SET name = ?, description = ?, color = ?, icon = ?, display_order = COALESCE(?, display_order), updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
     [name.trim(), description || '', color || '#9333ea', icon || '📦', display_order, req.params.id],
-    function(err) {
+    async function(err) {
       if (err) {
         if (err.message.includes('UNIQUE constraint')) {
           return res.status(409).json({ error: 'Category name already exists' });
@@ -593,14 +902,20 @@ app.put('/api/categories/:id', (req, res) => {
       if (this.changes === 0) {
         return res.status(404).json({ error: 'Category not found' });
       }
+      
+      // Log activity
+      if (activityLogger) {
+        await activityLogger.log('update', 'category', req.params.id, name, `Updated category: ${name}`);
+      }
+      
       res.json({ message: 'Category updated successfully' });
     }
   );
 });
 
-app.delete('/api/categories/:id', (req, res) => {
+app.delete('/api/categories/:id', async (req, res) => {
   // Check if any products use this category
-  db.get('SELECT COUNT(*) as count FROM products WHERE category_id = ?', [req.params.id], (err, row) => {
+  db.get('SELECT COUNT(*) as count FROM products WHERE category_id = ?', [req.params.id], async (err, row) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -611,14 +926,25 @@ app.delete('/api/categories/:id', (req, res) => {
       });
     }
     
-    db.run('DELETE FROM categories WHERE id = ?', [req.params.id], function(err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Category not found' });
-      }
-      res.json({ message: 'Category deleted successfully' });
+    // Get category name for logging
+    db.get('SELECT name FROM categories WHERE id = ?', [req.params.id], async (err, category) => {
+      const categoryName = category ? category.name : 'Unknown';
+      
+      db.run('DELETE FROM categories WHERE id = ?', [req.params.id], async function(err) {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        if (this.changes === 0) {
+          return res.status(404).json({ error: 'Category not found' });
+        }
+        
+        // Log activity
+        if (activityLogger) {
+          await activityLogger.log('delete', 'category', req.params.id, categoryName, `Deleted category: ${categoryName}`);
+        }
+        
+        res.json({ message: 'Category deleted successfully' });
+      });
     });
   });
 });
@@ -634,7 +960,7 @@ app.get('/api/suppliers', (req, res) => {
   });
 });
 
-app.post('/api/suppliers', (req, res) => {
+app.post('/api/suppliers', async (req, res) => {
   const { name, contact_name, phone, email, address, notes, is_active } = req.body;
   
   if (!name || !name.trim()) {
@@ -644,19 +970,25 @@ app.post('/api/suppliers', (req, res) => {
   db.run(
     `INSERT INTO suppliers (name, contact_name, phone, email, address, notes, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [name.trim(), contact_name || '', phone || '', email || '', address || '', notes || '', is_active !== undefined ? is_active : 1],
-    function(err) {
+    async function(err) {
       if (err) {
         if (err.message.includes('UNIQUE constraint')) {
           return res.status(409).json({ error: 'Supplier name already exists' });
         }
         return res.status(500).json({ error: err.message });
       }
+      
+      // Log activity
+      if (activityLogger) {
+        await activityLogger.log('create', 'supplier', this.lastID, name, `Created supplier: ${name}`);
+      }
+      
       res.json({ id: this.lastID, message: 'Supplier created successfully' });
     }
   );
 });
 
-app.put('/api/suppliers/:id', (req, res) => {
+app.put('/api/suppliers/:id', async (req, res) => {
   const { name, contact_name, phone, email, address, notes, is_active } = req.body;
   
   if (!name || !name.trim()) {
@@ -666,7 +998,7 @@ app.put('/api/suppliers/:id', (req, res) => {
   db.run(
     `UPDATE suppliers SET name = ?, contact_name = ?, phone = ?, email = ?, address = ?, notes = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
     [name.trim(), contact_name || '', phone || '', email || '', address || '', notes || '', is_active !== undefined ? is_active : 1, req.params.id],
-    function(err) {
+    async function(err) {
       if (err) {
         if (err.message.includes('UNIQUE constraint')) {
           return res.status(409).json({ error: 'Supplier name already exists' });
@@ -676,14 +1008,20 @@ app.put('/api/suppliers/:id', (req, res) => {
       if (this.changes === 0) {
         return res.status(404).json({ error: 'Supplier not found' });
       }
+      
+      // Log activity
+      if (activityLogger) {
+        await activityLogger.log('update', 'supplier', req.params.id, name, `Updated supplier: ${name}`);
+      }
+      
       res.json({ message: 'Supplier updated successfully' });
     }
   );
 });
 
-app.delete('/api/suppliers/:id', (req, res) => {
+app.delete('/api/suppliers/:id', async (req, res) => {
   // Check if any products use this supplier
-  db.get('SELECT COUNT(*) as count FROM products WHERE supplier_id = ?', [req.params.id], (err, row) => {
+  db.get('SELECT COUNT(*) as count FROM products WHERE supplier_id = ?', [req.params.id], async (err, row) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -694,14 +1032,25 @@ app.delete('/api/suppliers/:id', (req, res) => {
       });
     }
     
-    db.run('DELETE FROM suppliers WHERE id = ?', [req.params.id], function(err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Supplier not found' });
-      }
-      res.json({ message: 'Supplier deleted successfully' });
+    // Get supplier name for logging
+    db.get('SELECT name FROM suppliers WHERE id = ?', [req.params.id], async (err, supplier) => {
+      const supplierName = supplier ? supplier.name : 'Unknown';
+      
+      db.run('DELETE FROM suppliers WHERE id = ?', [req.params.id], async function(err) {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        if (this.changes === 0) {
+          return res.status(404).json({ error: 'Supplier not found' });
+        }
+        
+        // Log activity
+        if (activityLogger) {
+          await activityLogger.log('delete', 'supplier', req.params.id, supplierName, `Deleted supplier: ${supplierName}`);
+        }
+        
+        res.json({ message: 'Supplier deleted successfully' });
+      });
     });
   });
 });
@@ -709,6 +1058,10 @@ app.delete('/api/suppliers/:id', (req, res) => {
 // ========== DASHBOARD API ==========
 
 app.get('/api/dashboard/stats', (req, res) => {
+  const cacheKey = 'dashboard:stats';
+  const cached = cache.get(cacheKey);
+  if (cached) return res.json(cached);
+  
   const stats = {};
   
   // Get total products and value
@@ -774,6 +1127,7 @@ app.get('/api/dashboard/stats', (req, res) => {
           }
           
           stats.recentProducts = recentProducts || [];
+          cache.set(cacheKey, stats, 30000); // 30s cache
           res.json(stats);
         });
       });
@@ -931,7 +1285,7 @@ app.get('/api/alerts/low-stock', (req, res) => {
 });
 
 // Quick Quantity Adjustment
-app.post('/api/inventory/batches/:id/adjust', (req, res) => {
+app.post('/api/inventory/batches/:id/adjust', async (req, res) => {
   const { adjustment, reason } = req.body;
   const batchId = req.params.id;
   
@@ -939,7 +1293,7 @@ app.post('/api/inventory/batches/:id/adjust', (req, res) => {
     return res.status(400).json({ error: 'Adjustment value required' });
   }
   
-  db.get('SELECT * FROM inventory_batches WHERE id = ?', [batchId], (err, batch) => {
+  db.get('SELECT * FROM inventory_batches WHERE id = ?', [batchId], async (err, batch) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -956,10 +1310,24 @@ app.post('/api/inventory/batches/:id/adjust', (req, res) => {
     db.run(
       'UPDATE inventory_batches SET total_quantity = ?, case_quantity = ? WHERE id = ?',
       [newQuantity, Math.ceil(newQuantity / (batch.total_quantity / batch.case_quantity || 1)), batchId],
-      function(err) {
+      async function(err) {
         if (err) {
           return res.status(500).json({ error: err.message });
         }
+        
+        // Log activity
+        if (activityLogger) {
+          await activityLogger.log(
+            'update',
+            'batch',
+            batchId,
+            `Batch #${batchId}`,
+            `Adjusted quantity by ${adjustment > 0 ? '+' : ''}${adjustment} (${reason || 'Manual adjustment'})`,
+            { old_quantity: batch.total_quantity },
+            { new_quantity: newQuantity }
+          );
+        }
+        
         res.json({ 
           message: 'Quantity adjusted', 
           newQuantity,
@@ -972,24 +1340,36 @@ app.post('/api/inventory/batches/:id/adjust', (req, res) => {
 });
 
 // Mark Batch as Empty
-app.post('/api/inventory/batches/:id/mark-empty', (req, res) => {
+app.post('/api/inventory/batches/:id/mark-empty', async (req, res) => {
   db.run(
     'UPDATE inventory_batches SET total_quantity = 0, case_quantity = 0 WHERE id = ?',
     [req.params.id],
-    function(err) {
+    async function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
       if (this.changes === 0) {
         return res.status(404).json({ error: 'Batch not found' });
       }
+      
+      // Log activity
+      if (activityLogger) {
+        await activityLogger.log(
+          'update',
+          'batch',
+          req.params.id,
+          `Batch #${req.params.id}`,
+          'Marked batch as empty'
+        );
+      }
+      
       res.json({ message: 'Batch marked as empty' });
     }
   );
 });
 
 // Bulk Delete Batches
-app.post('/api/inventory/bulk/delete', (req, res) => {
+app.post('/api/inventory/bulk/delete', async (req, res) => {
   const { batchIds } = req.body;
   
   if (!Array.isArray(batchIds) || batchIds.length === 0) {
@@ -1001,10 +1381,22 @@ app.post('/api/inventory/bulk/delete', (req, res) => {
   db.run(
     `DELETE FROM inventory_batches WHERE id IN (${placeholders})`,
     batchIds,
-    function(err) {
+    async function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
+      
+      // Log activity
+      if (activityLogger) {
+        await activityLogger.log(
+          'delete',
+          'batch',
+          0,
+          'Multiple Batches',
+          `Deleted ${this.changes} batch${this.changes !== 1 ? 'es' : ''}`
+        );
+      }
+      
       res.json({ 
         message: `Deleted ${this.changes} batch${this.changes !== 1 ? 'es' : ''}`, 
         count: this.changes 
@@ -1014,7 +1406,7 @@ app.post('/api/inventory/bulk/delete', (req, res) => {
 });
 
 // Bulk Update Location
-app.post('/api/inventory/bulk/update-location', (req, res) => {
+app.post('/api/inventory/bulk/update-location', async (req, res) => {
   const { batchIds, location } = req.body;
   
   if (!Array.isArray(batchIds) || !location) {
@@ -1026,10 +1418,22 @@ app.post('/api/inventory/bulk/update-location', (req, res) => {
   db.run(
     `UPDATE inventory_batches SET location = ? WHERE id IN (${placeholders})`,
     [location, ...batchIds],
-    function(err) {
+    async function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
+      
+      // Log activity
+      if (activityLogger) {
+        await activityLogger.log(
+          'update',
+          'batch',
+          0,
+          'Multiple Batches',
+          `Updated location to "${location}" for ${this.changes} batch${this.changes !== 1 ? 'es' : ''}`
+        );
+      }
+      
       res.json({ 
         message: `Updated ${this.changes} batch${this.changes !== 1 ? 'es' : ''}`, 
         count: this.changes 
@@ -1039,7 +1443,7 @@ app.post('/api/inventory/bulk/update-location', (req, res) => {
 });
 
 // Bulk Quantity Adjustment
-app.post('/api/inventory/bulk/adjust', (req, res) => {
+app.post('/api/inventory/bulk/adjust', async (req, res) => {
   const { batchIds, adjustment } = req.body;
   
   if (!Array.isArray(batchIds) || adjustment === undefined) {
@@ -1053,10 +1457,22 @@ app.post('/api/inventory/bulk/adjust', (req, res) => {
      SET total_quantity = MAX(0, total_quantity + ?)
      WHERE id IN (${placeholders})`,
     [adjustment, ...batchIds],
-    function(err) {
+    async function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
+      
+      // Log activity
+      if (activityLogger) {
+        await activityLogger.log(
+          'update',
+          'batch',
+          0,
+          'Multiple Batches',
+          `Adjusted quantity by ${adjustment > 0 ? '+' : ''}${adjustment} for ${this.changes} batch${this.changes !== 1 ? 'es' : ''}`
+        );
+      }
+      
       res.json({ 
         message: `Adjusted ${this.changes} batch${this.changes !== 1 ? 'es' : ''}`, 
         count: this.changes 
@@ -1283,7 +1699,7 @@ app.get('/api/products/:id', (req, res) => {
   });
 });
 
-app.post('/api/products', (req, res) => {
+app.post('/api/products', async (req, res) => {
   const { name, inhouse_number, barcode, brand, supplier_id, category_id, items_per_case, cost_per_case, notes, 
           product_image, allergen_info, nutritional_data, storage_temp } = req.body;
   if (!name) return res.status(400).json({ error: 'Product name is required' });
@@ -1294,7 +1710,7 @@ app.post('/api/products', (req, res) => {
     [name, inhouse_number || null, barcode || null, brand || null, supplier_id || null, category_id || null,
      items_per_case || null, cost_per_case || 0, notes || '', product_image || null, allergen_info || null,
      nutritional_data || null, storage_temp || null],
-    function(err) {
+    async function(err) {
       if (err) {
         if (err.message.includes('UNIQUE constraint')) {
           res.status(409).json({ error: 'A product with this barcode already exists' });
@@ -1302,13 +1718,18 @@ app.post('/api/products', (req, res) => {
           res.status(500).json({ error: err.message });
         }
       } else {
+        // Log activity
+        if (activityLogger) {
+          await activityLogger.log('create', 'product', this.lastID, name, `Created product: ${name}`);
+        }
+        cache.invalidatePattern('products');
         res.json({ id: this.lastID, message: 'Product added successfully' });
       }
     }
   );
 });
 
-app.put('/api/products/:id', (req, res) => {
+app.put('/api/products/:id', async (req, res) => {
   const { name, inhouse_number, barcode, brand, supplier_id, category_id, items_per_case, cost_per_case, notes,
           product_image, allergen_info, nutritional_data, storage_temp } = req.body;
   db.run(
@@ -1320,19 +1741,38 @@ app.put('/api/products/:id', (req, res) => {
     [name, inhouse_number || null, barcode || null, brand || null, supplier_id || null, category_id || null,
      items_per_case || null, cost_per_case || 0, notes || '', product_image || null, allergen_info || null,
      nutritional_data || null, storage_temp || null, req.params.id],
-    function(err) {
+    async function(err) {
       if (err) res.status(500).json({ error: err.message });
       else if (this.changes === 0) res.status(404).json({ error: 'Product not found' });
-      else res.json({ message: 'Product updated successfully' });
+      else {
+        // Log activity
+        if (activityLogger) {
+          await activityLogger.log('update', 'product', req.params.id, name, `Updated product: ${name}`);
+        }
+        cache.invalidatePattern('products');
+        res.json({ message: 'Product updated successfully' });
+      }
     }
   );
 });
 
-app.delete('/api/products/:id', (req, res) => {
-  db.run('DELETE FROM products WHERE id = ?', [req.params.id], function(err) {
-    if (err) res.status(500).json({ error: err.message });
-    else if (this.changes === 0) res.status(404).json({ error: 'Product not found' });
-    else res.json({ message: 'Product deleted successfully' });
+app.delete('/api/products/:id', async (req, res) => {
+  // Get product name for logging
+  db.get('SELECT name FROM products WHERE id = ?', [req.params.id], async (err, product) => {
+    const productName = product ? product.name : 'Unknown';
+    
+    db.run('DELETE FROM products WHERE id = ?', [req.params.id], async function(err) {
+      if (err) res.status(500).json({ error: err.message });
+      else if (this.changes === 0) res.status(404).json({ error: 'Product not found' });
+      else {
+        // Log activity
+        if (activityLogger) {
+          await activityLogger.log('delete', 'product', req.params.id, productName, `Deleted product: ${productName}`);
+        }
+        cache.invalidatePattern('products');
+        res.json({ message: 'Product deleted successfully' });
+      }
+    });
   });
 });
 
@@ -1404,12 +1844,12 @@ app.get('/api/inventory/batches/:id', (req, res) => {
   });
 });
 
-app.post('/api/inventory/batches', (req, res) => {
+app.post('/api/inventory/batches', async (req, res) => {
   const { product_id, case_quantity, expiry_date, location, notes } = req.body;
   if (!product_id || !case_quantity) {
     return res.status(400).json({ error: 'Product ID and case quantity are required' });
   }
-  db.get('SELECT items_per_case FROM products WHERE id = ?', [product_id], (err, product) => {
+  db.get('SELECT items_per_case, name FROM products WHERE id = ?', [product_id], async (err, product) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!product) return res.status(404).json({ error: 'Product not found' });
     const itemsPerCase = product.items_per_case || 1;
@@ -1418,34 +1858,60 @@ app.post('/api/inventory/batches', (req, res) => {
       `INSERT INTO inventory_batches (product_id, case_quantity, total_quantity, expiry_date, location, notes)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [product_id, case_quantity, totalQuantity, expiry_date || null, location || '', notes || ''],
-      function(err) {
+      async function(err) {
         if (err) res.status(500).json({ error: err.message });
-        else res.json({ id: this.lastID, total_quantity: totalQuantity, message: 'Batch added successfully' });
+        else {
+          // Log activity
+          if (activityLogger) {
+            await activityLogger.log(
+              'create',
+              'batch',
+              this.lastID,
+              `Batch for ${product.name}`,
+              `Added batch: ${case_quantity} cases (${totalQuantity} items)${expiry_date ? `, expires ${expiry_date}` : ''}`,
+              null,
+              { product_id, case_quantity, total_quantity: totalQuantity, expiry_date, location }
+            );
+          }
+          res.json({ id: this.lastID, total_quantity: totalQuantity, message: 'Batch added successfully' });
+        }
       }
     );
   });
 });
 
-app.put('/api/inventory/batches/:id', (req, res) => {
+app.put('/api/inventory/batches/:id', async (req, res) => {
   const { case_quantity, total_quantity, expiry_date, location, notes } = req.body;
   db.run(
     `UPDATE inventory_batches
      SET case_quantity = ?, total_quantity = ?, expiry_date = ?, location = ?, notes = ?
      WHERE id = ?`,
     [case_quantity, total_quantity, expiry_date || null, location || '', notes || '', req.params.id],
-    function(err) {
+    async function(err) {
       if (err) res.status(500).json({ error: err.message });
       else if (this.changes === 0) res.status(404).json({ error: 'Batch not found' });
-      else res.json({ message: 'Batch updated successfully' });
+      else {
+        // Log activity
+        if (activityLogger) {
+          await activityLogger.log('update', 'batch', req.params.id, `Batch #${req.params.id}`, `Updated batch details`);
+        }
+        res.json({ message: 'Batch updated successfully' });
+      }
     }
   );
 });
 
-app.delete('/api/inventory/batches/:id', (req, res) => {
-  db.run('DELETE FROM inventory_batches WHERE id = ?', [req.params.id], function(err) {
+app.delete('/api/inventory/batches/:id', async (req, res) => {
+  db.run('DELETE FROM inventory_batches WHERE id = ?', [req.params.id], async function(err) {
     if (err) res.status(500).json({ error: err.message });
     else if (this.changes === 0) res.status(404).json({ error: 'Batch not found' });
-    else res.json({ message: 'Batch deleted successfully' });
+    else {
+      // Log activity
+      if (activityLogger) {
+        await activityLogger.log('delete', 'batch', req.params.id, `Batch #${req.params.id}`, `Deleted batch`);
+      }
+      res.json({ message: 'Batch deleted successfully' });
+    }
   });
 });
 
@@ -1613,6 +2079,7 @@ app.listen(PORT, () => {
   console.log('🔧 v0.7.0: Migration system enabled');
   console.log('📡 Update channel system enabled');
   console.log('🏷️  v0.7.4: Categories & Suppliers management enabled');
+  console.log('📝 v0.8.0: Activity logging, reports, and dark mode enabled');
   console.log(`Current channel: ${getCurrentChannel()}`);
   console.log('Checking for updates from GitHub...');
   const currentChannel = getCurrentChannel();
