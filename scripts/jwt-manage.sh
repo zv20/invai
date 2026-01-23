@@ -1,17 +1,19 @@
 #!/bin/bash
 # JWT Management Script for systemctl-managed installations
-# Works with invai.service or similar systemd services
+# Works with inventory-app.service or similar systemd services
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 
 # Detect service name (try common patterns)
 SERVICE_NAME=""
-if systemctl list-units --type=service --all | grep -q "invai.service"; then
+if systemctl list-units --type=service --all 2>/dev/null | grep -q "inventory-app.service"; then
+    SERVICE_NAME="inventory-app.service"
+elif systemctl list-units --type=service --all 2>/dev/null | grep -q "invai.service"; then
     SERVICE_NAME="invai.service"
-elif systemctl list-units --type=service --all | grep -q "inventory.service"; then
+elif systemctl list-units --type=service --all 2>/dev/null | grep -q "inventory.service"; then
     SERVICE_NAME="inventory.service"
-elif systemctl list-units --type=service --all | grep -q "grocery.service"; then
+elif systemctl list-units --type=service --all 2>/dev/null | grep -q "grocery.service"; then
     SERVICE_NAME="grocery.service"
 fi
 
@@ -28,6 +30,8 @@ show_status() {
     cd "$PROJECT_DIR"
     node scripts/jwt-status.js
     echo "=================================================="
+    echo ""
+    echo "Service: $SERVICE_NAME"
     echo ""
 }
 
@@ -49,11 +53,11 @@ rotate_secret() {
     
     echo ""
     echo "♻️  Restarting service: $SERVICE_NAME"
-    sudo systemctl restart "$SERVICE_NAME"
+    systemctl restart "$SERVICE_NAME"
     
     echo "✅ Service restarted"
     echo ""
-    echo "Check status with: sudo systemctl status $SERVICE_NAME"
+    echo "Check status with: systemctl status $SERVICE_NAME"
     echo "=================================================="
     echo ""
 }
@@ -65,16 +69,16 @@ generate_secret() {
     cd "$PROJECT_DIR"
     node scripts/generate-jwt.js
     
-    if systemctl is-active --quiet "$SERVICE_NAME"; then
+    if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
         echo ""
         echo "♻️  Service is running. Restart required."
         read -p "Restart now? (yes/no): " restart
         
         if [ "$restart" = "yes" ]; then
-            sudo systemctl restart "$SERVICE_NAME"
+            systemctl restart "$SERVICE_NAME"
             echo "✅ Service restarted"
         else
-            echo "⚠️  Remember to restart: sudo systemctl restart $SERVICE_NAME"
+            echo "⚠️  Remember to restart: systemctl restart $SERVICE_NAME"
         fi
     fi
     
