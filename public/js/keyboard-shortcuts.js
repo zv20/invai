@@ -1,163 +1,253 @@
-/**
- * Keyboard Shortcuts Module
- * Global keyboard navigation
- * v0.8.0
- */
+// Keyboard Shortcuts Module
+// Global keyboard navigation and shortcuts
 
-const SHORTCUTS = [
-  { key: 'ctrl+n', action: 'newProduct', desc: 'New Product' },
-  { key: 'ctrl+b', action: 'newBatch', desc: 'New Batch' },
-  { key: 'ctrl+f', action: 'focusSearch', desc: 'Focus Search' },
-  { key: 'ctrl+k', action: 'commandPalette', desc: 'Command Palette' },
-  { key: 'ctrl+1', action: 'tabDashboard', desc: 'Dashboard Tab' },
-  { key: 'ctrl+2', action: 'tabInventory', desc: 'Inventory Tab' },
-  { key: 'ctrl+3', action: 'tabReports', desc: 'Reports Tab' },
-  { key: 'ctrl+4', action: 'tabSettings', desc: 'Settings Tab' },
-  { key: 'esc', action: 'escape', desc: 'Close/Cancel' },
-  { key: 'ctrl+/', action: 'showHelp', desc: 'Show Shortcuts' },
-  { key: '?', action: 'showHelp', desc: 'Show Shortcuts' },
-  { key: 'ctrl+d', action: 'toggleDark', desc: 'Toggle Dark Mode' },
-  { key: 'ctrl+e', action: 'exportData', desc: 'Export CSV' }
-];
+const KeyboardShortcuts = {
+  shortcuts: new Map(),
 
-let shortcutsEnabled = true;
+  init() {
+    this.registerDefaultShortcuts();
+    this.setupEventListeners();
+  },
 
-// Initialize keyboard shortcuts
-function initKeyboardShortcuts() {
-  document.addEventListener('keydown', handleKeyPress);
-  console.log('⌨️ Keyboard shortcuts enabled');
-}
+  setupEventListeners() {
+    document.addEventListener('keydown', (e) => this.handleKeyPress(e));
+  },
 
-// Handle key press
-function handleKeyPress(e) {
-  if (!shortcutsEnabled) return;
-  
-  // Don't trigger shortcuts when typing in inputs
-  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
-    // Except ESC
-    if (e.key === 'Escape') {
-      e.target.blur();
+  registerDefaultShortcuts() {
+    // Tab switching
+    this.register('ctrl+1', () => switchTab('dashboard'), 'Switch to Dashboard');
+    this.register('ctrl+2', () => switchTab('inventory'), 'Switch to Inventory');
+    this.register('ctrl+3', () => switchTab('reports'), 'Switch to Reports');
+    this.register('ctrl+4', () => switchTab('settings'), 'Switch to Settings');
+
+    // Quick actions
+    this.register('ctrl+n', () => this.openNewProductModal(), 'New Product');
+    this.register('ctrl+b', () => this.openNewBatchModal(), 'New Batch');
+    this.register('ctrl+f', () => this.focusSearch(), 'Focus Search');
+    this.register('ctrl+k', () => CommandPalette.toggle(), 'Command Palette');
+
+    // Navigation
+    this.register('escape', () => this.handleEscape(), 'Close/Clear');
+    this.register('?', () => this.showHelp(), 'Show Shortcuts Help');
+  },
+
+  register(key, callback, description = '') {
+    this.shortcuts.set(key, { callback, description });
+  },
+
+  handleKeyPress(e) {
+    // Build key combination string
+    let key = '';
+    if (e.ctrlKey || e.metaKey) key += 'ctrl+';
+    if (e.altKey) key += 'alt+';
+    if (e.shiftKey && e.key !== 'Shift') key += 'shift+';
+    key += e.key.toLowerCase();
+
+    const shortcut = this.shortcuts.get(key);
+    if (shortcut) {
+      // Don't trigger if user is typing in an input
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) && !e.ctrlKey) {
+        return;
+      }
+
+      e.preventDefault();
+      shortcut.callback();
+    }
+  },
+
+  openNewProductModal() {
+    const btn = document.querySelector('[onclick="openAddProductModal()"]');
+    if (btn) btn.click();
+  },
+
+  openNewBatchModal() {
+    // Only works if a product is selected
+    if (window.selectedProductId) {
+      const btn = document.querySelector('[onclick="openAddBatchModal()"]');
+      if (btn) btn.click();
+    }
+  },
+
+  focusSearch() {
+    const searchInput = document.getElementById('productSearch');
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.select();
+    }
+  },
+
+  handleEscape() {
+    // Close any open modals
+    const activeModal = document.querySelector('.modal.show');
+    if (activeModal) {
+      activeModal.classList.remove('show');
       return;
     }
-    return;
-  }
-  
-  const key = buildKeyString(e);
-  const shortcut = SHORTCUTS.find(s => s.key === key);
-  
-  if (shortcut) {
-    e.preventDefault();
-    executeShortcut(shortcut.action);
-  }
-}
 
-// Build key string from event
-function buildKeyString(e) {
-  const parts = [];
-  if (e.ctrlKey || e.metaKey) parts.push('ctrl');
-  if (e.shiftKey) parts.push('shift');
-  if (e.altKey) parts.push('alt');
-  
-  const key = e.key.toLowerCase();
-  if (!['control', 'shift', 'alt', 'meta'].includes(key)) {
-    parts.push(key);
-  }
-  
-  return parts.join('+');
-}
-
-// Execute shortcut action
-function executeShortcut(action) {
-  const actions = {
-    newProduct: () => {
-      if (typeof openAddProductModal === 'function') {
-        openAddProductModal();
-      }
-    },
-    newBatch: () => {
-      if (typeof openAddBatchModal === 'function') {
-        openAddBatchModal();
-      }
-    },
-    focusSearch: () => {
-      const search = document.getElementById('productSearch');
-      if (search) search.focus();
-    },
-    commandPalette: () => {
-      if (typeof toggleCommandPalette === 'function') {
-        toggleCommandPalette();
-      }
-    },
-    tabDashboard: () => switchTab('dashboard'),
-    tabInventory: () => switchTab('inventory'),
-    tabReports: () => switchTab('reports'),
-    tabSettings: () => switchTab('settings'),
-    escape: () => {
-      // Close any open modals
-      const closeButtons = document.querySelectorAll('.modal-close, [onclick*="closeModal"]');
-      if (closeButtons.length > 0) {
-        closeButtons[0].click();
-      }
-    },
-    showHelp: () => showShortcutsHelp(),
-    toggleDark: () => {
-      if (typeof toggleTheme === 'function') {
-        toggleTheme();
-      }
-    },
-    exportData: () => {
-      if (currentTab === 'reports' && typeof exportReport === 'function') {
-        exportReport();
-      } else if (currentTab === 'inventory') {
-        window.location.href = '/api/export/inventory';
-      }
+    // Close command palette
+    if (CommandPalette.isOpen()) {
+      CommandPalette.close();
+      return;
     }
-  };
-  
-  if (actions[action]) {
-    actions[action]();
-  }
-}
 
-// Show shortcuts help modal
-function showShortcutsHelp() {
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-  modal.innerHTML = `
-    <div class="modal-content max-w-2xl">
-      <div class="modal-header">
-        <h2>⌨️ Keyboard Shortcuts</h2>
-        <button onclick="this.closest('.modal-overlay').remove()" class="modal-close">×</button>
+    // Clear search
+    const searchInput = document.getElementById('productSearch');
+    if (searchInput && searchInput.value) {
+      searchInput.value = '';
+      searchInput.dispatchEvent(new Event('input'));
+      searchInput.blur();
+    }
+  },
+
+  showHelp() {
+    const shortcuts = Array.from(this.shortcuts.entries())
+      .map(([key, {description}]) => `<tr><td><kbd>${key}</kbd></td><td>${description}</td></tr>`)
+      .join('');
+
+    const html = `
+      <div class="shortcuts-help">
+        <h2>Keyboard Shortcuts</h2>
+        <table>
+          <tbody>
+            ${shortcuts}
+          </tbody>
+        </table>
+        <p class="help-footer">Press <kbd>ESC</kbd> to close</p>
       </div>
-      <div class="modal-body">
-        <div class="grid grid-cols-2 gap-4">
-          ${SHORTCUTS.map(s => `
-            <div class="flex justify-between items-center p-2 border-b">
-              <span class="text-gray-700">${s.desc}</span>
-              <kbd class="px-3 py-1 bg-gray-200 rounded text-sm font-mono">${s.key.replace('ctrl', '⌘')}</kbd>
-            </div>
-          `).join('')}
+    `;
+
+    // Show in a modal or overlay
+    showNotification('Press ESC to close help', 'info');
+    console.table(Array.from(this.shortcuts.entries()));
+  },
+
+  getShortcuts() {
+    return Array.from(this.shortcuts.entries());
+  }
+};
+
+// Command Palette
+const CommandPalette = {
+  isOpen() {
+    const palette = document.getElementById('commandPalette');
+    return palette && palette.classList.contains('show');
+  },
+
+  toggle() {
+    const palette = document.getElementById('commandPalette');
+    if (!palette) {
+      this.create();
+      return;
+    }
+    
+    if (this.isOpen()) {
+      this.close();
+    } else {
+      this.open();
+    }
+  },
+
+  create() {
+    const html = `
+      <div id="commandPalette" class="command-palette">
+        <div class="command-palette-content">
+          <input type="text" id="commandInput" placeholder="Type a command..." autocomplete="off">
+          <div id="commandResults" class="command-results"></div>
         </div>
       </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  
-  // Close on background click
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.remove();
-  });
-}
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+    this.setupPaletteListeners();
+    this.open();
+  },
 
-// Enable/disable shortcuts
-function setShortcutsEnabled(enabled) {
-  shortcutsEnabled = enabled;
-}
+  open() {
+    const palette = document.getElementById('commandPalette');
+    if (palette) {
+      palette.classList.add('show');
+      const input = document.getElementById('commandInput');
+      if (input) {
+        input.focus();
+        this.updateResults('');
+      }
+    }
+  },
 
-// Initialize
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initKeyboardShortcuts);
-} else {
-  initKeyboardShortcuts();
-}
+  close() {
+    const palette = document.getElementById('commandPalette');
+    if (palette) {
+      palette.classList.remove('show');
+      const input = document.getElementById('commandInput');
+      if (input) input.value = '';
+    }
+  },
+
+  setupPaletteListeners() {
+    const input = document.getElementById('commandInput');
+    if (input) {
+      input.addEventListener('input', (e) => this.updateResults(e.target.value));
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          this.close();
+        }
+      });
+    }
+
+    const palette = document.getElementById('commandPalette');
+    if (palette) {
+      palette.addEventListener('click', (e) => {
+        if (e.target === palette) this.close();
+      });
+    }
+  },
+
+  updateResults(query) {
+    const commands = this.getCommands();
+    const filtered = query
+      ? commands.filter(cmd => 
+          cmd.name.toLowerCase().includes(query.toLowerCase()) ||
+          cmd.description.toLowerCase().includes(query.toLowerCase())
+        )
+      : commands;
+
+    const html = filtered.slice(0, 8).map(cmd => `
+      <div class="command-item" onclick="CommandPalette.execute('${cmd.id}')">
+        <div class="command-icon">${cmd.icon}</div>
+        <div class="command-info">
+          <div class="command-name">${cmd.name}</div>
+          <div class="command-description">${cmd.description}</div>
+        </div>
+        ${cmd.shortcut ? `<kbd>${cmd.shortcut}</kbd>` : ''}
+      </div>
+    `).join('');
+
+    const results = document.getElementById('commandResults');
+    if (results) {
+      results.innerHTML = html || '<div class="no-results">No commands found</div>';
+    }
+  },
+
+  getCommands() {
+    return [
+      { id: 'dashboard', name: 'Dashboard', description: 'Go to dashboard', icon: '🏠', shortcut: 'Ctrl+1', action: () => switchTab('dashboard') },
+      { id: 'inventory', name: 'Inventory', description: 'Go to inventory', icon: '📦', shortcut: 'Ctrl+2', action: () => switchTab('inventory') },
+      { id: 'reports', name: 'Reports', description: 'View reports', icon: '📊', shortcut: 'Ctrl+3', action: () => switchTab('reports') },
+      { id: 'settings', name: 'Settings', description: 'Open settings', icon: '⚙️', shortcut: 'Ctrl+4', action: () => switchTab('settings') },
+      { id: 'new-product', name: 'New Product', description: 'Add a new product', icon: '➕', shortcut: 'Ctrl+N', action: () => KeyboardShortcuts.openNewProductModal() },
+      { id: 'search', name: 'Search', description: 'Focus search box', icon: '🔍', shortcut: 'Ctrl+F', action: () => KeyboardShortcuts.focusSearch() },
+      { id: 'dark-mode', name: 'Toggle Dark Mode', description: 'Switch theme', icon: '🌙', action: () => DarkMode.toggle() },
+      { id: 'export', name: 'Export Data', description: 'Export inventory to CSV', icon: '📥', action: () => window.location.href = '/api/export/inventory' }
+    ];
+  },
+
+  execute(commandId) {
+    const command = this.getCommands().find(c => c.id === commandId);
+    if (command && command.action) {
+      command.action();
+      this.close();
+    }
+  }
+};
+
+// Initialize keyboard shortcuts
+KeyboardShortcuts.init();
