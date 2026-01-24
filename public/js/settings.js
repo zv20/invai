@@ -99,7 +99,7 @@ function switchSettingsTab(tabName) {
 
 async function loadChannelSelector() {
     try {
-        const response = await fetch(`${API_URL}/api/settings/update-channel`);
+        const response = await authFetch(`${API_URL}/api/settings/update-channel`);
         
         // Check response validity
         if (!response.ok) {
@@ -179,7 +179,7 @@ async function loadChannelSelector() {
 
 async function loadAboutInfo() {
     try {
-        const response = await fetch(`${API_URL}/api/changelog`);
+        const response = await authFetch(`${API_URL}/api/changelog`);
         const data = await response.json();
         
         const aboutSection = document.getElementById('settings-about');
@@ -371,7 +371,7 @@ window.switchChannelAndUpdate = async function(event) {
     }
     
     try {
-        const response = await fetch(`${API_URL}/api/settings/switch-channel`, {
+        const response = await authFetch(`${API_URL}/api/settings/switch-channel`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ channel: newChannel })
@@ -401,7 +401,7 @@ window.switchChannelAndUpdate = async function(event) {
 
 async function checkVersion() {
     try {
-        const response = await fetch(`${API_URL}/api/version`);
+        const response = await authFetch(`${API_URL}/api/version`);
         const data = await response.json();
         versionInfo = data;
         
@@ -466,7 +466,7 @@ async function createBackup() {
     btn.textContent = '⌛ Creating...';
     
     try {
-        const response = await fetch(`${API_URL}/api/backup/create`, {
+        const response = await authFetch(`${API_URL}/api/backup/create`, {
             method: 'POST'
         });
         
@@ -494,7 +494,7 @@ async function loadBackups() {
     list.innerHTML = '<div style="text-align: center; padding: 20px; color: #9ca3af;">⌛ Loading backups...</div>';
     
     try {
-        const response = await fetch(`${API_URL}/api/backup/list`);
+        const response = await authFetch(`${API_URL}/api/backup/list`);
         const backups = await response.json();
         
         if (!response.ok) {
@@ -535,7 +535,7 @@ async function restoreBackup(filename) {
     }
     
     try {
-        const response = await fetch(`${API_URL}/api/backup/restore/${filename}`, {
+        const response = await authFetch(`${API_URL}/api/backup/restore/${filename}`, {
             method: 'POST'
         });
         
@@ -564,7 +564,7 @@ async function deleteBackup(filename) {
     }
     
     try {
-        const response = await fetch(`${API_URL}/api/backup/delete/${filename}`, {
+        const response = await authFetch(`${API_URL}/api/backup/delete/${filename}`, {
             method: 'DELETE'
         });
         
@@ -653,7 +653,7 @@ async function handleUploadRestore(event) {
     }
     
     try {
-        const response = await fetch(`${API_URL}/api/backup/upload`, {
+        const response = await authFetch(`${API_URL}/api/backup/upload`, {
             method: 'POST',
             body: formData
         });
@@ -730,7 +730,7 @@ async function handleImport(event) {
     try {
         const text = await file.text();
         
-        const response = await fetch(`${API_URL}/api/import/inventory`, {
+        const response = await authFetch(`${API_URL}/api/import/inventory`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/csv'
@@ -774,7 +774,7 @@ async function confirmReset() {
     }
     
     try {
-        const response = await fetch(`${API_URL}/api/database/reset`, {
+        const response = await authFetch(`${API_URL}/api/database/reset`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
