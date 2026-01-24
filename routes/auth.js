@@ -1,6 +1,6 @@
 /**
  * Authentication Routes
- * Handles user login, logout, password changes, and user info
+ * Handles user login, logout, token refresh, and password changes
  */
 
 const express = require('express');
@@ -20,21 +20,42 @@ module.exports = (db, logger) => {
     const { username, password } = req.body;
     
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password required' });
+      return res.status(400).json({ 
+        success: false,
+        error: {
+          message: 'Username and password required',
+          code: 'MISSING_CREDENTIALS',
+          statusCode: 400
+        }
+      });
     }
     
     // Get user from database
     const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
     
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ 
+        success: false,
+        error: {
+          message: 'Invalid credentials',
+          code: 'INVALID_CREDENTIALS',
+          statusCode: 401
+        }
+      });
     }
     
     // Compare password
     const match = await bcrypt.compare(password, user.password);
     
     if (!match) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ 
+        success: false,
+        error: {
+          message: 'Invalid credentials',
+          code: 'INVALID_CREDENTIALS',
+          statusCode: 401
+        }
+      });
     }
     
     // Generate JWT token
@@ -47,6 +68,7 @@ module.exports = (db, logger) => {
     logger.info(`User logged in: ${username}`);
     
     res.json({
+      success: true,
       token,
       user: {
         id: user.id,
@@ -67,10 +89,20 @@ module.exports = (db, logger) => {
     );
     
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ 
+        success: false,
+        error: {
+          message: 'User not found',
+          code: 'USER_NOT_FOUND',
+          statusCode: 404
+        }
+      });
     }
     
-    res.json(user);
+    res.json({
+      success: true,
+      user
+    });
   }));
   
   /**
@@ -81,25 +113,53 @@ module.exports = (db, logger) => {
     const { currentPassword, newPassword } = req.body;
     
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Current and new password required' });
+      return res.status(400).json({ 
+        success: false,
+        error: {
+          message: 'Current and new password required',
+          code: 'MISSING_PASSWORDS',
+          statusCode: 400
+        }
+      });
     }
     
     if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      return res.status(400).json({ 
+        success: false,
+        error: {
+          message: 'New password must be at least 6 characters',
+          code: 'PASSWORD_TOO_SHORT',
+          statusCode: 400
+        }
+      });
     }
     
     // Get user from database
     const user = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
     
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ 
+        success: false,
+        error: {
+          message: 'User not found',
+          code: 'USER_NOT_FOUND',
+          statusCode: 404
+        }
+      });
     }
     
     // Verify current password
     const match = await bcrypt.compare(currentPassword, user.password);
     
     if (!match) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
+      return res.status(401).json({ 
+        success: false,
+        error: {
+          message: 'Current password is incorrect',
+          code: 'INCORRECT_PASSWORD',
+          statusCode: 401
+        }
+      });
     }
     
     // Hash new password
@@ -112,7 +172,11 @@ module.exports = (db, logger) => {
     );
     
     logger.info(`Password changed for user: ${user.username}`);
-    res.json({ message: 'Password changed successfully' });
+    
+    res.json({ 
+      success: true,
+      message: 'Password changed successfully' 
+    });
   }));
   
   /**
@@ -121,7 +185,11 @@ module.exports = (db, logger) => {
    */
   router.post('/logout', authenticate, asyncHandler(async (req, res) => {
     logger.info(`User logged out: ${req.user.username}`);
-    res.json({ message: 'Logged out successfully' });
+    
+    res.json({ 
+      success: true,
+      message: 'Logged out successfully' 
+    });
   }));
   
   return router;
