@@ -10,7 +10,7 @@ let editingCategoryId = null;
 // Load categories on page load
 window.loadCategories = async function() {
     try {
-        const response = await fetch('/api/categories');
+        const response = await authFetch('/api/categories');
         categories = await response.json();
         renderCategoriesList();
         updateCategoryDropdown();
@@ -99,7 +99,7 @@ window.deleteCategory = async function(id) {
     }
     
     try {
-        const response = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+        const response = await authFetch(`/api/categories/${id}`, { method: 'DELETE' });
         if (response.ok) {
             showToast('Category deleted', 'success');
             window.loadCategories();
@@ -137,7 +137,7 @@ function setupCategoryForm() {
                     : '/api/categories';
                 const method = editingCategoryId ? 'PUT' : 'POST';
                 
-                const response = await fetch(url, {
+                const response = await authFetch(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
