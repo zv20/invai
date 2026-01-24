@@ -13,6 +13,37 @@ let editingBatchId = null;
 let editingBatchProductId = null;
 
 /* ==========================================================================
+   Authentication Helper
+   ========================================================================== */
+
+// Authenticated fetch wrapper
+async function authFetch(url, options = {}) {
+    const token = localStorage.getItem('auth_token');
+    
+    if (!token) {
+        window.location.href = '/login.html';
+        throw new Error('No authentication token');
+    }
+    
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        ...options.headers
+    };
+    
+    const response = await fetch(url, { ...options, headers });
+    
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        window.location.href = '/login.html';
+        throw new Error('Authentication failed');
+    }
+    
+    return response;
+}
+
+/* ==========================================================================
    Utility Functions
    ========================================================================== */
 
