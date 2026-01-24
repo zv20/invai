@@ -4,7 +4,7 @@
 const ActivityLog = {
   async loadRecentActivity() {
     try {
-      const response = await fetch('/api/activity-log?limit=10');
+      const response = await authFetch('/api/activity-log?limit=10');
       const activities = await response.json();
       this.renderActivityFeed(activities);
     } catch (error) {
@@ -67,7 +67,7 @@ const ActivityLog = {
 
   async loadEntityHistory(entityType, entityId) {
     try {
-      const response = await fetch(`/api/activity-log/${entityType}/${entityId}`);
+      const response = await authFetch(`/api/activity-log/${entityType}/${entityId}`);
       const activities = await response.json();
       return activities;
     } catch (error) {

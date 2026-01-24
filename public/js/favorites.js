@@ -10,7 +10,7 @@ const Favorites = {
 
   async loadFavorites() {
     try {
-      const response = await fetch('/api/products');
+      const response = await authFetch('/api/products');
       const products = await response.json();
       
       products.forEach(product => {
@@ -29,7 +29,7 @@ const Favorites = {
     try {
       const isFavorite = this.favorites.has(productId);
       
-      const response = await fetch(`/api/products/${productId}/favorite`, {
+      const response = await authFetch(`/api/products/${productId}/favorite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_favorite: !isFavorite })
@@ -86,7 +86,7 @@ const Favorites = {
     if (!widget) return;
 
     try {
-      const response = await fetch('/api/products');
+      const response = await authFetch('/api/products');
       const products = await response.json();
       const favoriteProducts = products.filter(p => p.is_favorite === 1).slice(0, 5);
 
