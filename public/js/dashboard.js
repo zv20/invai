@@ -29,7 +29,7 @@ async function initDashboard() {
 async function loadDashboardStats() {
     console.log('📊 Loading dashboard stats...');
     try {
-        const response = await fetch('/api/dashboard/stats');
+        const response = await authFetch('/api/dashboard/stats');
         if (!response.ok) throw new Error('Failed to load stats');
         
         dashboardData = await response.json();
@@ -45,7 +45,7 @@ async function loadDashboardStats() {
 async function loadExpirationAlerts() {
     console.log('🚨 Loading expiration alerts...');
     try {
-        const response = await fetch('/api/dashboard/expiration-alerts');
+        const response = await authFetch('/api/dashboard/expiration-alerts');
         if (!response.ok) throw new Error('Failed to load alerts');
         
         alertData = await response.json();
