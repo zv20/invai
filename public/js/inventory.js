@@ -12,7 +12,7 @@ async function loadProducts() {
         const search = document.getElementById('productSearch').value;
         const url = search ? `${API_URL}/api/products?search=${encodeURIComponent(search)}` : `${API_URL}/api/products`;
         
-        const response = await fetch(url);
+        const response = await authFetch(url);
         if (!response.ok) throw new Error('Failed to load products');
         
         products = await response.json();
@@ -27,7 +27,7 @@ async function loadProducts() {
 // Load inventory value summary
 async function loadInventoryValue() {
     try {
-        const response = await fetch(`${API_URL}/api/inventory/value`);
+        const response = await authFetch(`${API_URL}/api/inventory/value`);
         if (!response.ok) throw new Error('Failed to load inventory value');
         
         const data = await response.json();
@@ -52,7 +52,7 @@ async function renderProductList() {
     }
     
     // Get inventory summary for all products
-    const response = await fetch(`${API_URL}/api/inventory/summary`);
+    const response = await authFetch(`${API_URL}/api/inventory/summary`);
     const inventory = await response.json();
     
     const inventoryMap = {};
@@ -67,7 +67,7 @@ async function renderProductList() {
     // Fetch locations for all products
     const locationPromises = products.map(async product => {
         try {
-            const res = await fetch(`${API_URL}/api/products/${product.id}/batches`);
+            const res = await authFetch(`${API_URL}/api/products/${product.id}/batches`);
             if (!res.ok) return { productId: product.id, locations: [] };
             const batches = await res.json();
             const locations = [...new Set(batches.map(b => b.location).filter(l => l))];
@@ -122,7 +122,7 @@ async function viewProductDetail(productId) {
         selectedProductId = productId;
         
         // Fetch product details
-        const response = await fetch(`${API_URL}/api/products/${productId}`);
+        const response = await authFetch(`${API_URL}/api/products/${productId}`);
         if (!response.ok) throw new Error('Failed to load product');
         currentProductDetail = await response.json();
         
@@ -191,7 +191,7 @@ function renderProductDetail() {
 // Load batches for product detail
 async function loadProductBatches() {
     try {
-        const response = await fetch(`${API_URL}/api/products/${selectedProductId}/batches`);
+        const response = await authFetch(`${API_URL}/api/products/${selectedProductId}/batches`);
         if (!response.ok) throw new Error('Failed to load batches');
         
         const batches = await response.json();
@@ -310,7 +310,7 @@ async function deleteProductFromDetail() {
     if (!confirm(`Delete "${currentProductDetail.name}" and all its inventory batches?\n\nThis cannot be undone!`)) return;
     
     try {
-        const response = await fetch(`${API_URL}/api/products/${currentProductDetail.id}`, {
+        const response = await authFetch(`${API_URL}/api/products/${currentProductDetail.id}`, {
             method: 'DELETE'
         });
         
@@ -367,7 +367,7 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
         const url = editingProductId ? `${API_URL}/api/products/${editingProductId}` : `${API_URL}/api/products`;
         const method = editingProductId ? 'PUT' : 'POST';
         
-        const response = await fetch(url, {
+        const response = await authFetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(productData)
@@ -452,7 +452,7 @@ function calcBatchTotal() {
 // Edit batch
 async function editBatch(batchId, productId) {
     try {
-        const response = await fetch(`${API_URL}/api/inventory/batches/${batchId}`);
+        const response = await authFetch(`${API_URL}/api/inventory/batches/${batchId}`);
         if (!response.ok) throw new Error('Failed to load batch');
         
         const batch = await response.json();
@@ -481,7 +481,7 @@ async function deleteBatch(batchId) {
     if (!confirm('Delete this batch?')) return;
     
     try {
-        const response = await fetch(`${API_URL}/api/inventory/batches/${batchId}`, {
+        const response = await authFetch(`${API_URL}/api/inventory/batches/${batchId}`, {
             method: 'DELETE'
         });
         
@@ -513,7 +513,7 @@ document.getElementById('batchForm').addEventListener('submit', async (e) => {
         const url = editingBatchId ? `${API_URL}/api/inventory/batches/${editingBatchId}` : `${API_URL}/api/inventory/batches`;
         const method = editingBatchId ? 'PUT' : 'POST';
         
-        const response = await fetch(url, {
+        const response = await authFetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(batchData)

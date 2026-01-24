@@ -11,7 +11,7 @@ let editingSupplierId = null;
 // Load suppliers on page load
 window.loadSuppliers = async function() {
     try {
-        const response = await fetch('/api/suppliers');
+        const response = await authFetch('/api/suppliers');
         suppliers = await response.json();
         renderSuppliersList();
         updateSupplierDropdown();
@@ -73,7 +73,7 @@ window.toggleSupplierStatus = async function(id, newStatus) {
     if (!supplier) return;
     
     try {
-        const response = await fetch(`/api/suppliers/${id}`, {
+        const response = await authFetch(`/api/suppliers/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -150,7 +150,7 @@ window.deleteSupplier = async function(id) {
     }
     
     try {
-        const response = await fetch(`/api/suppliers/${id}`, { method: 'DELETE' });
+        const response = await authFetch(`/api/suppliers/${id}`, { method: 'DELETE' });
         if (response.ok) {
             showNotification('Supplier deleted', 'success');
             window.loadSuppliers();
@@ -195,7 +195,7 @@ function setupSupplierForm() {
                     : '/api/suppliers';
                 const method = editingSupplierId ? 'PUT' : 'POST';
                 
-                const response = await fetch(url, {
+                const response = await authFetch(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)

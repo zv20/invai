@@ -1,0 +1,109 @@
+/**
+ * Dark Mode Styles
+ * CSS variables and dark theme
+ * v0.8.0
+ */
+
+:root {
+  /* Light theme (default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7fafc;
+  --bg-tertiary: #edf2f7;
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+  --text-tertiary: #718096;
+  --border-color: #e2e8f0;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --accent: #667eea;
+  --accent-hover: #5568d3;
+}
+
+.dark {
+  /* Dark theme */
+  --bg-primary: #1a202c;
+  --bg-secondary: #2d3748;
+  --bg-tertiary: #4a5568;
+  --text-primary: #f7fafc;
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #cbd5e0;
+  --border-color: #4a5568;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --accent: #7f9cf5;
+  --accent-hover: #6b7fd0;
+}
+
+/* Apply variables */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.card,
+.modal-content,
+.sidebar {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+.bg-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.border {
+  border-color: var(--border-color);
+}
+
+button.primary,
+.btn-primary {
+  background-color: var(--accent);
+}
+
+button.primary:hover,
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+}
+
+/* Dark mode specific adjustments */
+.dark .stat-card {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.dark .product-card:hover {
+  background-color: var(--bg-secondary);
+}
+
+/* Theme toggle button */
+#themeToggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px var(--shadow);
+  transition: all 0.3s;
+  z-index: 1000;
+}
+
+#themeToggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 12px var(--shadow);
+}

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Core Application Logic
+   Core Application Logic v0.8.0
    Global state, initialization, utilities, and tab management
    ========================================================================== */
 
@@ -11,7 +11,37 @@ let selectedProductId = null;
 let editingProductId = null;
 let editingBatchId = null;
 let editingBatchProductId = null;
-// Note: versionInfo is declared in settings.js where checkVersion() lives
+
+/* ==========================================================================
+   Authentication Helper
+   ========================================================================== */
+
+// Authenticated fetch wrapper
+async function authFetch(url, options = {}) {
+    const token = localStorage.getItem('auth_token');
+    
+    if (!token) {
+        window.location.href = '/login.html';
+        throw new Error('No authentication token');
+    }
+    
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        ...options.headers
+    };
+    
+    const response = await fetch(url, { ...options, headers });
+    
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        window.location.href = '/login.html';
+        throw new Error('Authentication failed');
+    }
+    
+    return response;
+}
 
 /* ==========================================================================
    Utility Functions
@@ -89,19 +119,23 @@ function switchTab(tabName) {
     // Update active nav item
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
+        if (item.onclick && item.onclick.toString().includes(tabName)) {
+            item.classList.add('active');
+        }
     });
-    event.target.closest('.nav-item').classList.add('active');
     
     // Tab-specific actions
     if (tabName === 'dashboard') {
-        // Refresh dashboard data
         if (typeof loadDashboardStats === 'function') {
             loadDashboardStats();
             loadExpirationAlerts();
         }
+        // Load activity feed
+        if (typeof ActivityLog !== 'undefined') {
+            ActivityLog.loadRecentActivity();
+        }
     }
     if (tabName === 'inventory') {
-        // Return to list view and load products
         const listView = document.getElementById('inventoryListView');
         const detailView = document.getElementById('inventoryDetailView');
         if (listView && detailView) {
@@ -110,13 +144,16 @@ function switchTab(tabName) {
         }
         loadProducts();
     }
+    if (tabName === 'reports') {
+        if (typeof Reports !== 'undefined') {
+            Reports.init();
+        }
+    }
     if (tabName === 'settings') {
-        // FIXED: Add null check before accessing element
         const intervalSelect = document.getElementById('updateCheckInterval');
         if (intervalSelect && typeof getUpdateInterval === 'function') {
             intervalSelect.value = getUpdateInterval();
         }
-        // Initialize the Updates subtab (default active)
         if (typeof loadChannelSelector === 'function') {
             loadChannelSelector();
         }
@@ -127,8 +164,7 @@ function switchTab(tabName) {
    Notification System
    ========================================================================== */
 
-function showNotification(message, type = 'info') {
-    // Create notification element
+function showNotification(message, type = 'info', duration = 3000) {
     const notification = document.createElement('div');
     notification.style.cssText = `
         position: fixed;
@@ -140,33 +176,31 @@ function showNotification(message, type = 'info') {
         z-index: 100000;
         animation: slideIn 0.3s ease-out;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        max-width: 400px;
     `;
     
-    // Set colors based on type
     if (type === 'success') {
         notification.style.background = '#10b981';
         notification.style.color = 'white';
-        notification.textContent = '✓ ' + message;
+        notification.innerHTML = '✓ ' + message;
     } else if (type === 'error') {
         notification.style.background = '#ef4444';
         notification.style.color = 'white';
-        notification.textContent = '✕ ' + message;
+        notification.innerHTML = '✕ ' + message;
     } else {
         notification.style.background = '#3b82f6';
         notification.style.color = 'white';
-        notification.textContent = 'ℹ️ ' + message;
+        notification.innerHTML = 'ℹ️ ' + message;
     }
     
     document.body.appendChild(notification);
     
-    // Remove after 3 seconds
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease-in';
         setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    }, duration);
 }
 
-// Add animation styles
 if (!document.getElementById('notification-styles')) {
     const style = document.createElement('style');
     style.id = 'notification-styles';
@@ -187,42 +221,10 @@ if (!document.getElementById('notification-styles')) {
    Event Listeners
    ========================================================================== */
 
-// Search debouncing
 let searchTimeout;
 document.getElementById('productSearch').addEventListener('input', () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(loadProducts, 300);
-});
-
-// ESC key to close modals and sidebar
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        
-        // Close sidebar if open
-        if (sidebar.classList.contains('open')) {
-            sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-        }
-        
-        // Close modals
-        if (document.getElementById('scannerModal').classList.contains('active')) closeScanner();
-        if (document.getElementById('productModal').classList.contains('active')) closeProductModal();
-        if (document.getElementById('batchModal').classList.contains('active')) closeBatchModal();
-    }
-});
-
-// Close sidebar when clicking outside on mobile
-document.addEventListener('click', (e) => {
-    const sidebar = document.getElementById('sidebar');
-    const menuToggle = document.querySelector('.menu-toggle');
-    
-    if (sidebar.classList.contains('open') && 
-        !sidebar.contains(e.target) && 
-        !menuToggle.contains(e.target)) {
-        toggleMenu();
-    }
 });
 
 /* ==========================================================================
@@ -230,7 +232,22 @@ document.addEventListener('click', (e) => {
    ========================================================================== */
 
 function initializeApp() {
-    console.log('🚀 Starting Grocery Inventory App v0.7.8e...');
+    console.log('🚀 Starting Grocery Inventory App v0.8.0...');
+    
+    // Check if dark mode is loaded (it self-initializes)
+    if (typeof DarkMode !== 'undefined') {
+        console.log('✓ Dark mode initialized');
+    }
+    
+    // Check if keyboard shortcuts are loaded (they self-initialize)
+    if (typeof KeyboardShortcuts !== 'undefined') {
+        console.log('✓ Keyboard shortcuts initialized');
+    }
+    
+    // Check if command palette is available (no init needed)
+    if (typeof CommandPalette !== 'undefined') {
+        console.log('✓ Command palette available');
+    }
     
     // Start clock
     updateCurrentTime();
@@ -240,36 +257,34 @@ function initializeApp() {
     checkConnection();
     setInterval(checkConnection, 30000);
     
+    // Load categories and suppliers for product form dropdowns (BUG #3 FIX)
+    console.log('📂 Loading categories and suppliers...');
+    if (typeof loadCategories === 'function') {
+        loadCategories().catch(err => console.error('Failed to load categories:', err));
+    }
+    if (typeof loadSuppliers === 'function') {
+        loadSuppliers().catch(err => console.error('Failed to load suppliers:', err));
+    }
+    
     // Load initial data for active tab
     const activeTab = document.querySelector('.tab-content.active');
     if (activeTab && activeTab.id === 'dashboardTab') {
-        // Dashboard is default - it will initialize itself
         console.log('📊 Dashboard is active, waiting for dashboard.js to initialize...');
     }
     
-    // FIXED: Only call checkVersion if it exists (settings.js may not be loaded yet)
+    // Check for updates
     setTimeout(() => {
         if (typeof checkVersion === 'function') {
             checkVersion();
-        } else {
-            console.warn('⚠️ checkVersion not available yet (settings.js not loaded)');
         }
     }, 2000);
     
-    // Setup auto-update checker (only if function exists)
+    // Setup auto-update checker
     if (typeof setupUpdateChecker === 'function') {
         setupUpdateChecker();
     }
     
-    // Load saved update interval preference (only if function exists)
-    if (typeof getUpdateInterval === 'function') {
-        const intervalSelect = document.getElementById('updateCheckInterval');
-        if (intervalSelect) {
-            intervalSelect.value = getUpdateInterval();
-        }
-    }
-    
-    console.log('✓ Grocery Inventory App v0.7.8e initialized');
+    console.log('✓ Grocery Inventory App v0.8.0 initialized');
 }
 
 // Initialize when DOM is ready

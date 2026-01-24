@@ -1,4 +1,4 @@
-// Dashboard Module
+// Dashboard Module v0.8.0
 
 let dashboardData = null;
 let alertData = null;
@@ -8,6 +8,19 @@ async function initDashboard() {
     console.log('🔄 Initializing dashboard...');
     await loadDashboardStats();
     await loadExpirationAlerts();
+    
+    // Load activity feed (v0.8.0)
+    if (typeof ActivityLog !== 'undefined') {
+        await ActivityLog.loadRecentActivity();
+        console.log('✓ Activity feed loaded');
+    }
+    
+    // Load favorites widget (v0.8.0)
+    if (typeof Favorites !== 'undefined') {
+        await Favorites.loadFavoritesWidget();
+        console.log('✓ Favorites widget loaded');
+    }
+    
     setInterval(loadDashboardStats, 60000); // Refresh every minute
     console.log('✓ Dashboard initialization complete');
 }
@@ -16,7 +29,7 @@ async function initDashboard() {
 async function loadDashboardStats() {
     console.log('📊 Loading dashboard stats...');
     try {
-        const response = await fetch('/api/dashboard/stats');
+        const response = await authFetch('/api/dashboard/stats');
         if (!response.ok) throw new Error('Failed to load stats');
         
         dashboardData = await response.json();
@@ -32,7 +45,7 @@ async function loadDashboardStats() {
 async function loadExpirationAlerts() {
     console.log('🚨 Loading expiration alerts...');
     try {
-        const response = await fetch('/api/dashboard/expiration-alerts');
+        const response = await authFetch('/api/dashboard/expiration-alerts');
         if (!response.ok) throw new Error('Failed to load alerts');
         
         alertData = await response.json();
@@ -201,10 +214,11 @@ async function viewProductFromAlert(productId) {
         
         // Select the product
         const select = document.getElementById('inventoryProductSelect');
-        select.value = productId;
-        
-        // Load batches
-        await loadBatches();
+        if (select) {
+            select.value = productId;
+            // Load batches
+            await loadBatches();
+        }
         
         showNotification('Product loaded in Inventory tab', 'success');
     } catch (error) {
@@ -245,6 +259,17 @@ function refreshDashboard() {
     console.log('🔄 Refreshing dashboard...');
     loadDashboardStats();
     loadExpirationAlerts();
+    
+    // Refresh activity feed (v0.8.0)
+    if (typeof ActivityLog !== 'undefined') {
+        ActivityLog.loadRecentActivity();
+    }
+    
+    // Refresh favorites widget (v0.8.0)
+    if (typeof Favorites !== 'undefined') {
+        Favorites.loadFavoritesWidget();
+    }
+    
     showNotification('Dashboard refreshed', 'success');
 }
 

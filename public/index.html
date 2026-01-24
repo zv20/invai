@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="css/filters.css">
     <link rel="stylesheet" href="css/categories.css">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- v0.8.1: Authentication Check - MUST load first -->
+    <script src="/js/auth.js"></script>
 </head>
 <body>
     <div class="container">
@@ -23,8 +25,10 @@
                 <h1>🛍️ Grocery Inventory</h1>
             </div>
             <div class="header-right">
+                <button id="darkModeToggle" class="icon-btn" title="Toggle theme">🌙</button>
                 <div id="status" class="status">Connecting...</div>
                 <div class="current-time" id="currentTime"></div>
+                <button onclick="logout()" class="icon-btn" title="Logout" style="margin-left: 10px;">🚪</button>
             </div>
         </div>
 
@@ -46,6 +50,10 @@
                 <a href="#" class="nav-item" onclick="switchTab('inventory')">
                     <span class="nav-icon">📦</span>
                     <span class="nav-text">Inventory</span>
+                </a>
+                <a href="#" class="nav-item" onclick="switchTab('reports')">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Reports</span>
                 </a>
                 <a href="#" class="nav-item" onclick="switchTab('settings')">
                     <span class="nav-icon">⚙️</span>
@@ -254,9 +262,29 @@
             </div>
         </div>
 
+        <!-- Reports Tab -->
+        <div id="reportsTab" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">📊 Reports & Analytics</h2>
+                <button id="exportReportBtn">💾 Export Report</button>
+            </div>
+
+            <div class="report-nav">
+                <button class="report-nav-item active" data-report="overview">Overview</button>
+                <button class="report-nav-item" data-report="stock-value">Stock Value</button>
+                <button class="report-nav-item" data-report="expiration">Expiration</button>
+                <button class="report-nav-item" data-report="low-stock">Low Stock</button>
+                <button class="report-nav-item" data-report="turnover">Turnover</button>
+            </div>
+
+            <div id="reportContent" class="report-content">
+                <div class="loading">Loading reports...</div>
+            </div>
+        </div>
+
         <!-- Settings Tab -->
         <div id="settingsTab" class="tab-content">
-            <h2 style="margin-bottom: 20px;">Settings</h2>
+            <h2 style="margin-bottom: 20px;">⚙️ Settings</h2>
             <div class="settings-nav">
                 <button class="settings-nav-item active" onclick="switchSettingsTab('updates')">🔄 Updates</button>
                 <button class="settings-nav-item" onclick="switchSettingsTab('categories')">🏷️ Categories</button>
@@ -269,17 +297,17 @@
             <!-- Updates Tab -->
             <div id="settings-updates" class="settings-subtab active">
                 <div class="settings-section">
-                    <h3>Update Channel</h3>
+                    <h3>🔄 Update Channel</h3>
                     <div id="channelSelector"></div>
                     <div id="currentStatus"></div>
                     <div class="btn-group">
-                        <button id="checkUpdatesBtn" onclick="checkForUpdatesNow()">🔍 Check for Updates</button>
-                        <button id="switchChannelBtn" onclick="switchChannelAndUpdate()" disabled>🔄 Switch Channel & Update</button>
+                        <button id="checkUpdatesBtn" onclick="checkForUpdatesNow(event)">🔍 Check for Updates</button>
+                        <button id="switchChannelBtn" onclick="switchChannelAndUpdate(event)" disabled>🔄 Switch Channel & Update</button>
                     </div>
-                    <div id="updateResults" class="hidden"></div>
+                    <div id="versionStatus" style="display: none; margin-top: 15px; padding: 15px; border-radius: 8px;"></div>
                 </div>
                 <div class="settings-section">
-                    <h3>System Information</h3>
+                    <h3>ℹ️ System Information</h3>
                     <p><strong>Running Version:</strong> <span id="settingsVersion">Checking...</span></p>
                     <p style="margin-top: 10px;"><strong>Latest Version:</strong> <span id="latestVersion">Checking...</span></p>
                     <p style="margin-top: 10px;"><strong>Database:</strong> SQLite</p>
@@ -314,17 +342,17 @@
             <!-- Backups Tab -->
             <div id="settings-backups" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>Database Backups</h3>
+                    <h3>💾 Database Backups</h3>
                     <p style="margin-bottom: 15px;">Create and manage database backups. System automatically keeps the last 10 backups.</p>
                     <div class="btn-group">
                         <button onclick="createBackup()">💾 Create Backup Now</button>
-                        <button class="btn-import" onclick="triggerUploadRestore()">♻️ Upload & Restore</button>
+                        <button class="btn-import" onclick="triggerUploadRestore()">📤 Upload & Restore</button>
                     </div>
                     <input type="file" id="backupUploadInput" accept=".db" onchange="handleUploadRestore(event)" style="display: none;">
                     <div class="help-text" style="margin-top: 10px;">Create new backups or upload an existing backup file to restore</div>
                     <h4 style="margin-top: 25px; margin-bottom: 15px;">Backup History</h4>
                     <div id="backupList" class="backup-list">
-                        <div style="text-align: center; padding: 20px; color: #9ca3af;">📂 No backups yet</div>
+                        <div style="text-align: center; padding: 20px; color: #9ca3af;">📂 Loading backups...</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -333,7 +361,7 @@
                         <button class="btn-export" onclick="exportCSV()">💾 Export to CSV</button>
                         <button class="btn-import" onclick="triggerImport()">📂 Import from CSV</button>
                     </div>
-                    <input type="file" id="csvFileInput" accept=".csv" onchange="handleImport(event)">
+                    <input type="file" id="csvFileInput" accept=".csv" onchange="handleImport(event)" style="display: none;">
                     <div class="help-text" style="margin-top: 10px;">Export your inventory data or import from a backup CSV file</div>
                 </div>
             </div>
@@ -341,10 +369,12 @@
             <!-- About Tab -->
             <div id="settings-about" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>🛍️ Grocery Inventory v0.7.4</h3>
+                    <h3>🛍️ Grocery Inventory v0.8.1</h3>
                     <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Latest Changes</h4>
                     <ul class="changelog-list">
+                        <li>🔐 <strong>v0.8.1</strong> - Authentication & Authorization, User Management, Login System</li>
+                        <li>🎨 <strong>v0.8.0</strong> - Dark Mode, Keyboard Shortcuts, Command Palette, Reports & Activity Log</li>
                         <li>🏷️ <strong>v0.7.4</strong> - Categories & Suppliers Foundation with Filtering</li>
                         <li>🔧 <strong>v0.7.0</strong> - Migration System & Update Channels</li>
                         <li>💡 <strong>v0.6.0</strong> - Smart Inventory Actions (FIFO/FEFO, Quick Actions, Notifications)</li>
@@ -353,7 +383,15 @@
                     </ul>
                     <h4 style="margin-top: 25px; margin-bottom: 10px;">Features</h4>
                     <ul class="changelog-list">
+                        <li>🔐 JWT-based authentication & authorization</li>
+                        <li>👥 User management with role-based access</li>
                         <li>📊 Dashboard with real-time statistics</li>
+                        <li>🌙 Dark mode with system preference detection</li>
+                        <li>⌨️ Keyboard shortcuts for power users</li>
+                        <li>🎯 Command palette for quick actions</li>
+                        <li>📊 Reports and analytics</li>
+                        <li>📝 Activity log tracking</li>
+                        <li>⭐ Favorites system</li>
                         <li>🏷️ Categories & Suppliers management</li>
                         <li>🎛️ Advanced filtering system</li>
                         <li>🚨 Expiration alerts (expired, urgent, soon)</li>
@@ -365,6 +403,12 @@
                         <li>💾 Automated backups with retention</li>
                         <li>📊 CSV import/export</li>
                     </ul>
+                    <h4 style="margin-top: 25px; margin-bottom: 10px;">Links</h4>
+                    <p><a href="https://github.com/zv20/invai" target="_blank" style="color: #667eea; text-decoration: underline;">🔗 GitHub Repository</a></p>
+                    <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/blob/beta/CHANGELOG.md" target="_blank" style="color: #667eea; text-decoration: underline;">📋 Full Changelog</a></p>
+                    <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/issues" target="_blank" style="color: #667eea; text-decoration: underline;">📝 Report an Issue</a></p>
+                    <h4 style="margin-top: 25px; margin-bottom: 10px;">License</h4>
+                    <p>MIT License - Free to use and modify</p>
                 </div>
             </div>
 
@@ -379,8 +423,16 @@
         </div>
     </div>
 
+    <!-- Command Palette (NEW v0.8.0) -->
+    <div id="commandPalette" class="command-palette">
+        <div class="command-palette-content">
+            <input type="text" id="commandInput" placeholder="Type a command..." autocomplete="off">
+            <div id="commandResults" class="command-results"></div>
+        </div>
+    </div>
+
     <div id="versionFooter" class="version-footer" onclick="checkVersion()" title="Click to check for updates">
-        <span id="footerVersionText">Checking...</span>
+        <span id="footerVersionText">v0.8.1</span>
     </div>
 
     <!-- Scanner Modal -->
@@ -613,8 +665,23 @@
     </div>
 
     <!-- Load JavaScript modules -->
+    <!-- Load JavaScript modules in CORRECT ORDER -->
+    <!-- CRITICAL: v0.8.0 modules MUST load BEFORE core.js -->
     <script src="js/utils.js"></script>
+    
+    <!-- v0.8.0 modules - Load these FIRST -->
+    <script src="js/dark-mode.js"></script>
+    <script src="js/activity-log.js"></script>
+    <script src="js/favorites.js"></script>
+    <script src="js/keyboard-shortcuts.js"></script>
+    <script src="js/command-palette.js"></script>
+    <script src="js/reports.js"></script>
+    <script src="js/charts.js"></script>
+    
+    <!-- Core initialization - AFTER v0.8.0 modules -->
     <script src="js/core.js"></script>
+    
+    <!-- Feature modules -->
     <script src="js/dashboard.js"></script>
     <script src="js/inventory.js"></script>
     <script src="js/settings.js"></script>
