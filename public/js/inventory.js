@@ -67,7 +67,7 @@ async function renderProductList() {
     // Fetch locations for all products
     const locationPromises = products.map(async product => {
         try {
-            const res = await authFetch(`${API_URL}/api/products/${product.id}/batches`);
+            const res = await authFetch(`${API_URL}/api/batches/product/${product.id}`);
             if (!res.ok) return { productId: product.id, locations: [] };
             const batches = await res.json();
             const locations = [...new Set(batches.map(b => b.location).filter(l => l))];
@@ -191,7 +191,7 @@ function renderProductDetail() {
 // Load batches for product detail
 async function loadProductBatches() {
     try {
-        const response = await authFetch(`${API_URL}/api/products/${selectedProductId}/batches`);
+        const response = await authFetch(`${API_URL}/api/batches/product/${selectedProductId}`);
         if (!response.ok) throw new Error('Failed to load batches');
         
         const batches = await response.json();
