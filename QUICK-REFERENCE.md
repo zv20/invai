@@ -13,24 +13,107 @@ License: MIT
 
 ```
 /opt/invai/
-├── server.js           # Main API server
-├── inventory.db        # SQLite database
-├── package.json        # Dependencies
-├── update.sh          # Auto-update script
-├── public/
-│   ├── index.html     # Main UI
+├── server.js              # Main API server (~450 lines)
+├── inventory.db           # SQLite database
+├── package.json           # Dependencies
+├── update.sh             # Auto-update script
+│
+├── routes/               # HTTP layer (13 modules)
+│   ├── auth.js           # Authentication
+│   ├── users.js          # User management
+│   ├── products.js       # Product endpoints
+│   ├── batches.js        # Batch endpoints
+│   ├── categories.js     # Category endpoints
+│   ├── suppliers.js      # Supplier endpoints
+│   ├── dashboard.js      # Dashboard stats
+│   ├── settings.js       # Settings/preferences
+│   ├── reports.js        # Report generation
+│   ├── inventory-helpers.js  # Inventory utilities
+│   ├── backups.js        # Backup operations
+│   ├── system.js         # System info/health
+│   └── import-export.js  # CSV operations
+│
+├── controllers/          # Business logic layer
+│   ├── productController.js
+│   ├── batchController.js
+│   ├── categoryController.js
+│   ├── supplierController.js
+│   ├── reportController.js
+│   └── backupController.js
+│
+├── middleware/           # Request processing
+│   ├── auth.js           # JWT authentication
+│   ├── errorHandler.js   # Centralized errors
+│   └── asyncHandler.js   # Async wrapper
+│
+├── utils/                # Utilities
+│   ├── db.js             # Async DB wrapper
+│   └── csv-helpers.js    # CSV utilities
+│
+├── lib/                  # Supporting libraries
+│   ├── activity-logger.js
+│   ├── cache-manager.js
+│   └── csv-export.js
+│
+├── migrations/           # Database migrations
+│   ├── migration-runner.js
+│   └── migrations/
+│
+├── public/               # Frontend
+│   ├── index.html
 │   ├── css/
-│   │   └── style.css
+│   │   └── styles.css
 │   └── js/
-│       ├── core.js         # Auth, API client
-│       ├── dashboard.js    # Stats
-│       ├── inventory.js    # Product/batch mgmt
-│       ├── reports.js      # Analytics
-│       ├── settings.js     # Config
-│       ├── filters.js      # Category/supplier
-│       ├── scanner.js      # Barcode
-│       └── charts.js       # Visualizations
-└── backups/           # Auto-backups
+│       ├── core.js
+│       ├── dashboard.js
+│       ├── inventory.js
+│       ├── reports.js
+│       ├── settings.js
+│       ├── filters.js
+│       ├── scanner.js
+│       └── charts.js
+│
+├── docs/                 # Documentation
+│   └── archive/          # Historical docs
+│
+└── backups/              # Auto-backups (keep 10)
+```
+
+## 🏗️ Architecture (MVC Pattern)
+
+```
+┌─────────────────────────────────────┐
+│         HTTP Request                │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│  Route Layer (routes/*.js)          │
+│  - Request validation               │
+│  - Response formatting              │
+│  - HTTP status codes                │
+│  - Cache management                 │
+│  - Error handling                   │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│  Controller Layer (controllers/*)   │
+│  - Business logic                   │
+│  - Database operations              │
+│  - Activity logging                 │
+│  - Data transformations             │
+│  - Bulk operations                  │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│  Database Layer (utils/db.js)       │
+│  - Async/await wrapper              │
+│  - Query execution                  │
+│  - Transaction support              │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│         SQLite Database             │
+└─────────────────────────────────────┘
 ```
 
 ## 🔄 App Logic Flow
@@ -54,7 +137,7 @@ License: MIT
        │
        ▼
 ┌──────────────┐
-│ API Endpoint │
+│ routes/      │ HTTP handling
 └──────┬───────┘
        │
        ▼
@@ -65,7 +148,9 @@ License: MIT
    ✓───┴───✗
    │       │
    ▼       ▼
- [200]   [401]
+┌────┐  ┌────┐
+│200 │  │401 │
+└────┘  └────┘
 ```
 
 ### Inventory Logic
@@ -77,17 +162,38 @@ Product → Multiple Batches → FIFO/FEFO Sort → Use Oldest First
    └─→ SKU, Barcode, Cost
 ```
 
-### Data Flow
+### Request Flow Example
 ```
-UI Event → core.js authFetch() → Server API → SQLite → Response → UI Update
-   │                                │
-   └─→ JWT token attached           └─→ Auth check
+UI Event
+  │
+  ▼
+core.js authFetch()
+  │
+  ▼
+routes/products.js
+  │ (validation)
+  ▼
+controllers/productController.js
+  │ (business logic)
+  ▼
+utils/db.js
+  │ (async wrapper)
+  ▼
+SQLite
+  │
+  ▼
+Response → UI Update
 ```
 
 ### Backup System
 ```
 ┌──────────────┐
 │ Manual/Auto  │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│ Controller   │ BackupController.create()
 └──────┬───────┘
        │
        ▼
@@ -232,18 +338,29 @@ systemctl start inventory-app
 ## 📊 Database Schema
 
 ```sql
-products(id, name, sku, barcode, brand, category_id, supplier_id, ...)
-batches(id, product_id, expiry, quantity_cases, quantity_items, location, ...)
-categories(id, name, color, description)
-suppliers(id, name, contact_name, phone, email, address, active)
-activity_log(id, action, entity_type, entity_id, details, timestamp)
-preferences(id, user_id, key, value)
+products(id, name, inhouse_number, barcode, brand, category_id, supplier_id, 
+         items_per_case, cost_per_case, reorder_point, notes, created_at, updated_at)
+
+inventory_batches(id, product_id, case_quantity, total_quantity, expiry_date, 
+                  location, received_date, notes)
+
+categories(id, name, description, color, icon, sort_order)
+
+suppliers(id, name, contact, email, phone, address, notes, is_active)
+
+users(id, username, password_hash, role, created_at)
+
+activity_log(id, entity_type, entity_id, action, username, details, timestamp)
+
+preferences(id, key, value, user_id)
 ```
 
 ## 🔑 Key Features
 
 - ✅ JWT Authentication
-- ✅ Role-based access (admin/user/viewer)
+- ✅ Role-based access (admin/user)
+- ✅ MVC Architecture (routes + controllers)
+- ✅ Modular route structure
 - ✅ FIFO/FEFO batch tracking
 - ✅ Expiry alerts (expired/urgent/soon)
 - ✅ Barcode scanning
@@ -255,14 +372,60 @@ preferences(id, user_id, key, value)
 - ✅ systemctl service
 - ✅ Auto-update script
 
-## 📝 API Pattern
+## 📝 Code Pattern Examples
 
+### Route Handler (HTTP layer)
 ```javascript
-// Frontend (any module)
-const response = await authFetch('/api/endpoint', {
+// routes/products.js
+router.post('/', asyncHandler(async (req, res) => {
+  // Validation
+  if (!req.body.name) {
+    return res.status(400).json({ error: 'Name required' });
+  }
+  
+  // Call controller
+  const product = await controller.createProduct(
+    req.body, 
+    req.user.username
+  );
+  
+  // Cache management
+  cache.invalidate('products:all');
+  
+  // Response
+  res.status(201).json(product);
+}));
+```
+
+### Controller (Business logic)
+```javascript
+// controllers/productController.js
+class ProductController {
+  async createProduct(data, username) {
+    // Database operation
+    const result = await this.db.run(
+      'INSERT INTO products (...) VALUES (...)',
+      [data.name, data.barcode, ...]
+    );
+    
+    // Activity logging
+    await this.activityLogger.log(
+      'product', result.lastID, 'created', username
+    );
+    
+    // Return enriched data
+    return await this.getProductById(result.lastID);
+  }
+}
+```
+
+### Frontend API Call
+```javascript
+// public/js/inventory.js
+const response = await authFetch('/api/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
+    body: JSON.stringify(productData)
 });
 
 // authFetch() automatically:
@@ -273,6 +436,17 @@ const response = await authFetch('/api/endpoint', {
 
 ## 🎯 Module Responsibilities
 
+### Backend
+```
+server.js              → App initialization, route registration
+routes/*.js            → HTTP handling, validation, responses
+controllers/*.js       → Business logic, database operations
+middleware/auth.js     → JWT verification, role checks
+utils/db.js            → Async database wrapper
+lib/*.js               → Supporting services (cache, logging, CSV)
+```
+
+### Frontend
 ```
 core.js       → Auth, API client, global utils
 dashboard.js  → Stats, charts, alerts
@@ -291,18 +465,47 @@ Admin only:
 - DELETE /api/products/:id
 - DELETE /api/batches/:id
 - POST /api/database/reset
+- POST /api/backup/create
 - DELETE /api/backup/delete/:filename
+- POST /api/backup/restore/:filename
+- POST /api/users (create users)
+- DELETE /api/users/:id
 
 Authenticated:
 - All POST/PUT/DELETE operations
-- All /api/* endpoints
+- All /api/* endpoints (except auth/login)
 
 Public:
 - POST /api/auth/login
+- GET /health
 - Static files (index.html, CSS, JS)
 ```
 
+## 🚀 Recent Refactoring (v0.8.1)
+
+### Groups 1-4 Complete:
+
+**GROUP 1:** Documentation cleanup
+- Created `/docs/archive/` for historical docs
+- Removed empty stub files from root
+- Deleted legacy `server.old.js`
+
+**GROUP 2:** Route extraction
+- Reduced `server.js` from 1,200+ lines to ~450 lines
+- Created 5 new route modules (reports, inventory-helpers, backups, system, import-export)
+- Created `utils/csv-helpers.js`
+
+**GROUP 3:** Controller layer
+- Created 6 controller classes
+- Separated business logic from HTTP handling
+- Standardized patterns across all entities
+
+**GROUP 4:** Controller integration
+- Updated all routes to use controllers
+- Clean MVC separation achieved
+- Improved testability and maintainability
+
 ---
 
-**Last Updated:** January 2026 (v0.8.1)
+**Last Updated:** January 2026 (v0.8.1 - Modular Architecture)
 **Repo:** [github.com/zv20/invai](https://github.com/zv20/invai)
