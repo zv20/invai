@@ -17,7 +17,7 @@ class CategoryController {
       LEFT JOIN products p ON c.id = p.category_id
       LEFT JOIN inventory_batches ib ON p.id = ib.product_id
       GROUP BY c.id
-      ORDER BY c.sort_order, c.name
+      ORDER BY c.name
     `;
     return await this.db.all(query, []);
   }
@@ -34,12 +34,12 @@ class CategoryController {
   }
 
   async createCategory(categoryData, username) {
-    const { name, description, color, icon, sort_order } = categoryData;
+    const { name, description, color, icon } = categoryData;
     
     const result = await this.db.run(
-      `INSERT INTO categories (name, description, color, icon, sort_order)
-       VALUES (?, ?, ?, ?, ?)`,
-      [name, description || '', color || '#6366f1', icon || 'box', sort_order || 0]
+      `INSERT INTO categories (name, description, color, icon)
+       VALUES (?, ?, ?, ?)`,
+      [name, description || '', color || '#6366f1', icon || 'box']
     );
 
     await this.activityLogger.log('category', result.lastID, 'created', username, { name });
@@ -47,13 +47,13 @@ class CategoryController {
   }
 
   async updateCategory(id, categoryData, username) {
-    const { name, description, color, icon, sort_order } = categoryData;
+    const { name, description, color, icon } = categoryData;
     
     await this.db.run(
       `UPDATE categories 
-       SET name = ?, description = ?, color = ?, icon = ?, sort_order = ?
+       SET name = ?, description = ?, color = ?, icon = ?
        WHERE id = ?`,
-      [name, description || '', color || '#6366f1', icon || 'box', sort_order || 0, id]
+      [name, description || '', color || '#6366f1', icon || 'box', id]
     );
 
     await this.activityLogger.log('category', id, 'updated', username, { name });
@@ -75,14 +75,10 @@ class CategoryController {
   }
 
   async reorderCategories(categoryOrders, username) {
-    for (const { id, sort_order } of categoryOrders) {
-      await this.db.run(
-        'UPDATE categories SET sort_order = ? WHERE id = ?',
-        [sort_order, id]
-      );
-    }
-
-    await this.activityLogger.log('category', 0, 'reordered', username, {
+    // Note: sort_order column doesn't exist in current schema
+    // This is a placeholder for future implementation
+    // For now, just return all categories
+    await this.activityLogger.log('category', 0, 'reorder_attempted', username, {
       count: categoryOrders.length
     });
 
