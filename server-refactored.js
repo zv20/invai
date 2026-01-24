@@ -1,7 +1,7 @@
 /**
- * InvAI Server - Phase 2 Refactored
+ * InvAI Server - Phase 2 Refactored + Authentication
  * 
- * This is the REFACTORED version of server.js
+ * This is the REFACTORED version of server.js with authentication
  * Once tested, can replace the original server.js
  * 
  * Changes:
@@ -10,7 +10,11 @@
  * - Standardized error responses
  * - Modular architecture (routes, controllers, middleware)
  * - Clean separation of concerns
+ * - JWT authentication and authorization
  */
+
+// Load environment variables FIRST
+require('dotenv').config();
 
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
@@ -21,11 +25,21 @@ const https = require('https');
 const multer = require('multer');
 const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+// Validate JWT_SECRET
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key-here-change-this-in-production') {
+  console.error('\n❌ ERROR: JWT_SECRET not configured properly!');
+  console.error('Please set a secure JWT_SECRET in your .env file\n');
+  process.exit(1);
+}
 
 // Phase 1+2: New architecture imports
 const Database = require('./utils/db');
 const { errorHandler } = require('./middleware/errorHandler');
 const asyncHandler = require('./middleware/asyncHandler');
+const { authenticate, authorize } = require('./middleware/auth');
 
 // Route modules
 const productRoutes = require('./routes/products');
@@ -34,6 +48,8 @@ const categoryRoutes = require('./routes/categories');
 const supplierRoutes = require('./routes/suppliers');
 const dashboardRoutes = require('./routes/dashboard');
 const settingsRoutes = require('./routes/settings');
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
 
 // Legacy modules (still used)
 const MigrationRunner = require('./migrations/migration-runner');
@@ -56,11 +72,12 @@ let csvExporter;
 let db; // Will be Database wrapper (async/await)
 let sqliteDb; // Raw SQLite connection
 
-console.log('\n🚀 InvAI v' + VERSION + ' - Phase 2 Refactored');
+console.log('\n🚀 InvAI v' + VERSION + ' - Phase 2 Refactored + Auth');
 console.log('✅ Async/await throughout');
 console.log('✅ Transaction support enabled');
 console.log('✅ Standardized error responses');
-console.log('✅ Modular architecture\n');
+console.log('✅ Modular architecture');
+console.log('✅ JWT authentication enabled\n');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -382,34 +399,39 @@ function checkGitHubVersion(branch = 'main') {
 // PHASE 2: MODULAR ROUTES
 // ==============================================
 
-// Core API routes (refactored)
-app.use('/api/products', productRoutes(db, activityLogger, cache));
-app.use('/api/inventory/batches', batchRoutes(db, activityLogger));
-app.use('/api/categories', categoryRoutes(db, activityLogger));
-app.use('/api/suppliers', supplierRoutes(db, activityLogger));
-app.use('/api/dashboard', dashboardRoutes(db, cache));
-app.use('/api/settings', settingsRoutes(db, createBackup));
+// Authentication routes (PUBLIC - no auth required)
+app.use('/api/auth', authRoutes(db, logger));
+
+// User management routes (PROTECTED - admin only)
+app.use('/api/users', userRoutes(db, logger));
+
+// Core API routes (refactored) - PROTECTED
+app.use('/api/products', authenticate, productRoutes(db, activityLogger, cache));
+app.use('/api/inventory/batches', authenticate, batchRoutes(db, activityLogger));
+app.use('/api/categories', authenticate, categoryRoutes(db, activityLogger));
+app.use('/api/suppliers', authenticate, supplierRoutes(db, activityLogger));
+app.use('/api/dashboard', authenticate, dashboardRoutes(db, cache));
+app.use('/api/settings', authenticate, authorize('admin'), settingsRoutes(db, createBackup));
 
 // ==============================================
-// LEGACY ROUTES (Not yet refactored)
-// TODO: Move these to separate route modules
+// LEGACY ROUTES (Protected with authentication)
 // ==============================================
 
 // Activity log
-app.get('/api/activity-log', asyncHandler(async (req, res) => {
+app.get('/api/activity-log', authenticate, asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
   const activities = await activityLogger.getRecent(limit);
   res.json(activities);
 }));
 
-app.get('/api/activity-log/:entityType/:entityId', asyncHandler(async (req, res) => {
+app.get('/api/activity-log/:entityType/:entityId', authenticate, asyncHandler(async (req, res) => {
   const { entityType, entityId } = req.params;
   const activities = await activityLogger.getForEntity(entityType, parseInt(entityId));
   res.json(activities);
 }));
 
-// Reports (TODO: Move to routes/reports.js)
-app.get('/api/reports/stock-value', asyncHandler(async (req, res) => {
+// Reports
+app.get('/api/reports/stock-value', authenticate, asyncHandler(async (req, res) => {
   const cacheKey = 'report:stock-value';
   const cached = cache.get(cacheKey);
   if (cached) return res.json(cached);
@@ -439,7 +461,7 @@ app.get('/api/reports/stock-value', asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
-app.get('/api/reports/expiration', asyncHandler(async (req, res) => {
+app.get('/api/reports/expiration', authenticate, asyncHandler(async (req, res) => {
   const query = `
     SELECT 
       p.name as product_name,
@@ -461,7 +483,7 @@ app.get('/api/reports/expiration', asyncHandler(async (req, res) => {
   res.json({ expired, urgent, soon, all: rows });
 }));
 
-app.get('/api/reports/low-stock', asyncHandler(async (req, res) => {
+app.get('/api/reports/low-stock', authenticate, asyncHandler(async (req, res) => {
   const query = `
     SELECT 
       p.id, p.name,
@@ -482,7 +504,7 @@ app.get('/api/reports/low-stock', asyncHandler(async (req, res) => {
   res.json({ products: rows });
 }));
 
-app.get('/api/reports/export/:type', asyncHandler(async (req, res) => {
+app.get('/api/reports/export/:type', authenticate, asyncHandler(async (req, res) => {
   const { type } = req.params;
   let csv;
   
@@ -506,7 +528,7 @@ app.get('/api/reports/export/:type', asyncHandler(async (req, res) => {
 }));
 
 // Inventory summary
-app.get('/api/inventory/summary', asyncHandler(async (req, res) => {
+app.get('/api/inventory/summary', authenticate, asyncHandler(async (req, res) => {
   const { search, category, supplier } = req.query;
   let query = `
     SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon,
@@ -540,7 +562,7 @@ app.get('/api/inventory/summary', asyncHandler(async (req, res) => {
   res.json(rows);
 }));
 
-app.get('/api/inventory/value', asyncHandler(async (req, res) => {
+app.get('/api/inventory/value', authenticate, asyncHandler(async (req, res) => {
   const query = `
     SELECT 
       COUNT(DISTINCT p.id) as total_products,
@@ -554,7 +576,7 @@ app.get('/api/inventory/value', asyncHandler(async (req, res) => {
 }));
 
 // FIFO/FEFO batch suggestion
-app.get('/api/products/:id/batch-suggestion', asyncHandler(async (req, res) => {
+app.get('/api/products/:id/batch-suggestion', authenticate, asyncHandler(async (req, res) => {
   const productId = req.params.id;
   
   const rows = await db.all(`
@@ -605,7 +627,7 @@ app.get('/api/products/:id/batch-suggestion', asyncHandler(async (req, res) => {
 }));
 
 // Low stock alerts
-app.get('/api/alerts/low-stock', asyncHandler(async (req, res) => {
+app.get('/api/alerts/low-stock', authenticate, asyncHandler(async (req, res) => {
   const threshold = parseInt(req.query.threshold) || 10;
   
   const rows = await db.all(`
@@ -623,8 +645,8 @@ app.get('/api/alerts/low-stock', asyncHandler(async (req, res) => {
   res.json(rows);
 }));
 
-// Backup routes (TODO: Move to routes/backup.js)
-app.post('/api/backup/create', asyncHandler(async (req, res) => {
+// Backup routes (ADMIN ONLY)
+app.post('/api/backup/create', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
   const backup = await createBackup();
   const stats = fs.statSync(backup.path);
   res.json({ 
@@ -635,7 +657,7 @@ app.post('/api/backup/create', asyncHandler(async (req, res) => {
   });
 }));
 
-app.get('/api/backup/list', (req, res) => {
+app.get('/api/backup/list', authenticate, authorize('admin'), (req, res) => {
   try {
     const files = fs.readdirSync(BACKUP_DIR)
       .filter(file => file.startsWith('backup_') && file.endsWith('.db'))
@@ -656,7 +678,7 @@ app.get('/api/backup/list', (req, res) => {
   }
 });
 
-app.get('/api/backup/download/:filename', (req, res) => {
+app.get('/api/backup/download/:filename', authenticate, authorize('admin'), (req, res) => {
   const filename = req.params.filename;
   if (!filename.startsWith('backup_') || !filename.endsWith('.db')) {
     return res.status(400).json({ error: 'Invalid backup filename' });
@@ -668,7 +690,7 @@ app.get('/api/backup/download/:filename', (req, res) => {
   res.download(filePath, filename);
 });
 
-app.delete('/api/backup/delete/:filename', (req, res) => {
+app.delete('/api/backup/delete/:filename', authenticate, authorize('admin'), (req, res) => {
   const filename = req.params.filename;
   if (!filename.startsWith('backup_') || !filename.endsWith('.db')) {
     return res.status(400).json({ error: 'Invalid backup filename' });
@@ -685,7 +707,7 @@ app.delete('/api/backup/delete/:filename', (req, res) => {
   }
 });
 
-app.post('/api/backup/restore/:filename', asyncHandler(async (req, res) => {
+app.post('/api/backup/restore/:filename', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
   const filename = req.params.filename;
   
   if (!filename.startsWith('backup_') || !filename.endsWith('.db')) {
@@ -727,7 +749,7 @@ app.post('/api/backup/restore/:filename', asyncHandler(async (req, res) => {
   });
 }));
 
-app.post('/api/backup/upload', upload.single('backup'), asyncHandler(async (req, res) => {
+app.post('/api/backup/upload', authenticate, authorize('admin'), upload.single('backup'), asyncHandler(async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
@@ -828,7 +850,7 @@ app.get('/api/changelog', (req, res) => {
 });
 
 // Migrations status
-app.get('/api/migrations/status', asyncHandler(async (req, res) => {
+app.get('/api/migrations/status', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
   const migrator = new MigrationRunner(sqliteDb);
   const currentVersion = await migrator.getCurrentVersion();
   const history = await migrator.getHistory();
@@ -840,12 +862,13 @@ app.get('/api/migrations/status', asyncHandler(async (req, res) => {
   });
 }));
 
-// Database reset
-app.post('/api/database/reset', asyncHandler(async (req, res) => {
+// Database reset (ADMIN ONLY)
+app.post('/api/database/reset', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
   await db.run('DELETE FROM inventory_batches', []);
   await db.run('DELETE FROM products', []);
   await db.run('DELETE FROM sqlite_sequence WHERE name="products" OR name="inventory_batches"', []);
   
+  logger.warn(`Database reset by user: ${req.user.username}`);
   console.log('Database reset completed');
   res.json({ 
     message: 'Database reset successful. All data has been deleted.', 
@@ -854,7 +877,7 @@ app.post('/api/database/reset', asyncHandler(async (req, res) => {
 }));
 
 // Export/Import
-app.get('/api/export/inventory', asyncHandler(async (req, res) => {
+app.get('/api/export/inventory', authenticate, asyncHandler(async (req, res) => {
   const query = `
     SELECT p.name, p.inhouse_number, p.barcode, p.brand, s.name as supplier, p.items_per_case, p.cost_per_case, 
            c.name as category, ib.case_quantity, ib.total_quantity, ib.expiry_date, ib.location, ib.received_date,
@@ -900,7 +923,7 @@ function escapeCSV(field) {
   return stringField;
 }
 
-app.post('/api/import/inventory', asyncHandler(async (req, res) => {
+app.post('/api/import/inventory', authenticate, asyncHandler(async (req, res) => {
   const csvText = req.body;
   const lines = csvText.split('\n').filter(line => line.trim());
   
@@ -977,6 +1000,8 @@ app.post('/api/import/inventory', asyncHandler(async (req, res) => {
     }
   }
   
+  logger.info(`CSV import by ${req.user.username}: ${productsCreated} created, ${productsUpdated} updated, ${batchesCreated} batches`);
+  
   res.json({ 
     message: 'Import completed', 
     productsCreated, 
@@ -987,7 +1012,7 @@ app.post('/api/import/inventory', asyncHandler(async (req, res) => {
   });
 }));
 
-// Health check
+// Health check (PUBLIC)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', version: VERSION, timestamp: new Date().toISOString() });
 });
@@ -996,14 +1021,15 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     version: VERSION,
-    phase: 'Phase 2 Complete - Modular Architecture',
+    phase: 'Phase 2.1 Complete - Modular + Auth',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-    cacheStats: cache.getStats()
+    cacheStats: cache.getStats(),
+    authentication: 'enabled'
   });
 });
 
-// Version check
+// Version check (PUBLIC)
 app.get('/api/version', asyncHandler(async (req, res) => {
   try {
     const currentChannel = getCurrentChannel();
@@ -1035,22 +1061,24 @@ function getCurrentChannel() {
 }
 
 // ==============================================
-// PHASE 1: ERROR HANDLER (Must be last)
+// ERROR HANDLER (Must be last)
 // ==============================================
 app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`\n🎉 InvAI v${VERSION} - Phase 2 Refactored`);
+  console.log(`\n🎉 InvAI v${VERSION} - Phase 2.1 Refactored + Auth`);
   console.log(`💻 Server running on port ${PORT}`);
   console.log(`🔗 Access at http://localhost:${PORT}`);
-  console.log(`\n🎯 Phase 2 Complete!`);
+  console.log(`\n🎯 Phase 2.1 Complete!`);
   console.log(`   → Modular route structure`);
   console.log(`   → Controllers separate business logic`);
   console.log(`   → Async/await eliminates callback hell`);
   console.log(`   → Transaction-safe bulk operations`);
   console.log(`   → Standardized error responses`);
+  console.log(`   → JWT authentication & authorization`);
   console.log(`\n💾 Database: SQLite with async wrapper`);
+  console.log(`🔒 Auth: JWT tokens with role-based access`);
   console.log(`💡 Update channel: ${getCurrentChannel()}`);
   console.log('\nChecking for updates from GitHub...');
   
