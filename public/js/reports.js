@@ -94,7 +94,7 @@ const Reports = {
 
   async loadStockValue() {
     try {
-      const response = await fetch('/api/reports/stock-value');
+      const response = await authFetch('/api/reports/stock-value');
       const data = await response.json();
       
       const container = document.getElementById('reportContent');
@@ -144,7 +144,7 @@ const Reports = {
 
   async loadExpiration() {
     try {
-      const response = await fetch('/api/reports/expiration');
+      const response = await authFetch('/api/reports/expiration');
       const data = await response.json();
       
       const container = document.getElementById('reportContent');
@@ -211,7 +211,7 @@ const Reports = {
 
   async loadLowStock() {
     try {
-      const response = await fetch('/api/reports/low-stock');
+      const response = await authFetch('/api/reports/low-stock');
       const data = await response.json();
       
       const container = document.getElementById('reportContent');
@@ -264,7 +264,7 @@ const Reports = {
 
   async exportCurrentReport() {
     try {
-      const response = await fetch(`/api/reports/export/${this.currentReport}`);
+      const response = await authFetch(`/api/reports/export/${this.currentReport}`);
       const csv = await response.text();
       
       const blob = new Blob([csv], { type: 'text/csv' });
