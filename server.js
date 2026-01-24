@@ -147,6 +147,15 @@ app.use(express.static('public', {
   etag: false
 }));
 
+// Health check endpoint (PUBLIC)
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    version: VERSION,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Serve index.html with version-based cache busting
 app.get('/', (req, res) => {
   const indexPath = path.join(__dirname, 'public', 'index.html');
@@ -202,6 +211,7 @@ function registerRoutes() {
   // CORE API ROUTES (PROTECTED)
   // ==============================================
   app.use('/api/products', authenticate, productRoutes(db, activityLogger, cache));
+  app.use('/api/batches', authenticate, batchRoutes(db, activityLogger));
   app.use('/api/inventory/batches', authenticate, batchRoutes(db, activityLogger));
   app.use('/api/categories', authenticate, categoryRoutes(db, activityLogger));
   app.use('/api/suppliers', authenticate, supplierRoutes(db, activityLogger));
@@ -437,7 +447,7 @@ app.listen(PORT, () => {
   console.log(`\n🎉 InvAI v${VERSION} - Phase 2.2 Modular Routes`);
   console.log(`💻 Server running on port ${PORT}`);
   console.log(`🔗 Access at http://localhost:${PORT}`);
-  console.log(`\n🎯 Architecture:`);  
+  console.log(`\n🎯 Architecture:`);
   console.log(`   → Streamlined server.js (~450 lines)`);
   console.log(`   → Modular route structure (13 route modules)`);
   console.log(`   → Async/await throughout`);
