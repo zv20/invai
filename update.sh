@@ -7,6 +7,7 @@
 # - Asks for permission with data loss warning
 # - Creates automatic backup
 # - Safe rollback capability
+# - Works with both root and non-root users
 
 set -e  # Exit on error
 
@@ -90,7 +91,7 @@ echo "🎉 New Version: v$NEW_VERSION"
 echo ""
 
 echo "========================================"
-echo "📝 Step 2: What's New in v$NEW_VERSION"
+echo "📋 Step 2: What's New in v$NEW_VERSION"
 echo "========================================"
 echo ""
 
@@ -149,9 +150,12 @@ echo ""
 
 # Check if running as root (not recommended)
 if [ "$EUID" -eq 0 ]; then
-    echo "⚠️  WARNING: Running as root is not recommended"
-    echo ""
+    echo "⚠️  Running as root - sudo will be skipped"
+    SUDO_CMD=""
+else
+    SUDO_CMD="sudo"
 fi
+echo ""
 
 echo "========================================"
 echo "❓ Step 4: Confirm Update"
@@ -246,7 +250,7 @@ for name in invai inventory-app grocery-inventory node-invai inventory; do
         SERVICE_NAME="$name"
         break
     fi
-done
+don
 
 RESTART_SUCCESS=false
 
@@ -257,19 +261,33 @@ if command -v pm2 &> /dev/null && pm2 list 2>/dev/null | grep -q "invai\|invento
     echo "✅ Restarted with PM2"
 elif [ -n "$SERVICE_NAME" ]; then
     echo "Using systemd ($SERVICE_NAME)..."
-    sudo systemctl restart "$SERVICE_NAME"
+    
+    # Use sudo only if not root
+    if [ -n "$SUDO_CMD" ]; then
+        $SUDO_CMD systemctl restart "$SERVICE_NAME"
+    else
+        systemctl restart "$SERVICE_NAME"
+    fi
     
     if [ $? -eq 0 ]; then
         RESTART_SUCCESS=true
         echo "✅ Restarted with systemd"
     else
         echo "❌ Failed to restart. Try manually:"
-        echo "   sudo systemctl restart $SERVICE_NAME"
+        if [ -n "$SUDO_CMD" ]; then
+            echo "   sudo systemctl restart $SERVICE_NAME"
+        else
+            echo "   systemctl restart $SERVICE_NAME"
+        fi
     fi
 else
     echo "⚠️  Could not auto-restart. Please restart manually:"
     echo "   PM2: pm2 restart invai"
-    echo "   systemd: sudo systemctl restart [service-name]"
+    if [ -n "$SUDO_CMD" ]; then
+        echo "   systemd: sudo systemctl restart [service-name]"
+    else
+        echo "   systemd: systemctl restart [service-name]"
+    fi
 fi
 
 echo ""
@@ -291,7 +309,11 @@ echo ""
 # Show service status
 if [ -n "$SERVICE_NAME" ]; then
     echo "📊 Service Status:"
-    sudo systemctl status "$SERVICE_NAME" --no-pager -l | head -15
+    if [ -n "$SUDO_CMD" ]; then
+        $SUDO_CMD systemctl status "$SERVICE_NAME" --no-pager -l | head -15
+    else
+        systemctl status "$SERVICE_NAME" --no-pager -l | head -15
+    fi
     echo ""
 elif command -v pm2 &> /dev/null; then
     echo "📊 PM2 Status:"
@@ -306,9 +328,15 @@ if [ -f "$BACKUP_FILE" ]; then
 fi
 
 echo "🔗 Quick Actions:"
-echo "  • Check logs: journalctl -u $SERVICE_NAME -n 50 -f"
-echo "  • View app: http://localhost:3000"
-echo "  • Rollback: git reset --hard $LOCAL && systemctl restart $SERVICE_NAME"
+if [ -n "$SERVICE_NAME" ]; then
+    echo "  • Check logs: journalctl -u $SERVICE_NAME -n 50 -f"
+    echo "  • View app: http://localhost:3000"
+    if [ -n "$SUDO_CMD" ]; then
+        echo "  • Rollback: git reset --hard $LOCAL && sudo systemctl restart $SERVICE_NAME"
+    else
+        echo "  • Rollback: git reset --hard $LOCAL && systemctl restart $SERVICE_NAME"
+    fi
+fi
 echo ""
 echo "📚 Documentation:"
 echo "  • What's New: v${NEW_VERSION}_QUICKSTART.md"
