@@ -1,114 +1,52 @@
+/**
+ * Authentication Middleware
+ * Handles JWT token verification and role-based authorization
+ */
+
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const { AuthenticationError, AuthorizationError } = require('../utils/errors');
-const config = require('../config/env');
-const constants = require('../config/constants');
 
 /**
- * Generate JWT token for user
- */
-const generateToken = (user) => {
-  return jwt.sign(
-    { 
-      id: user.id, 
-      username: user.username,
-      role: user.role 
-    },
-    config.JWT_SECRET,
-    { expiresIn: config.JWT_EXPIRES_IN }
-  );
-};
-
-/**
- * Verify JWT token from request
- */
-const verifyToken = (token) => {
-  try {
-    return jwt.verify(token, config.JWT_SECRET);
-  } catch (error) {
-    throw new AuthenticationError('Invalid or expired token');
-  }
-};
-
-/**
- * Authentication middleware - verify JWT token
+ * Authentication Middleware
+ * Verifies JWT token and attaches user to request
  */
 const authenticate = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const token = authHeader.substring(7);
+  
   try {
-    // Get token from header
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new AuthenticationError('No authentication token provided');
-    }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    const decoded = verifyToken(token);
-    
-    // Attach user info to request
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
     next();
   } catch (error) {
-    next(error);
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
 
 /**
- * Authorization middleware - check user role
+ * Authorization Middleware
+ * Checks if user has required role
+ * Usage: authorize('admin') or authorize('user', 'admin')
  */
 const authorize = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return next(new AuthenticationError());
+      return res.status(401).json({ error: 'Authentication required' });
     }
-
+    
     if (!allowedRoles.includes(req.user.role)) {
-      return next(new AuthorizationError('You do not have permission to perform this action'));
+      return res.status(403).json({ error: 'Insufficient permissions' });
     }
-
+    
     next();
   };
 };
 
-/**
- * Optional authentication - attach user if token present, but don't require it
- */
-const optionalAuth = (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      req.user = verifyToken(token);
-    }
-    
-    next();
-  } catch (error) {
-    // Ignore authentication errors for optional auth
-    next();
-  }
-};
-
-/**
- * Hash password
- */
-const hashPassword = async (password) => {
-  return await bcrypt.hash(password, constants.BCRYPT_ROUNDS);
-};
-
-/**
- * Compare password with hash
- */
-const comparePassword = async (password, hash) => {
-  return await bcrypt.compare(password, hash);
-};
-
 module.exports = {
-  generateToken,
-  verifyToken,
   authenticate,
-  authorize,
-  optionalAuth,
-  hashPassword,
-  comparePassword
+  authorize
 };
