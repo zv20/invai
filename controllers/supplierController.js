@@ -46,12 +46,12 @@ class SupplierController {
   }
 
   async createSupplier(supplierData, username) {
-    const { name, contact, email, phone, address, notes } = supplierData;
+    const { name, contact_name, email, phone, address, notes } = supplierData;
     
     const result = await this.db.run(
-      `INSERT INTO suppliers (name, contact, email, phone, address, notes, is_active)
+      `INSERT INTO suppliers (name, contact_name, email, phone, address, notes, is_active)
        VALUES (?, ?, ?, ?, ?, ?, 1)`,
-      [name, contact || '', email || '', phone || '', address || '', notes || '']
+      [name, contact_name || '', email || '', phone || '', address || '', notes || '']
     );
 
     await this.activityLogger.log('supplier', result.lastID, 'created', username, { name });
@@ -59,13 +59,13 @@ class SupplierController {
   }
 
   async updateSupplier(id, supplierData, username) {
-    const { name, contact, email, phone, address, notes, is_active } = supplierData;
+    const { name, contact_name, email, phone, address, notes, is_active } = supplierData;
     
     await this.db.run(
       `UPDATE suppliers 
-       SET name = ?, contact = ?, email = ?, phone = ?, address = ?, notes = ?, is_active = ?
+       SET name = ?, contact_name = ?, email = ?, phone = ?, address = ?, notes = ?, is_active = ?
        WHERE id = ?`,
-      [name, contact || '', email || '', phone || '', address || '', notes || '', 
+      [name, contact_name || '', email || '', phone || '', address || '', notes || '', 
        is_active !== undefined ? is_active : 1, id]
     );
 
