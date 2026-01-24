@@ -12,7 +12,7 @@ class ProductController {
   async getAllProducts() {
     const query = `
       SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon,
-             s.name as supplier_name, s.contact as supplier_contact,
+             s.name as supplier_name, s.contact_name as supplier_contact,
              COALESCE(SUM(ib.total_quantity), 0) as total_quantity,
              COUNT(ib.id) as batch_count,
              MIN(ib.expiry_date) as earliest_expiry
@@ -29,7 +29,7 @@ class ProductController {
   async getProductById(id) {
     const query = `
       SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon,
-             s.name as supplier_name, s.contact as supplier_contact,
+             s.name as supplier_name, s.contact_name as supplier_contact,
              COALESCE(SUM(ib.total_quantity), 0) as total_quantity,
              COUNT(ib.id) as batch_count
       FROM products p
