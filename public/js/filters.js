@@ -16,8 +16,8 @@ let allProducts = [];
 async function loadFilterOptions() {
     try {
         const [catRes, supRes] = await Promise.all([
-            fetch('/api/categories'),
-            fetch('/api/suppliers')
+            authFetch('/api/categories'),
+            authFetch('/api/suppliers')
         ]);
         
         const categoriesData = await catRes.json();
