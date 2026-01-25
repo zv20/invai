@@ -11,15 +11,32 @@
  */
 
 const crypto = require('crypto');
-const db = require('../config/database');
 const securityConfig = require('../config/security');
-const logger = require('./logger');
 
 class SessionManager {
     constructor() {
-        // Start cleanup interval when manager is initialized
+        this.db = null;
+        this.logger = null;
+        this.cleanupInterval = null;
+    }
+    
+    /**
+     * Initialize session manager with database and logger
+     * @param {Object} db - Database instance
+     * @param {Object} logger - Logger instance
+     */
+    initialize(db, logger) {
+        this.db = db;
+        this.logger = logger;
+        
+        // Start cleanup interval
         this.startCleanupInterval();
-        logger.info('SessionManager initialized');
+        
+        if (this.logger) {
+            this.logger.info('SessionManager initialized');
+        } else {
+            console.log('SessionManager initialized');
+        }
     }
     
     /**
@@ -45,7 +62,7 @@ class SessionManager {
             VALUES (?, ?, ?, ?, ?)
         `;
         
-        await db.run(query, [
+        await this.db.run(query, [
             sessionId,
             userId,
             ipAddress || 'unknown',
@@ -53,11 +70,13 @@ class SessionManager {
             expiresAt.toISOString()
         ]);
         
-        logger.info(`Session created for user ${userId}`, {
-            sessionId: sessionId.substring(0, 8) + '...',
-            ipAddress,
-            expiresAt: expiresAt.toISOString()
-        });
+        if (this.logger) {
+            this.logger.info(`Session created for user ${userId}`, {
+                sessionId: sessionId.substring(0, 8) + '...',
+                ipAddress,
+                expiresAt: expiresAt.toISOString()
+            });
+        }
         
         return sessionId;
     }
@@ -94,7 +113,7 @@ class SessionManager {
             AND s.expires_at > datetime('now')
         `;
         
-        const session = await db.get(query, [sessionId]);
+        const session = await this.db.get(query, [sessionId]);
         
         if (!session) {
             return null;
@@ -111,7 +130,9 @@ class SessionManager {
         const inactivityMinutes = (Date.now() - lastActivity) / 1000 / 60;
         
         if (inactivityMinutes > securityConfig.session.inactivityTimeout) {
-            logger.info(`Session expired due to inactivity: ${sessionId.substring(0, 8)}...`);
+            if (this.logger) {
+                this.logger.info(`Session expired due to inactivity: ${sessionId.substring(0, 8)}...`);
+            }
             await this.invalidateSession(sessionId, 'inactivity_timeout');
             return null;
         }
@@ -137,7 +158,7 @@ class SessionManager {
             WHERE session_id = ?
         `;
         
-        await db.run(query, [sessionId]);
+        await this.db.run(query, [sessionId]);
     }
     
     /**
@@ -153,9 +174,11 @@ class SessionManager {
             WHERE session_id = ?
         `;
         
-        await db.run(query, [sessionId]);
+        await this.db.run(query, [sessionId]);
         
-        logger.info(`Session invalidated: ${sessionId.substring(0, 8)}...`, { reason });
+        if (this.logger) {
+            this.logger.info(`Session invalidated: ${sessionId.substring(0, 8)}...`, { reason });
+        }
     }
     
     /**
@@ -178,9 +201,11 @@ class SessionManager {
             params.push(exceptSessionId);
         }
         
-        const result = await db.run(query, params);
+        const result = await this.db.run(query, params);
         
-        logger.info(`Invalidated ${result.changes} sessions for user ${userId}`);
+        if (this.logger) {
+            this.logger.info(`Invalidated sessions for user ${userId}`);
+        }
     }
     
     /**
@@ -201,7 +226,7 @@ class SessionManager {
             AND expires_at > datetime('now')
         `;
         
-        const result = await db.get(countQuery, [userId]);
+        const result = await this.db.get(countQuery, [userId]);
         
         if (result.count >= limit) {
             // Invalidate oldest session
@@ -218,9 +243,11 @@ class SessionManager {
                 )
             `;
             
-            await db.run(deleteQuery, [userId]);
+            await this.db.run(deleteQuery, [userId]);
             
-            logger.info(`Session limit enforced for user ${userId}, oldest session removed`);
+            if (this.logger) {
+                this.logger.info(`Session limit enforced for user ${userId}, oldest session removed`);
+            }
         }
     }
     
@@ -229,6 +256,8 @@ class SessionManager {
      * @returns {Promise<void>}
      */
     async cleanupExpiredSessions() {
+        if (!this.db) return;
+        
         try {
             // Delete sessions that are:
             // 1. Expired for more than 7 days
@@ -239,13 +268,19 @@ class SessionManager {
                 OR (is_active = 0 AND last_activity < datetime('now', '-1 day'))
             `;
             
-            const result = await db.run(query);
+            const result = await this.db.run(query);
             
             if (result.changes > 0) {
-                logger.info(`Session cleanup: removed ${result.changes} old sessions`);
+                if (this.logger) {
+                    this.logger.info(`Session cleanup: removed ${result.changes} old sessions`);
+                }
             }
         } catch (error) {
-            logger.error('Session cleanup failed:', error);
+            if (this.logger) {
+                this.logger.error('Session cleanup failed:', error);
+            } else {
+                console.error('Session cleanup failed:', error);
+            }
         }
     }
     
@@ -253,13 +288,21 @@ class SessionManager {
      * Start periodic cleanup interval
      */
     startCleanupInterval() {
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+        }
+        
         const interval = securityConfig.session.cleanupInterval * 60 * 1000;
         
-        setInterval(() => {
+        this.cleanupInterval = setInterval(() => {
             this.cleanupExpiredSessions();
         }, interval);
         
-        logger.info(`Session cleanup scheduled every ${securityConfig.session.cleanupInterval} minutes`);
+        if (this.logger) {
+            this.logger.info(`Session cleanup scheduled every ${securityConfig.session.cleanupInterval} minutes`);
+        } else {
+            console.log(`Session cleanup scheduled every ${securityConfig.session.cleanupInterval} minutes`);
+        }
     }
     
     /**
@@ -291,7 +334,7 @@ class SessionManager {
             ORDER BY last_activity DESC
         `;
         
-        return await db.all(query, [userId]);
+        return await this.db.all(query, [userId]);
     }
     
     /**
@@ -299,7 +342,7 @@ class SessionManager {
      * @returns {Promise<Object>} Session statistics
      */
     async getStatistics() {
-        const stats = await db.get(`
+        const stats = await this.db.get(`
             SELECT 
                 COUNT(*) as total,
                 SUM(CASE WHEN is_active = 1 AND expires_at > datetime('now') THEN 1 ELSE 0 END) as active,
