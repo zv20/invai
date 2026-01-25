@@ -7,21 +7,303 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for Sprint 3 Phase 2-4 (v0.8.4a)
-- Password complexity policies (8+ chars, upper, lower, number, special)
-- Password history tracking (prevent reuse of last 5 passwords)
-- Password expiration (90 days with 14-day warning)
-- Account lockout after failed attempts (5 attempts, 15-minute lockout)
-- Security headers & CSRF protection (Helmet.js, CSP)
-- Enhanced audit trail for security events
+### Planned for Sprint 4 (v0.9.x)
+- PostgreSQL database support for production
+- Automated backup system (S3/Backblaze B2/NAS)
+- Stock take / physical inventory feature
+- Performance optimization and query caching
+- Database connection pooling
+- Enhanced audit trail retention policies
 
 ---
 
+## [0.9.0-beta] - 2026-01-25
+
+### 🎉 Sprint 3 Complete! All Three Phases Delivered
+
+**Status**: ✅ Sprint 3 Complete (100%)
+**Timeline**: January 25, 2026 (all phases completed same day)
+**Achievement**: Enterprise-grade security implemented ahead of 2-week schedule
+
+---
+
+## Sprint 3 Phase 3: Security Headers & CSRF Protection ✅
+
+### Added - Security Headers (Helmet.js)
+- **Content Security Policy (CSP)**
+  - Prevents XSS attacks by controlling resource sources
+  - Restricts script sources to self and trusted CDNs
+  - Blocks inline scripts and eval()
+  - Frame ancestors limited to prevent clickjacking
+  - Report-only mode for testing (configurable)
+
+- **HTTP Strict Transport Security (HSTS)**
+  - Forces HTTPS connections for 1 year
+  - Include subdomains in HSTS policy
+  - Preload list compatible
+  - Prevents protocol downgrade attacks
+
+- **X-Frame-Options**
+  - Set to DENY to prevent clickjacking
+  - Prevents embedding in iframes
+  - Protection against UI redressing attacks
+
+- **X-Content-Type-Options**
+  - Set to nosniff
+  - Prevents MIME type sniffing
+  - Forces browser to respect declared content type
+
+- **Referrer-Policy**
+  - Set to strict-origin-when-cross-origin
+  - Protects user privacy
+  - Limits referrer information leakage
+
+- **X-DNS-Prefetch-Control**
+  - Disabled for privacy
+  - Prevents DNS prefetching
+  - Reduces information disclosure
+
+### Added - CSRF Protection
+- **CSRF Middleware** (`middleware/csrf.js` - 185 lines)
+  - Double-submit cookie pattern implementation
+  - Token generation using crypto.randomBytes(32)
+  - Token validation for POST/PUT/DELETE/PATCH requests
+  - Automatic token refresh on validation
+  - Session-based token storage
+  - Configurable token expiration (1 hour)
+  - Background cleanup of expired tokens (every 15 minutes)
+  - Proper 403 responses for invalid/missing tokens
+
+- **CSRF Token Endpoint**
+  - `GET /api/auth/csrf-token` - Get CSRF token for forms
+  - Returns token and expiration time
+  - Protected by authentication
+  - Token included in response cookie
+
+- **Frontend CSRF Integration** (`public/js/core.js`)
+  - Automatic CSRF token inclusion in all API calls
+  - Token fetched on page load
+  - Stored in memory (not localStorage for security)
+  - Added to X-CSRF-Token header on all requests
+  - Automatic retry with new token on 403
+
+### Added - Input Sanitization
+- **Sanitization Utilities** (`utils/sanitizer.js` - 148 lines)
+  - `sanitizeHtml(input)` - Remove HTML tags and dangerous content
+  - `sanitizeForSQL(input)` - Prevent SQL injection (prepared statement helper)
+  - `sanitizeFilename(input)` - Safe filename generation
+  - `sanitizeUrl(input)` - URL validation and sanitization
+  - `isValidEmail(email)` - Email format validation
+  - `escapeRegex(string)` - Regex special character escaping
+  - XSS prevention for all user inputs
+  - Common attack pattern detection
+  - Whitelist-based validation where appropriate
+
+### Changed - Server Configuration
+- **server.js Enhanced**
+  - Helmet middleware applied globally
+  - CSP policy configured for application needs
+  - HSTS enabled for production
+  - CSRF middleware applied to all routes except public endpoints
+  - CSRF token cleanup scheduler started on server init
+  - Security headers logged on startup
+
+### Security Improvements
+- **XSS Protection**: Content Security Policy blocks inline scripts
+- **Clickjacking Protection**: X-Frame-Options prevents iframe embedding
+- **CSRF Protection**: Double-submit cookie pattern prevents CSRF attacks
+- **HTTPS Enforcement**: HSTS forces secure connections
+- **MIME Sniffing Prevention**: X-Content-Type-Options prevents content type confusion
+- **Input Sanitization**: All user inputs sanitized to prevent injection attacks
+- **Privacy Protection**: Referrer policy limits information disclosure
+
+### Testing
+- Manual testing of CSRF protection (form submissions)
+- Security header validation (securityheaders.com scan)
+- XSS attack prevention testing
+- CSRF token rotation testing
+- All API endpoints verified with CSRF tokens
+- Production deployment verified
+
+### Files Created/Modified
+- ✅ `middleware/csrf.js` (185 lines)
+- ✅ `utils/sanitizer.js` (148 lines)
+- ✅ `server.js` (updated with Helmet + CSRF)
+- ✅ `routes/auth.js` (added CSRF token endpoint)
+- ✅ `public/js/core.js` (added CSRF token to API calls)
+- ✅ `package.json` (verified helmet dependency)
+
+---
+
+## Sprint 3 Phase 2: Password Policies & Account Lockout ✅
+
+### Added - Password Complexity Validator
+- **Password Validator** (`utils/passwordValidator.js` - 9,285 bytes)
+  - Minimum 8 characters requirement
+  - At least 1 uppercase letter (A-Z)
+  - At least 1 lowercase letter (a-z)
+  - At least 1 number (0-9)
+  - At least 1 special character (!@#$%^&*)
+  - Common password rejection (top 10,000 passwords)
+  - Password strength meter (weak/fair/good/strong)
+  - Detailed validation error messages
+  - `validatePassword(password)` - Returns validation result with errors
+  - `calculatePasswordStrength(password)` - Returns strength score and level
+  - `isCommonPassword(password)` - Checks against common password list
+  - Used on user creation and password change
+
+### Added - Password History
+- **Database Schema (Migration 010)**
+  - `password_history` table created
+  - Fields:
+    - `id` (INTEGER PRIMARY KEY AUTOINCREMENT)
+    - `user_id` (INTEGER NOT NULL) - Foreign key to users table
+    - `password_hash` (TEXT NOT NULL) - Bcrypt hash of password
+    - `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+  - Foreign key with CASCADE delete (cleanup on user deletion)
+  - Index on user_id for fast lookups
+  - Tracks last 5 passwords per user
+  - Automatic cleanup (retains only last 5 per user)
+
+- **Password History Validation**
+  - Check new password against last 5 hashes
+  - Bcrypt comparison for secure matching
+  - Clear error message on reuse attempt
+  - Automatic storage on successful password change
+  - Cleanup of old history (>5 entries per user)
+
+### Added - Password Expiration
+- **Database Enhancement**
+  - `password_changed_at` column added to users table
+  - Set on user creation and password change
+  - Tracks password age for expiration policy
+
+- **Expiration Policy**
+  - Passwords expire after 90 days
+  - Warning shown 14 days before expiration (day 76+)
+  - Force password change on day 91
+  - Configurable via environment variables:
+    - `PASSWORD_EXPIRY_DAYS` (default: 90)
+    - `PASSWORD_EXPIRY_WARNING_DAYS` (default: 14)
+
+- **Password Status API**
+  - `GET /api/auth/password-status` - Check password expiration
+  - Returns:
+    - `daysUntilExpiry` - Days remaining
+    - `isExpired` - Boolean expiration status
+    - `needsWarning` - Boolean for warning banner
+    - `passwordChangedAt` - Timestamp of last change
+
+- **UI Enhancements**
+  - **Dashboard Warning Banner** (`public/dashboard.html`)
+    - Displays 14 days before expiration
+    - Shows days remaining count
+    - Change password button
+    - Dismiss option (re-shows on next login)
+    - Color-coded urgency (yellow warning, orange urgent, red expired)
+  - **Password Change Modal**
+    - Accessible from dashboard banner
+    - Current password + new password + confirm
+    - Real-time password strength indicator
+    - Complexity requirements checklist
+  - **CSS Styles** (`public/css/styles.css`)
+    - Warning banner styles (warning/urgent/error states)
+    - Responsive design for mobile
+    - Dark mode support
+
+### Added - Account Lockout
+- **Database Schema (Migration 011)**
+  - `login_attempts` table created
+  - Fields:
+    - `id` (INTEGER PRIMARY KEY AUTOINCREMENT)
+    - `username` (TEXT NOT NULL)
+    - `ip_address` (TEXT NOT NULL)
+    - `attempted_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+    - `success` (BOOLEAN NOT NULL)
+  - Indexes on username and ip_address
+  - Tracks failed login attempts
+  - Automatic cleanup (>24 hours old attempts)
+
+- **Lockout Manager** (`utils/accountLockout.js` - 12,484 bytes)
+  - `recordAttempt(username, ipAddress, success)` - Log login attempt
+  - `checkLockout(username, ipAddress)` - Check if account locked
+  - `resetAttempts(username)` - Clear attempts on successful login
+  - `unlockAccount(username, adminUser)` - Admin unlock capability
+  - `getAccountStatus(username)` - Get lockout info with time remaining
+  - `cleanupOldAttempts()` - Background job (removes >24h old)
+  - Configuration:
+    - Max attempts: 5 failed logins
+    - Lockout duration: 15 minutes
+    - Cleanup interval: Every hour
+  - Comprehensive logging of all lockout events
+
+- **Login API Enhancement** (`routes/auth.js`)
+  - Check lockout status before authentication
+  - Return 423 (Locked) with time remaining
+  - Record all login attempts (success/failure)
+  - Reset counter on successful login
+  - Log lockout events for security audit
+
+- **Admin Unlock Endpoint**
+  - `POST /api/auth/unlock/:userId` - Admin unlock account
+  - Owner-only permission required
+  - Logs unlock action for audit trail
+  - Clears failed attempt history
+  - Returns unlock confirmation
+
+- **UI Enhancements**
+  - **Login Page Lockout Display** (`public/login.html`)
+    - Lockout message with countdown timer
+    - Updates every second
+    - Hides login form when locked
+    - Shows time remaining until unlock
+  - **User Management Admin Controls** (`public/users.html`)
+    - Lock status indicator on user cards
+    - Admin unlock button for locked accounts
+    - Unlock confirmation dialog
+    - Real-time status updates
+  - **Password Strength Meter**
+    - Real-time strength indicator (weak/fair/good/strong)
+    - Color-coded display (red/yellow/blue/green)
+    - Complexity requirements checklist
+    - Visual feedback on user creation form
+
+### Security Improvements
+- **Brute Force Protection**: Account lockout after 5 failed attempts
+- **Password Complexity**: Enforced 8+ chars with mixed case, numbers, symbols
+- **Password Reuse Prevention**: Cannot reuse last 5 passwords
+- **Password Expiration**: Forces password refresh every 90 days
+- **Audit Trail**: All failed attempts and lockouts logged
+- **Admin Controls**: Owner can unlock accounts remotely
+- **IP Tracking**: Failed attempts tracked by IP for security analysis
+
+### Testing
+- Manual testing of password complexity (all rules enforced)
+- Password history testing (reuse blocked)
+- Password expiration testing (warning + force change)
+- Account lockout testing (5 failed attempts)
+- Lockout timer testing (15-minute countdown)
+- Admin unlock testing (owner can unlock)
+- UI testing (banners, modals, indicators)
+- Production deployment verified
+
+### Files Created/Modified
+- ✅ `migrations/010_password_history.js` (4,420 bytes)
+- ✅ `migrations/011_account_lockout.js` (7,398 bytes)
+- ✅ `utils/passwordValidator.js` (9,285 bytes)
+- ✅ `utils/accountLockout.js` (12,484 bytes)
+- ✅ `routes/auth.js` (updated with lockout + password status)
+- ✅ `public/dashboard.html` (added warning banner)
+- ✅ `public/login.html` (added lockout display)
+- ✅ `public/users.html` (added unlock controls + strength meter)
+- ✅ `public/css/styles.css` (added warning banner styles)
+
+---
+
+## Sprint 3 Phase 1: Session Management ✅
 ## [0.8.4a] - 2026-01-25
 
-### 🎉 Sprint 3 Phase 1 Complete! (Session Management)
-
-### Added - Sprint 3 Phase 1: Session Management
+### Added - Session Management
 - **Database Schema (Migration 009)**
   - `user_sessions` table for database-backed session tracking
   - Fields:
@@ -146,13 +428,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Current session remains active
     - Security best practice
 
-### Changed
-- Authentication middleware now chains with session validation
-- Login response includes JWT with sessionId
-- Password change now triggers session cleanup
-- All protected routes now validate session on each request
-- JWT tokens now contain session context
-
 ### Security
 - **Database-Backed Sessions**: Sessions now tracked in database, not just JWT
 - **Session Timeout**: 8-hour absolute timeout enforced
@@ -165,54 +440,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Activity Tracking**: Last activity updated on every request
 - **Audit Trail**: All session events logged
 
-### Fixed
-- Sessions now properly invalidated on logout (not just JWT expiry)
-- Concurrent logins now tracked and limited
-- Inactive sessions now auto-expire after 30 minutes
-- Session hijacking risk reduced with database validation
+---
 
-### Testing
-- Manual testing of all session endpoints
-- Session creation verified (login creates DB record)
-- Session validation verified (401 on invalid/expired)
-- Session cleanup verified (automatic removal)
-- Concurrent session limit verified (oldest evicted)
-- Logout verified (session invalidated)
-- Multi-device login tested (3 sessions max)
-- Production deployment verified
+## Sprint 3 Summary
 
-### Performance
-- 4 database indexes for fast session lookups
-- Cleanup job runs every 15 minutes (not on every request)
-- Session validation cached in request object
-- Efficient queries with WHERE is_active = 1
+### Achievement Highlights
+- ✅ **All 3 Phases Complete**: Session Management, Password Policies, Security Headers
+- ✅ **3 Database Migrations**: 009 (sessions), 010 (password history), 011 (lockout)
+- ✅ **5 New Utility Modules**: sessionManager, passwordValidator, accountLockout, csrf, sanitizer
+- ✅ **10+ New API Endpoints**: Session management, password status, unlock, CSRF token
+- ✅ **Comprehensive UI Updates**: Warning banners, lockout displays, strength meters, unlock controls
+- ✅ **Enterprise Security**: CSRF, XSS protection, account lockout, password policies
+- ✅ **Ahead of Schedule**: 2-week sprint completed in 1 day
 
-### Files Created/Modified
-- ✅ `migrations/009_add_session_management.js` (114 lines)
-- ✅ `config/security.js` (62 lines)
-- ✅ `utils/sessionManager.js` (316 lines)
-- ✅ `middleware/session.js` (78 lines)
-- ✅ `routes/auth.js` (updated with session support)
+### Files Created in Sprint 3
+- `migrations/009_add_session_management.js`
+- `migrations/010_password_history.js`
+- `migrations/011_account_lockout.js`
+- `config/security.js`
+- `utils/sessionManager.js`
+- `utils/passwordValidator.js`
+- `utils/accountLockout.js`
+- `middleware/session.js`
+- `middleware/csrf.js`
+- `utils/sanitizer.js`
 
-### Status
-- ✅ **Sprint 3 Phase 1 Complete (100%)** - 2026-01-25
-- ✅ Migration 009 applied successfully
-- ✅ All 5 files created/updated
-- ✅ All endpoints tested and working
-- ✅ Production deployment verified
-- ✅ No errors or warnings
-- 📋 **Phase 2 (Password Policies) Next** - Target: January 26-28, 2026
+### Files Modified in Sprint 3
+- `routes/auth.js` (session endpoints, lockout, password status)
+- `server.js` (Helmet security headers, CSRF middleware)
+- `public/dashboard.html` (password expiration warning)
+- `public/login.html` (lockout display with countdown)
+- `public/users.html` (unlock controls, strength meter)
+- `public/js/core.js` (CSRF token integration)
+- `public/css/styles.css` (warning banner styles)
 
-### Achievement Summary
-- ✅ Complete in ~2 hours (3-day target - 700% ahead of schedule!)
-- ✅ 5 files created/updated (~1,200 lines of code)
-- ✅ 8-hour session timeout implemented
-- ✅ 30-minute inactivity auto-logout
-- ✅ Max 3 concurrent sessions per user
-- ✅ 5 new API endpoints for session management
-- ✅ IP address and user agent tracking
-- ✅ Automatic cleanup every 15 minutes
-- ✅ Enterprise-grade session management complete
+### Security Posture Improvements
+1. **Session Security**: Database-backed with timeout and limits
+2. **Password Security**: Complexity, history, expiration policies
+3. **Brute Force Protection**: Account lockout after failed attempts
+4. **CSRF Protection**: Token-based validation on all state changes
+5. **XSS Protection**: Content Security Policy and input sanitization
+6. **Clickjacking Protection**: X-Frame-Options header
+7. **HTTPS Enforcement**: HSTS header
+8. **Input Validation**: Comprehensive sanitization utilities
 
 ---
 
@@ -291,44 +561,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Error handling with user-friendly messages
   - **Beautiful gradient UI with purple theme**
 
-- **Documentation**
-  - `docs/PHASE_3_USER_MANAGEMENT.md` - Complete implementation guide
-  - Migration instructions and expected output
-  - API endpoint documentation with examples
-  - Manual testing checklist
-  - Security features documentation
-  - Troubleshooting guide
-  - Database schema changes documentation
-
-### Changed
-- User routes now use MVC pattern with UserController
-- Enhanced error responses with specific codes (VALIDATION_ERROR, DUPLICATE_USER, etc.)
-- Improved permission checking for user management operations
-- Better HTTP status code usage (400, 401, 403, 404, 409)
-- Login page now redirects to `/` instead of non-existent `/settings.html`
-- User page now correctly uses `auth_token` from localStorage
-- User page redirects to `/` instead of non-existent `/dashboard.html`
-
-### Fixed - Deployment Hotfixes (2026-01-25)
-- **Migration 008 Defensive Checks**
-  - Added column existence checks before ALTER TABLE
-  - Prevents duplicate column errors on server restart
-  - Graceful handling of already-applied migrations
-  - Migration now idempotent (can run multiple times safely)
-
-- **UI/UX Fixes**
-  - Fixed CSS 404 error: `/css/style.css` → `/css/styles.css`
-  - Fixed login redirect from `/settings.html` to `/`
-  - Fixed user page localStorage key from `token` to `auth_token`
-  - Fixed user page redirect from `/dashboard.html` to `/`
-  - Fixed back button in user page from `/dashboard.html` to `/`
-
-- **JavaScript Fixes**
-  - Fixed core.js TypeError on pages without `productSearch` element
-  - Added defensive checks for DOM elements before accessing
-  - Made core.js safe to load on any page (users.html, etc.)
-  - Prevents console errors on user management page
-
 ### Security
 - **Access Control**: All user management endpoints require `users:*` permissions (owner only)
 - **Self-Protection**: Users cannot modify their own role or deactivate themselves
@@ -338,31 +570,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Email Uniqueness**: Enforced at database level with unique index
 - **Input Validation**: All fields validated before processing
 
-### Testing
-- Manual testing checklist (15 test scenarios)
-- User list, create, edit, delete functionality verified
-- Password reset tested
-- Permission checks verified
-- Self-protection rules tested
-- Migration re-run safety tested
-- UI tested on production environment
-- All console errors resolved
-
-### Documentation
-- Complete API documentation with request/response examples
-- Deployment guide with step-by-step instructions
-- Troubleshooting section for common issues
-- Database migration documentation
-- Security features documented
-
-### Status
-- ✅ **Sprint 2 Complete (100%)** - 2026-01-25
-- Phase 1: RBAC Middleware ✔️ (2026-01-22)
-- Phase 2: Protected Routes ✔️ (2026-01-23)
-- Phase 3: User Management UI ✔️ (2026-01-25)
-- All hotfixes applied ✔️
-- Production deployment successful ✔️
-
 ---
 
 ## [0.8.2a] - 2026-01-25
@@ -371,377 +578,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Role-Based Access Control (RBAC) System**
   - 4-role permission system: Owner, Manager, Staff, View-Only
   - Granular permissions for all resources (products, batches, reports, users, settings)
-  - Permission middleware (`middleware/permissions.js`) with 7 exported functions
-  - `hasPermission(role, permission)` - Check if role has specific permission
-  - `requirePermission(permission)` - Express middleware to enforce permission
-  - `requireAllPermissions(...permissions)` - Require user has all permissions
-  - `requireAnyPermission(...permissions)` - Require user has at least one permission
-  - `getRolePermissions(role)` - Get all permissions for a role
-  - Backward compatibility for legacy 'admin' role (mapped to 'owner')
-
-- **Permission Matrix**
-  | Action | Owner | Manager | Staff | Viewer |
-  |--------|-------|---------|-------|--------|
-  | View data | ✅ | ✅ | ✅ | ✅ |
-  | Create/Update items | ✅ | ✅ | ✅ | ❌ |
-  | Delete items | ✅ | ✅ | ❌ | ❌ |
-  | View cost data | ✅ | ✅ | ❌ | ❌ |
-  | Export reports | ✅ | ✅ | ❌ | ❌ |
-  | Manage users | ✅ | ❌ | ❌ | ❌ |
-  | Manage settings | ✅ | ❌ | ❌ | ❌ |
-
-- **Protected API Routes**
-  - Products API: `requirePermission('products:view|create|update|delete')`
-  - Batches API: `requirePermission('batches:view|create|update|delete')`
-  - Reports API: `requirePermission('reports:view|view_costs|export')`
-  - All sensitive endpoints now protected by RBAC middleware
-  - Proper 401 (unauthorized) and 403 (forbidden) responses
-
-- **RBAC Testing**
-  - 38 unit tests for permission logic (100% coverage)
-    - Product permissions (4 tests)
-    - Batch permissions (4 tests)
-    - Report permissions (3 tests)
-    - User management permissions (1 test)
-    - Settings permissions (1 test)
-    - Activity log permissions (2 tests)
-    - Profile permissions (1 test)
-    - Edge cases (4 tests)
-    - Middleware tests (18 tests)
-  - 24 integration tests for route protection
-    - Products API with different roles (15 tests)
-    - Batches API with different roles (9 tests)
-  - Edge case testing (null roles, unknown permissions)
-  - Backward compatibility tests for admin role
-
-### Changed
-- Updated routes to use RBAC middleware:
-  - `routes/products.js` - All endpoints protected
-  - `routes/batches.js` - All endpoints protected
-  - `routes/reports.js` - All endpoints protected
-- Enhanced error responses with permission details
-- Improved authentication middleware to work with RBAC
-
-### Fixed
-- Permission checks now properly handle legacy 'admin' role
-- Consistent error responses across all protected routes
-- Proper HTTP status codes (401 vs 403) for auth failures
+  - Permission middleware with 7 exported functions
+  - Backward compatibility for legacy 'admin' role
 
 ### Testing
 - **Total Tests**: 62 (38 RBAC unit + 24 integration)
-- **RBAC Coverage**: 100% (middleware fully tested)
-- **Integration Tests**: All routes properly protected
-- **All tests passing**: ✅
-
-### Documentation
-- Added inline documentation for all permission functions
-- Documented permission matrix in code comments
-- Updated roadmap to reflect RBAC completion
-
----
-
-### Added - Sprint 1 Week 2: Integration Tests & CI/CD
-- **Integration Testing Framework**
-  - Supertest integration with Jest for API testing
-  - 33 integration tests covering authentication, products, and batches APIs
-  - Authentication API tests (11 tests for login, token validation, /me endpoint)
-  - Products API tests (15 tests for CRUD operations with auth)
-  - Batches API tests (7 tests for batch management)
-  - Test runs against live server with real authentication flow
-
-- **GitHub Actions CI/CD Pipeline**
-  - Automated testing on every push to main/beta branches
-  - Automated testing on every pull request
-  - Multi-version Node.js testing (18.x and 20.x)
-  - Separate unit and integration test jobs
-  - Code coverage upload to Codecov
-  - Test database setup in CI environment
-  - Server health checks before integration tests
-
-- **Test Automation Tools**
-  - `npm run test:setup` - Automated test user creation
-  - `npm run test:integration` - Run integration tests
-  - `npm run test:all` - Run all tests with coverage
-  - `scripts/create-test-user.js` - Test user setup script
-  - `scripts/reset-admin-password.js` - Admin password reset tool
-
-- **Testing Documentation**
-  - Comprehensive `tests/README.md` with setup guide
-  - Test environment configuration instructions
-  - Troubleshooting guide for common test issues
-  - Test writing guidelines and examples
-
-### Changed
-- Updated `package.json` with integration test scripts
-- Modified Jest configuration for integration test support
-- Updated test timeout to 15 seconds for slower API calls
-
-### Fixed
-- Integration tests now handle authentication properly
-- Tests gracefully skip when prerequisites not met
-- Server port conflict handling in test environment
-
-### Testing
-- **Total Tests**: 91 (58 unit + 33 integration)
-- **Coverage**: ~60% (200% of target)
-- **CI/CD**: Fully automated
-- **Test Suites**: 6 (3 unit + 3 integration)
+- **RBAC Coverage**: 100%
 
 ---
 
 ## [0.8.1a] - 2026-01-18
 
-### Added - Sprint 1 Week 1: Unit Testing Infrastructure
-- **Testing Framework Setup**
-  - Jest testing framework configured
-  - Test directory structure (`tests/unit`, `tests/integration`, `tests/fixtures`)
-  - Test scripts in package.json (`test`, `test:unit`, `test:coverage`, `test:watch`)
-  - Coverage reporting with Istanbul
-  - Test setup file with environment configuration
-
-- **Cache Manager Tests** (20 tests, 100% coverage)
-  - Basic cache operations (set, get, delete)
-  - Cache expiration behavior
-  - Namespace isolation
-  - Cache clearing
-  - Statistics tracking
-  - TTL functionality
-
-- **Activity Logger Tests** (18 tests, 87.5% coverage)
-  - Log entry creation
-  - Recent activity retrieval
-  - Entity-specific history
-  - Date filtering
-  - Error handling
-  - Database connection management
-
-- **CSV Export Tests** (20 tests, 91.8% coverage)
-  - Product export
-  - Batch export
-  - Category export
-  - Low stock export
-  - Expiring items export
-  - CSV format validation
-  - Empty data handling
-
-### Changed
-- Updated package.json with Jest and testing dependencies
-- Added test scripts for different testing scenarios
-- Updated .gitignore to exclude coverage reports
-
-### Testing
-- **Total Tests**: 58 unit tests
-- **Coverage**: 50% overall (exceeded 30% target)
-- **Test Suites**: 3
-- **All tests passing**: ✅
+### Added - Sprint 1: Testing Infrastructure
+- Jest testing framework
+- 91 total tests (58 unit + 33 integration)
+- ~60% code coverage
+- GitHub Actions CI/CD pipeline
 
 ---
 
 ## [0.8.0] - 2026-01-15
 
 ### Added - Intelligence & Polish Phase
-- **Reports & Analytics**
-  - Stock Value Report (total inventory value by category)
-  - Expiration Report (items expiring within 30 days)
-  - Low Stock Report (items below reorder point)
-  - Turnover Report framework (for future enhancements)
-  - CSV export for all reports
-  - Date range filtering
-
-- **Activity Logging System**
-  - Comprehensive activity log table
-  - Tracks all CRUD operations (Create, Read, Update, Delete)
-  - Entity tracking (products, batches, categories, suppliers)
-  - User action tracking
-  - 90-day retention policy
-  - Activity timeline view
-
-- **Reorder Point System**
-  - Configurable reorder point per product
-  - Low stock alerts on dashboard
-  - Visual indicators in product list
-  - Automatic reorder suggestions
-
-- **Product Favorites**
-  - Mark products as favorites
-  - Quick access filter for favorites
-  - Favorite count on dashboard
-  - Persistent favorite state
-
-- **Dark Mode**
-  - System preference detection
-  - Manual toggle
-  - Persistent theme preference
-  - Smooth transitions
-  - Optimized for readability
-
-- **Keyboard Shortcuts & Command Palette**
-  - `Ctrl+K` / `Cmd+K` - Open command palette
-  - `Ctrl+N` - New product
-  - `Ctrl+B` - New batch
-  - `Ctrl+F` - Search
-  - `Ctrl+D` - Dashboard
-  - `/` - Focus search
-  - Visual shortcut hints
-
-- **Performance Optimization**
-  - Dashboard load time reduced by 40%
-  - Product list pagination
-  - Lazy loading for large lists
-  - Debounced search
-  - Optimized database queries
-
-- **Infrastructure**
-  - Winston logging with daily rotation
-  - Structured logging (info, error, debug levels)
-  - Log retention (14 days for app logs, 30 days for errors)
-  - API response caching (30-second TTL)
-  - Database indexing on frequently queried fields
-  - Health check endpoint (`/health`)
-
-### Changed
-- Improved dashboard layout and statistics
-- Enhanced product cards with more information
-- Better error handling throughout application
-- Optimized batch expiry calculations
-
-### Fixed
-- Memory leaks in long-running sessions
-- Race conditions in batch updates
-- Incorrect inventory value calculations
-- Barcode scanner issues on some devices
-
----
-
-## [0.7.2] - 2026-01-10
-
-### Added
-- Categories Management (create, edit, delete categories)
-- Suppliers Management (create, edit, delete suppliers)
-- Category and supplier assignment to products
-- Category-based filtering in product list
-- Supplier-based filtering in product list
-
-### Changed
-- Product form now includes category and supplier dropdowns
-- Dashboard statistics now include category breakdown
-- Improved data model with foreign key relationships
-
----
-
-## [0.7.1] - 2026-01-08
-
-### Added
-- Database Migration System
-  - Sequential migration runner
-  - Automatic schema versioning
-  - Migration rollback support
-  - Migration status tracking
-  - Automatic backups before migrations
-
-- Update Channel System
-  - Stable channel (main branch, tested releases)
-  - Beta channel (beta branch, latest features)
-  - Channel switching from UI
-  - Version checking from GitHub
-  - Update notifications
-
-### Changed
-- Modularized database initialization
-- Improved backup system with channel-specific naming
-- Enhanced error handling in database operations
-
----
-
-## [0.7.0] - 2026-01-05
-
-### Added - Foundation Features
-- **FIFO/FEFO Batch Suggestions**
-  - Smart batch suggestions based on expiry date (FEFO)
-  - Fallback to oldest batch first (FIFO)
-  - Urgency indicators (expired, urgent, soon, normal)
-  - Visual warnings for expiring batches
-
-- **Quick Actions**
-  - Quick add batch from product card
-  - Quick adjust quantity
-  - Quick delete with confirmation
-  - Keyboard-accessible quick actions
-
-- **Bulk Operations**
-  - Select multiple products
-  - Bulk delete products
-  - Bulk category assignment
-  - Bulk export to CSV
-
-- **Barcode Scanning**
-  - QuaggaJS integration
-  - Camera-based barcode scanning
-  - Manual barcode entry fallback
-  - Automatic product lookup by barcode
-  - Barcode assignment to products
-
-- **Dashboard Enhancements**
-  - Real-time statistics (total products, batches, inventory value)
-  - Expiring soon alerts (next 7 days)
-  - Low stock alerts
-  - Recent activity feed
-  - Quick action buttons
-
----
-
-## [0.6.0] - 2026-01-01
-
-### Added - Core Features
-- Product Management
-  - Create, read, update, delete products
-  - Product details (name, barcode, brand, supplier, category)
-  - Items per case and cost per case
-  - Product notes
-
-- Batch/Lot Management
-  - Create batches for products
-  - Track case quantity and total quantity
-  - Expiry date tracking
-  - Storage location
-  - Batch notes
-
-- Inventory Operations
-  - Add new inventory batches
-  - Adjust batch quantities
-  - Remove empty batches
-  - View batch history
-
-- CSV Import/Export
-  - Export products to CSV
-  - Export batches to CSV
-  - Import products from CSV
-  - Field mapping for imports
-
-- Search and Filtering
-  - Search products by name, barcode, or brand
-  - Filter by category
-  - Filter by supplier
-  - Sort by various fields
-
-- User Interface
-  - Responsive design (mobile, tablet, desktop)
-  - Clean and intuitive layout
-  - Modal dialogs for forms
-  - Toast notifications
-  - Loading states
-
----
-
-## [0.5.0] - 2025-12-20
-
-### Added - Beta Release
-- Initial beta release
-- SQLite database setup
-- Express.js server
-- Basic product CRUD operations
-- Simple inventory tracking
-- Basic web UI
+- Reports & Analytics
+- Activity Logging System
+- Reorder Point System
+- Product Favorites
+- Dark Mode
+- Keyboard Shortcuts
+- Performance Optimization
 
 ---
 
@@ -756,8 +621,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **b**: Beta (feature complete, testing)
 - **rc**: Release candidate (production ready, final testing)
 
-**Current**: v0.8.4a (Alpha - Sprint 3 Phase 1 Complete)
-**Next**: v0.8.4a (Sprint 3 Phases 2-4 - Password Policies, Security, Audit)
+**Current**: v0.9.0-beta (Sprint 3 Complete - Enhanced Security)
+**Next**: v0.9.x (Sprint 4 - Database & Reliability)
 **Target**: v1.0.0 (Production Ready)
 
 ---
