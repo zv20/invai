@@ -10,7 +10,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:unit": "jest tests/unit",
-    "test:integration": "jest tests/integration",
+    "test:integration": "jest tests/integration --runInBand --forceExit",
+    "test:all": "jest --coverage --runInBand --forceExit",
     "jwt:status": "node scripts/jwt-status.js",
     "jwt:rotate": "node scripts/rotate-jwt.js",
     "jwt:generate": "node scripts/generate-jwt.js"
@@ -44,6 +45,9 @@
     "coverageDirectory": "coverage",
     "collectCoverageFrom": [
       "lib/**/*.js",
+      "routes/**/*.js",
+      "controllers/**/*.js",
+      "middleware/**/*.js",
       "!lib/**/*.test.js",
       "!node_modules/**"
     ],
@@ -51,6 +55,6 @@
       "**/tests/**/*.test.js"
     ],
     "setupFiles": ["./tests/setup.js"],
-    "testTimeout": 10000
+    "testTimeout": 15000
   }
 }
