@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - InvAI</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .user-grid {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .user-card {
+            background: var(--card-bg, #fff);
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 8px;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: box-shadow 0.2s;
+        }
+        
+        .user-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .user-info h3 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-color, #333);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .user-meta {
+            display: flex;
+            gap: 1rem;
+            color: var(--text-muted, #666);
+            font-size: 0.9rem;
+            flex-wrap: wrap;
+        }
+        
+        .user-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .role-owner { background: #ff6b6b; color: white; }
+        .role-admin { background: #ff6b6b; color: white; }
+        .role-manager { background: #4ecdc4; color: white; }
+        .role-staff { background: #45b7d1; color: white; }
+        .role-viewer { background: #95a5a6; color: white; }
+        
+        .status-active { color: #27ae60; font-weight: 500; }
+        .status-inactive { color: #e74c3c; font-weight: 500; }
+        
+        .user-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .filters input,
+        .filters select {
+            padding: 0.5rem;
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .filters input {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+            animation: fadeIn 0.2s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            background-color: var(--card-bg, #fff);
+            margin: 5% auto;
+            padding: 2rem;
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            animation: slideDown 0.3s;
+        }
+        
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-color, #333);
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+        
+        .pagination {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            margin-top: 2rem;
+        }
+        
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #229954;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted, #666);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👥 User Management</h1>
+            <div class="header-actions">
+                <button onclick="showCreateModal()" class="btn btn-primary">+ Add User</button>
+                <a href="/dashboard.html" class="btn btn-secondary">← Dashboard</a>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <input type="search" id="searchInput" placeholder="Search by username or email..." onkeyup="filterUsers()">
+            <select id="roleFilter" onchange="filterUsers()">
+                <option value="">All Roles</option>
+                <option value="owner">Owner</option>
+                <option value="manager">Manager</option>
+                <option value="staff">Staff</option>
+                <option value="viewer">Viewer</option>
+            </select>
+            <select id="statusFilter" onchange="filterUsers()">
+                <option value="">All Status</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select>
+        </div>
+
+        <!-- User List -->
+        <div id="userGrid" class="user-grid">
+            <div class="empty-state">
+                <p>Loading users...</p>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div id="pagination" class="pagination"></div>
+    </div>
+
+    <!-- Create/Edit User Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Add New User</h2>
+            <form id="userForm" onsubmit="saveUser(event)">
+                <input type="hidden" id="userId">
+                
+                <div class="form-group">
+                    <label for="username">Username*</label>
+                    <input type="text" id="username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email*</label>
+                    <input type="email" id="email" required>
+                </div>
+                
+                <div class="form-group" id="passwordGroup">
+                    <label for="password">Password* (min 6 characters)</label>
+                    <input type="password" id="password" minlength="6">
+                </div>
+                
+                <div class="form-group">
+                    <label for="role">Role*</label>
+                    <select id="role" required>
+                        <option value="viewer">Viewer (Read-only)</option>
+                        <option value="staff">Staff (Create/Edit products)</option>
+                        <option value="manager">Manager (Reports & Management)</option>
+                        <option value="owner">Owner (Full Access)</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" onclick="closeModal()" class="btn btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/core.js"></script>
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        
+        // Check if user has permission to view this page
+        async function checkPermissions() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            // Decode token to check role
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.role !== 'owner' && payload.role !== 'admin') {
+                    alert('⚠️ You do not have permission to access this page');
+                    window.location.href = '/dashboard.html';
+                    return;
+                }
+            } catch (e) {
+                console.error('Error checking permissions:', e);
+                window.location.href = '/login.html';
+            }
+        }
+        
+        // Load users
+        async function loadUsers(page = 1) {
+            try {
+                const search = document.getElementById('searchInput').value;
+                const role = document.getElementById('roleFilter').value;
+                const is_active = document.getElementById('statusFilter').value;
+                
+                const params = new URLSearchParams({
+                    page,
+                    limit: 20,
+                    ...(search && { search }),
+                    ...(role && { role }),
+                    ...(is_active && { is_active })
+                });
+                
+                const response = await authFetch(`/api/users?${params}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load users');
+                }
+                
+                const result = await response.json();
+                displayUsers(result.data.users);
+                updatePagination(result.data.pagination);
+                
+                currentPage = result.data.pagination.page;
+                totalPages = result.data.pagination.pages;
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('userGrid').innerHTML = `
+                    <div class="empty-state">
+                        <p>⚠️ Failed to load users</p>
+                        <p style="font-size: 0.9rem; color: #666;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Display users
+        function displayUsers(users) {
+            const grid = document.getElementById('userGrid');
+            
+            if (users.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><p>No users found</p></div>';
+                return;
+            }
+            
+            grid.innerHTML = users.map(user => `
+                <div class="user-card">
+                    <div class="user-info">
+                        <h3>
+                            ${escapeHtml(user.username)}
+                            <span class="user-badge role-${user.role}">${user.role}</span>
+                        </h3>
+                        <div class="user-meta">
+                            <span>📧 ${escapeHtml(user.email)}</span>
+                            <span class="status-${user.is_active ? 'active' : 'inactive'}">
+                                ${user.is_active ? '✓ Active' : '✗ Inactive'}
+                            </span>
+                            ${user.last_login ? `<span>Last login: ${new Date(user.last_login).toLocaleDateString()}</span>` : '<span>🆕 Never logged in</span>'}
+                        </div>
+                    </div>
+                    <div class="user-actions">
+                        <button onclick="editUser(${user.id})" class="btn btn-sm btn-secondary">Edit</button>
+                        <button onclick="resetPassword(${user.id}, '${escapeHtml(user.username)}')" class="btn btn-sm btn-secondary">Reset Password</button>
+                        ${user.is_active ? 
+                            `<button onclick="deactivateUser(${user.id}, '${escapeHtml(user.username)}')" class="btn btn-sm btn-danger">Deactivate</button>` :
+                            `<button onclick="activateUser(${user.id}, '${escapeHtml(user.username)}')" class="btn btn-sm btn-success">Activate</button>`
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Pagination
+        function updatePagination(pagination) {
+            const paginationDiv = document.getElementById('pagination');
+            
+            if (pagination.pages <= 1) {
+                paginationDiv.innerHTML = '';
+                return;
+            }
+            
+            let html = '';
+            
+            if (pagination.page > 1) {
+                html += `<button class="btn btn-secondary" onclick="loadUsers(${pagination.page - 1})">Previous</button>`;
+            }
+            
+            html += `<span>Page ${pagination.page} of ${pagination.pages} (${pagination.total} users)</span>`;
+            
+            if (pagination.page < pagination.pages) {
+                html += `<button class="btn btn-secondary" onclick="loadUsers(${pagination.page + 1})">Next</button>`;
+            }
+            
+            paginationDiv.innerHTML = html;
+        }
+        
+        // Filter users
+        function filterUsers() {
+            loadUsers(1);
+        }
+        
+        // Show create modal
+        function showCreateModal() {
+            document.getElementById('modalTitle').textContent = 'Add New User';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('passwordGroup').style.display = 'block';
+            document.getElementById('password').required = true;
+            document.getElementById('username').readOnly = false;
+            document.getElementById('userModal').style.display = 'block';
+        }
+        
+        // Edit user
+        async function editUser(userId) {
+            try {
+                const response = await authFetch(`/api/users/${userId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user');
+                }
+                
+                const result = await response.json();
+                const user = result.data;
+                
+                document.getElementById('modalTitle').textContent = 'Edit User';
+                document.getElementById('userId').value = user.id;
+                document.getElementById('username').value = user.username;
+                document.getElementById('username').readOnly = true;
+                document.getElementById('email').value = user.email;
+                document.getElementById('role').value = user.role;
+                document.getElementById('passwordGroup').style.display = 'none';
+                document.getElementById('password').required = false;
+                document.getElementById('userModal').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading user:', error);
+                alert('⚠️ Failed to load user details');
+            }
+        }
+        
+        // Save user
+        async function saveUser(event) {
+            event.preventDefault();
+            
+            const userId = document.getElementById('userId').value;
+            const isEdit = !!userId;
+            
+            const data = {
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
+                role: document.getElementById('role').value
+            };
+            
+            if (!isEdit) {
+                data.password = document.getElementById('password').value;
+            }
+            
+            try {
+                const response = await authFetch(
+                    isEdit ? `/api/users/${userId}` : '/api/users',
+                    {
+                        method: isEdit ? 'PUT' : 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    }
+                );
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || 'Failed to save user');
+                }
+                
+                alert(`✅ User ${isEdit ? 'updated' : 'created'} successfully`);
+                closeModal();
+                loadUsers(currentPage);
+            } catch (error) {
+                console.error('Error saving user:', error);
+                alert(`⚠️ Failed to ${isEdit ? 'update' : 'create'} user: ${error.message}`);
+            }
+        }
+        
+        // Reset password
+        async function resetPassword(userId, username) {
+            const newPassword = prompt(`Enter new password for ${username} (minimum 6 characters):`);
+            if (!newPassword) return;
+            
+            if (newPassword.length < 6) {
+                alert('⚠️ Password must be at least 6 characters');
+                return;
+            }
+            
+            try {
+                const response = await authFetch(`/api/users/${userId}/password`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newPassword })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || 'Failed to reset password');
+                }
+                
+                alert(`✅ Password reset successfully for ${username}`);
+            } catch (error) {
+                console.error('Error resetting password:', error);
+                alert(`⚠️ Failed to reset password: ${error.message}`);
+            }
+        }
+        
+        // Deactivate user
+        async function deactivateUser(userId, username) {
+            if (!confirm(`Are you sure you want to deactivate ${username}?`)) return;
+            
+            try {
+                const response = await authFetch(`/api/users/${userId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || 'Failed to deactivate user');
+                }
+                
+                alert(`✅ User ${username} deactivated successfully`);
+                loadUsers(currentPage);
+            } catch (error) {
+                console.error('Error deactivating user:', error);
+                alert(`⚠️ Failed to deactivate user: ${error.message}`);
+            }
+        }
+        
+        // Activate user
+        async function activateUser(userId, username) {
+            try {
+                const response = await authFetch(`/api/users/${userId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: true })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || 'Failed to activate user');
+                }
+                
+                alert(`✅ User ${username} activated successfully`);
+                loadUsers(currentPage);
+            } catch (error) {
+                console.error('Error activating user:', error);
+                alert(`⚠️ Failed to activate user: ${error.message}`);
+            }
+        }
+        
+        // Close modal
+        function closeModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('userModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initialize
+        checkPermissions();
+        loadUsers();
+    </script>
+</body>
+</html>
