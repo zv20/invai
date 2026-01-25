@@ -1,6 +1,6 @@
 /**
  * Authentication Routes
- * Handles user login, logout, token refresh, password changes, and session management
+ * Handles user registration, login, logout, token refresh, password changes, and session management
  */
 
 const express = require('express');
@@ -45,6 +45,123 @@ module.exports = (db, logger) => {
       csrfToken: token
     });
   });
+  
+  /**
+   * POST /api/auth/register
+   * Register the first user (becomes owner)
+   * PUBLIC endpoint - only works if no users exist
+   */
+  router.post('/register', asyncHandler(async (req, res) => {
+    const { username, email, password } = req.body;
+    
+    // Validation
+    if (!username || !email || !password) {
+      return res.status(400).json({ 
+        success: false,
+        error: {
+          message: 'Username, email, and password are required',
+          code: 'MISSING_FIELDS',
+          statusCode: 400
+        }
+      });
+    }
+    
+    // Check if any users exist
+    const userCount = await db.get('SELECT COUNT(*) as count FROM users');
+    
+    if (userCount.count > 0) {
+      return res.status(403).json({ 
+        success: false,
+        error: {
+          message: 'Registration is closed. Users already exist.',
+          code: 'REGISTRATION_CLOSED',
+          statusCode: 403
+        }
+      });
+    }
+    
+    // Validate username
+    if (username.length < 3 || username.length > 20) {
+      return res.status(400).json({ 
+        success: false,
+        error: {
+          message: 'Username must be between 3 and 20 characters',
+          code: 'INVALID_USERNAME',
+          statusCode: 400
+        }
+      });
+    }
+    
+    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+      return res.status(400).json({ 
+        success: false,
+        error: {
+          message: 'Username can only contain letters, numbers, underscores, and hyphens',
+          code: 'INVALID_USERNAME',
+          statusCode: 400
+        }
+      });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        success: false,
+        error: {
+          message: 'Invalid email format',
+          code: 'INVALID_EMAIL',
+          statusCode: 400
+        }
+      });
+    }
+    
+    // Validate password complexity
+    const validation = passwordValidator.validatePasswordComplexity(password);
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        success: false,
+        error: {
+          message: 'Password does not meet complexity requirements',
+          code: 'WEAK_PASSWORD',
+          statusCode: 400,
+          details: validation.errors
+        }
+      });
+    }
+    
+    // Hash password
+    const hash = await bcrypt.hash(password, 10);
+    
+    // Create first user with owner role
+    const result = await db.run(
+      `INSERT INTO users (username, email, password, role, password_changed_at, is_active) 
+       VALUES (?, ?, ?, 'owner', CURRENT_TIMESTAMP, 1)`,
+      [username, email, hash]
+    );
+    
+    const userId = result.lastID;
+    
+    // Add password to history
+    await passwordValidator.addPasswordToHistory(userId, hash);
+    
+    logger.info(`First user registered: ${username}`, {
+      userId,
+      email,
+      role: 'owner'
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'Account created successfully. Please log in.',
+      user: {
+        id: userId,
+        username,
+        email,
+        role: 'owner'
+      }
+    });
+  }));
   
   /**
    * POST /api/auth/login
