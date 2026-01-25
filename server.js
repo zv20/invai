@@ -35,6 +35,7 @@ const Database = require('./utils/db');
 const { errorHandler } = require('./middleware/errorHandler');
 const asyncHandler = require('./middleware/asyncHandler');
 const { authenticate, authorize } = require('./middleware/auth');
+const accountLockout = require('./utils/accountLockout');
 
 // Core route modules
 const productRoutes = require('./routes/products');
@@ -185,9 +186,13 @@ sqliteDb = new sqlite3.Database('./inventory.db', async (err) => {
     activityLogger = new ActivityLogger(sqliteDb);
     csvExporter = new CSVExporter(sqliteDb);
     
+    // Start account lockout cleanup scheduler
+    accountLockout.startCleanupSchedule();
+    
     logger.info('Activity logger and CSV exporter initialized');
     console.log('✓ Async database wrapper active');
     console.log('✓ Activity logger and CSV exporter initialized');
+    console.log('✓ Account lockout cleanup scheduler started');
     
     registerRoutes();
   }
@@ -205,7 +210,7 @@ function registerRoutes() {
   // ==============================================
   // USER MANAGEMENT (ADMIN ONLY)
   // ==============================================
-  app.use('/api/users', userRoutes(db, logger));
+  app.use('/api/users', userRoutes(db, activityLogger));
 
   // ==============================================
   // CORE API ROUTES (PROTECTED)
