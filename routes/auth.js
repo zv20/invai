@@ -9,8 +9,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('../middleware/asyncHandler');
 const { authenticate } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/permissions');
 const { validateSession } = require('../middleware/session');
 const sessionManager = require('../utils/sessionManager');
+const passwordValidator = require('../utils/passwordValidator');
+const accountLockout = require('../utils/accountLockout');
 
 module.exports = (db, logger) => {
   
@@ -20,6 +23,7 @@ module.exports = (db, logger) => {
   /**
    * POST /api/auth/login
    * Authenticates user and returns JWT token with session
+   * Includes account lockout protection and login attempt tracking
    */
   router.post('/login', asyncHandler(async (req, res) => {
     const { username, password } = req.body;
@@ -35,6 +39,29 @@ module.exports = (db, logger) => {
       });
     }
     
+    // Get client IP and user agent
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('user-agent');
+    
+    // Check if account is locked
+    const lockStatus = await accountLockout.isAccountLocked(username, ipAddress);
+    if (lockStatus.locked) {
+      // Record failed attempt due to lockout
+      await accountLockout.recordLoginAttempt(username, ipAddress, false, userAgent);
+      
+      const minutes = Math.ceil(lockStatus.remainingTime / 60);
+      return res.status(423).json({ 
+        success: false,
+        error: {
+          message: `Account is locked due to multiple failed login attempts. Try again in ${minutes} minute(s).`,
+          code: 'ACCOUNT_LOCKED',
+          statusCode: 423,
+          remainingTime: lockStatus.remainingTime,
+          unlocksAt: lockStatus.unlocksAt
+        }
+      });
+    }
+    
     // Get user from database
     const user = await db.get(
       'SELECT * FROM users WHERE username = ? AND is_active = 1',
@@ -42,6 +69,9 @@ module.exports = (db, logger) => {
     );
     
     if (!user) {
+      // Record failed attempt
+      await accountLockout.recordLoginAttempt(username, ipAddress, false, userAgent);
+      
       return res.status(401).json({ 
         success: false,
         error: {
@@ -56,6 +86,9 @@ module.exports = (db, logger) => {
     const match = await bcrypt.compare(password, user.password);
     
     if (!match) {
+      // Record failed attempt
+      await accountLockout.recordLoginAttempt(username, ipAddress, false, userAgent);
+      
       return res.status(401).json({ 
         success: false,
         error: {
@@ -66,9 +99,29 @@ module.exports = (db, logger) => {
       });
     }
     
-    // Get client IP and user agent
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('user-agent');
+    // Successful login - record it and reset failed attempts
+    await accountLockout.recordLoginAttempt(username, ipAddress, true, userAgent);
+    await accountLockout.resetFailedAttempts(username);
+    
+    // Check password expiration
+    let passwordExpired = false;
+    let passwordWarning = false;
+    let daysUntilExpiration = null;
+    
+    if (user.password_changed_at) {
+      const passwordChangedDate = new Date(user.password_changed_at);
+      const now = new Date();
+      const daysSinceChange = Math.floor((now - passwordChangedDate) / (1000 * 60 * 60 * 24));
+      const expirationDays = 90; // From config
+      
+      daysUntilExpiration = expirationDays - daysSinceChange;
+      
+      if (daysUntilExpiration <= 0) {
+        passwordExpired = true;
+      } else if (daysUntilExpiration <= 14) {
+        passwordWarning = true;
+      }
+    }
     
     // Create session in database
     const sessionId = await sessionManager.createSession(
@@ -101,7 +154,7 @@ module.exports = (db, logger) => {
       sessionId: sessionId.substring(0, 8) + '...'
     });
     
-    res.json({
+    const response = {
       success: true,
       token,
       user: {
@@ -110,7 +163,24 @@ module.exports = (db, logger) => {
         email: user.email,
         role: user.role
       }
-    });
+    };
+    
+    // Add password status if warning or expired
+    if (passwordExpired) {
+      response.passwordStatus = {
+        expired: true,
+        requiresChange: true,
+        message: 'Your password has expired. Please change it immediately.'
+      };
+    } else if (passwordWarning) {
+      response.passwordStatus = {
+        warning: true,
+        daysRemaining: daysUntilExpiration,
+        message: `Your password will expire in ${daysUntilExpiration} day(s). Please change it soon.`
+      };
+    }
+    
+    res.json(response);
   }));
   
   /**
@@ -144,6 +214,7 @@ module.exports = (db, logger) => {
   /**
    * POST /api/auth/change-password
    * Allows authenticated users to change their password
+   * Includes password complexity validation and history checking
    */
   router.post('/change-password', authenticate, validateSession, asyncHandler(async (req, res) => {
     const { currentPassword, newPassword } = req.body;
@@ -159,13 +230,16 @@ module.exports = (db, logger) => {
       });
     }
     
-    if (newPassword.length < 6) {
+    // Validate password complexity
+    const validation = passwordValidator.validatePasswordComplexity(newPassword);
+    if (!validation.valid) {
       return res.status(400).json({ 
         success: false,
         error: {
-          message: 'New password must be at least 6 characters',
-          code: 'PASSWORD_TOO_SHORT',
-          statusCode: 400
+          message: 'Password does not meet complexity requirements',
+          code: 'WEAK_PASSWORD',
+          statusCode: 400,
+          details: validation.errors
         }
       });
     }
@@ -198,14 +272,30 @@ module.exports = (db, logger) => {
       });
     }
     
+    // Check password history
+    const inHistory = await passwordValidator.isPasswordInHistory(req.user.id, newPassword);
+    if (inHistory) {
+      return res.status(400).json({ 
+        success: false,
+        error: {
+          message: 'Password has been used recently. Please choose a different password.',
+          code: 'PASSWORD_REUSED',
+          statusCode: 400
+        }
+      });
+    }
+    
     // Hash new password
     const hash = await bcrypt.hash(newPassword, 10);
     
-    // Update password
+    // Update password and password_changed_at timestamp
     await db.run(
-      'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE users SET password = ?, password_changed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [hash, req.user.id]
     );
+    
+    // Add password to history
+    await passwordValidator.addPasswordToHistory(req.user.id, hash);
     
     logger.info(`Password changed for user: ${user.username}`);
     
@@ -215,6 +305,116 @@ module.exports = (db, logger) => {
     res.json({ 
       success: true,
       message: 'Password changed successfully. Other sessions have been logged out.' 
+    });
+  }));
+  
+  /**
+   * GET /api/auth/password-status
+   * Check current user's password expiration status
+   */
+  router.get('/password-status', authenticate, validateSession, asyncHandler(async (req, res) => {
+    const user = await db.get(
+      'SELECT password_changed_at FROM users WHERE id = ?',
+      [req.user.id]
+    );
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        error: {
+          message: 'User not found',
+          code: 'USER_NOT_FOUND',
+          statusCode: 404
+        }
+      });
+    }
+    
+    let status = {
+      expired: false,
+      requiresChange: false,
+      warning: false,
+      daysRemaining: null,
+      lastChanged: user.password_changed_at,
+      expirationDate: null
+    };
+    
+    if (user.password_changed_at) {
+      const passwordChangedDate = new Date(user.password_changed_at);
+      const now = new Date();
+      const daysSinceChange = Math.floor((now - passwordChangedDate) / (1000 * 60 * 60 * 24));
+      const expirationDays = 90; // From config
+      
+      status.daysRemaining = expirationDays - daysSinceChange;
+      
+      const expirationDate = new Date(passwordChangedDate);
+      expirationDate.setDate(expirationDate.getDate() + expirationDays);
+      status.expirationDate = expirationDate.toISOString();
+      
+      if (status.daysRemaining <= 0) {
+        status.expired = true;
+        status.requiresChange = true;
+      } else if (status.daysRemaining <= 14) {
+        status.warning = true;
+      }
+    } else {
+      // No password_changed_at set - treat as never changed
+      status.warning = true;
+      status.daysRemaining = 0;
+    }
+    
+    res.json({
+      success: true,
+      data: status
+    });
+  }));
+  
+  /**
+   * POST /api/auth/unlock/:userId
+   * Unlock a locked user account (admin only)
+   */
+  router.post('/unlock/:userId', authenticate, requirePermission('users:update'), asyncHandler(async (req, res) => {
+    const userId = parseInt(req.params.userId);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid user ID',
+          code: 'INVALID_USER_ID',
+          statusCode: 400
+        }
+      });
+    }
+    
+    // Check if user exists
+    const user = await db.get('SELECT id, username, account_locked FROM users WHERE id = ?', [userId]);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'User not found',
+          code: 'USER_NOT_FOUND',
+          statusCode: 404
+        }
+      });
+    }
+    
+    // Unlock the account
+    await accountLockout.unlockAccountById(userId);
+    
+    // Reset failed attempts
+    await accountLockout.resetFailedAttempts(user.username);
+    
+    logger.info(`Account unlocked by admin`, {
+      adminUsername: req.user.username,
+      unlockedUserId: userId,
+      unlockedUsername: user.username
+    });
+    
+    res.json({
+      success: true,
+      message: `Account for user "${user.username}" has been unlocked successfully.`
     });
   }));
   
