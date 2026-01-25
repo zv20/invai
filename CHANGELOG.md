@@ -7,17 +7,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for Sprint 2 (v0.8.3a)
-- User registration and management UI
-- Role-based access control (Owner, Manager, Staff, View-only)
+### Planned for Sprint 2 Continuation (v0.8.3a)
+- User management UI (create, edit, delete users)
+- Role assignment interface (assign roles to users)
+- User profile management page
 - Enhanced authentication with password policies
-- User profile management
+- User-specific settings and preferences
 - Enhanced audit trail with user tracking
 - Security hardening (CSRF, XSS, rate limiting)
 
 ---
 
 ## [0.8.2a] - 2026-01-25
+
+### Added - Sprint 2 Phase 1: RBAC Implementation
+- **Role-Based Access Control (RBAC) System**
+  - 4-role permission system: Owner, Manager, Staff, View-Only
+  - Granular permissions for all resources (products, batches, reports, users, settings)
+  - Permission middleware (`middleware/permissions.js`) with 7 exported functions
+  - `hasPermission(role, permission)` - Check if role has specific permission
+  - `requirePermission(permission)` - Express middleware to enforce permission
+  - `requireAllPermissions(...permissions)` - Require user has all permissions
+  - `requireAnyPermission(...permissions)` - Require user has at least one permission
+  - `getRolePermissions(role)` - Get all permissions for a role
+  - Backward compatibility for legacy 'admin' role (mapped to 'owner')
+
+- **Permission Matrix**
+  | Action | Owner | Manager | Staff | Viewer |
+  |--------|-------|---------|-------|--------|
+  | View data | ✅ | ✅ | ✅ | ✅ |
+  | Create/Update items | ✅ | ✅ | ✅ | ❌ |
+  | Delete items | ✅ | ✅ | ❌ | ❌ |
+  | View cost data | ✅ | ✅ | ❌ | ❌ |
+  | Export reports | ✅ | ✅ | ❌ | ❌ |
+  | Manage users | ✅ | ❌ | ❌ | ❌ |
+  | Manage settings | ✅ | ❌ | ❌ | ❌ |
+
+- **Protected API Routes**
+  - Products API: `requirePermission('products:view|create|update|delete')`
+  - Batches API: `requirePermission('batches:view|create|update|delete')`
+  - Reports API: `requirePermission('reports:view|view_costs|export')`
+  - All sensitive endpoints now protected by RBAC middleware
+  - Proper 401 (unauthorized) and 403 (forbidden) responses
+
+- **RBAC Testing**
+  - 38 unit tests for permission logic (100% coverage)
+    - Product permissions (4 tests)
+    - Batch permissions (4 tests)
+    - Report permissions (3 tests)
+    - User management permissions (1 test)
+    - Settings permissions (1 test)
+    - Activity log permissions (2 tests)
+    - Profile permissions (1 test)
+    - Edge cases (4 tests)
+    - Middleware tests (18 tests)
+  - 24 integration tests for route protection
+    - Products API with different roles (15 tests)
+    - Batches API with different roles (9 tests)
+  - Edge case testing (null roles, unknown permissions)
+  - Backward compatibility tests for admin role
+
+### Changed
+- Updated routes to use RBAC middleware:
+  - `routes/products.js` - All endpoints protected
+  - `routes/batches.js` - All endpoints protected
+  - `routes/reports.js` - All endpoints protected
+- Enhanced error responses with permission details
+- Improved authentication middleware to work with RBAC
+
+### Fixed
+- Permission checks now properly handle legacy 'admin' role
+- Consistent error responses across all protected routes
+- Proper HTTP status codes (401 vs 403) for auth failures
+
+### Testing
+- **Total Tests**: 62 (38 RBAC unit + 24 integration)
+- **RBAC Coverage**: 100% (middleware fully tested)
+- **Integration Tests**: All routes properly protected
+- **All tests passing**: ✅
+
+### Documentation
+- Added inline documentation for all permission functions
+- Documented permission matrix in code comments
+- Updated roadmap to reflect RBAC completion
+
+---
 
 ### Added - Sprint 1 Week 2: Integration Tests & CI/CD
 - **Integration Testing Framework**
@@ -335,7 +409,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **b**: Beta (feature complete, testing)
 - **rc**: Release candidate (production ready, final testing)
 
-**Current**: v0.8.2a (Alpha - Active Development)
+**Current**: v0.8.2a (Alpha - Active Development, Sprint 2 50% complete)
 **Target**: v1.0.0 (Production Ready)
 
 ---
