@@ -19,7 +19,7 @@ This roadmap outlines the transformation from beta to production-ready inventory
 | Phase | Version | Timeline | Status | Focus |
 |-------|---------|----------|--------|-------|
 | **Sprint 1** | v0.8.1a-0.8.2a | Week 1-2 | ✅ Complete | Testing Infrastructure |
-| **Sprint 2** | v0.8.3a | Week 3-4 | 📋 Next | User Auth & RBAC |
+| **Sprint 2** | v0.8.3a | Week 3-4 | 🔄 In Progress (50%) | User Auth & RBAC |
 | **Phase 1** | v0.8.x | Months 1-3 | 🔄 In Progress | Production Essentials |
 | **Phase 2** | v0.9.x | Months 4-5 | 📋 Planned | Business Intelligence |
 | **Phase 3** | v0.10.x | Months 6-7 | 📋 Planned | Operational Excellence |
@@ -64,13 +64,84 @@ This roadmap outlines the transformation from beta to production-ready inventory
 
 ---
 
-## Sprint 2: User Authentication & RBAC (v0.8.3a) - NEXT
-**Status**: 📋 Planned  
+## Sprint 2: User Authentication & RBAC (v0.8.3a) - IN PROGRESS (50%)
+**Status**: 🔄 In Progress  
+**Started**: January 25, 2026  
 **Target**: February 8, 2026  
 **Focus**: Multi-user security & role-based permissions
 
-### User Authentication System
-- [ ] User registration endpoint with validation
+### Role-Based Access Control (RBAC) ✅ COMPLETE
+**Completed**: January 25, 2026
+
+- [x] **Permission Middleware** (`middleware/permissions.js`)
+  - [x] 4-role system: Owner, Manager, Staff, View-Only
+  - [x] Granular permissions (products, batches, reports, users, settings)
+  - [x] Permission checking functions (hasPermission, requirePermission)
+  - [x] Multi-permission helpers (requireAll, requireAny)
+  - [x] Backward compatibility for legacy 'admin' role
+  - [x] Role permission listing (getRolePermissions)
+
+- [x] **Protected API Routes**
+  - [x] Products API (view/create/update/delete)
+  - [x] Batches API (view/create/update/delete)
+  - [x] Reports API (basic/costs/export)
+  - [x] Permission enforcement on all sensitive endpoints
+
+- [x] **RBAC Testing**
+  - [x] 38 unit tests for permission logic (100% coverage)
+  - [x] 24 integration tests for route protection
+  - [x] Backward compatibility tests
+  - [x] Edge case coverage
+
+**Permission Matrix**:
+| Action | Owner | Manager | Staff | Viewer |
+|--------|-------|---------|-------|--------|
+| View data | ✅ | ✅ | ✅ | ✅ |
+| Create/Update | ✅ | ✅ | ✅ | ❌ |
+| Delete | ✅ | ✅ | ❌ | ❌ |
+| View costs | ✅ | ✅ | ❌ | ❌ |
+| Export reports | ✅ | ✅ | ❌ | ❌ |
+| Manage users | ✅ | ❌ | ❌ | ❌ |
+
+**Current Test Count**: 62 passing (38 RBAC unit + 24 integration)
+
+---
+
+### User Management System - NEXT
+**Status**: 📋 Next Sprint  
+**Priority**: P0
+
+- [ ] **User CRUD Operations**
+  - [ ] Create user endpoint with role assignment
+  - [ ] Update user (profile, role, status)
+  - [ ] Delete/deactivate user
+  - [ ] List users with filtering
+  - [ ] User search functionality
+
+- [ ] **User Management UI**
+  - [ ] User list page with role badges
+  - [ ] Create/edit user form
+  - [ ] Role selection dropdown
+  - [ ] User activation toggle
+  - [ ] Password reset by admin
+  - [ ] User profile page
+
+- [ ] **Role Assignment**
+  - [ ] Owner can assign any role
+  - [ ] Validation: At least one owner must exist
+  - [ ] Role change audit logging
+  - [ ] UI conditional rendering based on role
+
+- [ ] **Enhanced User Features**
+  - [ ] User registration endpoint (optional)
+  - [ ] Email field for users
+  - [ ] Last login tracking
+  - [ ] Account status (active/inactive)
+  - [ ] User-specific settings
+
+### User Authentication System - PLANNED
+**Status**: 📋 Planned for Sprint 3
+
 - [ ] Enhanced login with session tracking
 - [ ] Password complexity enforcement
 - [ ] Password reset flow (email-based)
@@ -78,25 +149,9 @@ This roadmap outlines the transformation from beta to production-ready inventory
 - [ ] Session timeout configuration
 - [ ] Remember me functionality
 
-### Role-Based Access Control (RBAC)
-- [ ] **Owner Role**: Full system access, user management, all settings
-- [ ] **Manager Role**: Inventory operations, reports, limited settings (no user management)
-- [ ] **Staff Role**: Add/edit inventory, basic operations (no settings)
-- [ ] **View-Only Role**: Read-only access to inventory and reports
-- [ ] Permission middleware for all API routes
-- [ ] UI elements conditional on role
-- [ ] Role assignment and management interface
+### Enhanced Audit Trail - PLANNED
+**Status**: 📋 Planned for Sprint 3
 
-### User Management UI
-- [ ] User list page with filtering
-- [ ] Create/edit user form
-- [ ] User profile page
-- [ ] Change own password
-- [ ] Admin: Reset user passwords
-- [ ] Admin: Activate/deactivate users
-- [ ] User activity dashboard
-
-### Enhanced Audit Trail
 - [ ] Link all activity log entries to users
 - [ ] Login/logout event tracking
 - [ ] Failed login attempt logging
@@ -104,7 +159,9 @@ This roadmap outlines the transformation from beta to production-ready inventory
 - [ ] User action filtering in reports
 - [ ] User activity timeline
 
-### Security Features
+### Security Features - PLANNED
+**Status**: 📋 Planned for Sprint 4
+
 - [ ] Brute-force protection (rate limiting)
 - [ ] Account lockout after failed attempts
 - [ ] Session management and cleanup
@@ -113,27 +170,20 @@ This roadmap outlines the transformation from beta to production-ready inventory
 - [ ] XSS sanitization
 - [ ] Security headers (helmet.js)
 
-### Database Changes
+### Database Changes - PLANNED
+**Status**: 📋 Planned for Sprint 3
+
 - [ ] Enhance `users` table (add email, is_active, last_login)
 - [ ] Create `user_sessions` table
 - [ ] Add `user_id` to activity_log
-- [ ] Create `role_permissions` table
 - [ ] Migration 008: Enhanced user management
 
-### Testing
-- [ ] Unit tests for auth middleware
-- [ ] Unit tests for permission checks
-- [ ] Integration tests for user CRUD
-- [ ] Integration tests for role enforcement
-- [ ] Security testing (injection, XSS)
-- [ ] Target: 70%+ coverage
-
-**Acceptance Criteria**: Multi-user login working, all roles enforced, security audit passed, UI complete
+**Acceptance Criteria**: Multi-user creation working, roles assignable, UI complete, all tests passing
 
 ---
 
 ## Phase 1: Production Essentials (v0.8.x - Months 1-3)
-**Status**: 🔄 In Progress (20% complete)  
+**Status**: 🔄 In Progress (35% complete)  
 **Target**: April 2026  
 **Focus**: Testing, security, reliability
 
@@ -144,13 +194,14 @@ This roadmap outlines the transformation from beta to production-ready inventory
   - [x] Cache manager (100% coverage)
   - [x] Activity logger (87.5% coverage)
   - [x] CSV export (91.8% coverage)
-  - [x] 58 unit tests passing
+  - [x] RBAC permissions (100% coverage)
+  - [x] 96 unit tests passing
 
 - [x] **Integration Tests** ✅
   - [x] Authentication API (11 tests)
   - [x] Products API (15 tests)
-  - [x] Batches API (7 tests)
-  - [x] 33 integration tests passing
+  - [x] Batches API (9 tests)
+  - [x] 35 integration tests passing
 
 - [x] **Test Automation** ✅
   - [x] GitHub Actions CI pipeline
@@ -164,21 +215,40 @@ This roadmap outlines the transformation from beta to production-ready inventory
   - [x] Test database helpers
   - [x] Test user automation
 
-**Status**: ✅ Complete - 60% total coverage, all critical paths tested, CI/CD pipeline passing
+**Status**: ✅ Complete - 65% total coverage, all critical paths tested, CI/CD pipeline passing
 
 ---
 
-### 🔐 User Management & Security - HIGH (Sprint 2)
+### 🔐 User Management & Security - HIGH
 **Priority**: P0 (Blocker for production)  
-**Status**: 📋 Next Sprint
+**Status**: 🔄 50% Complete
 
-See Sprint 2 section above for details.
+- [x] **RBAC System** ✅
+  - [x] 4-role permission system
+  - [x] Permission middleware
+  - [x] Route protection
+  - [x] 38 unit tests + 24 integration tests
+  - [x] Backward compatibility
+
+- [ ] **User Management** (Sprint 2 continuation)
+  - [ ] User CRUD API
+  - [ ] Role assignment
+  - [ ] User management UI
+  - [ ] Profile management
+
+- [ ] **Enhanced Authentication** (Sprint 3)
+  - [ ] Session tracking
+  - [ ] Password policies
+  - [ ] Password reset
+  - [ ] Security features
+
+**Status**: 🔄 RBAC Complete, User Management Next
 
 ---
 
 ### 💾 Database Improvements - HIGH
 **Priority**: P1 (Required for scale)  
-**Status**: 📋 Planned for Sprint 3-4
+**Status**: 📋 Planned for Sprint 5-6
 
 - [ ] **PostgreSQL Support**
   - [ ] PostgreSQL adapter/driver setup
@@ -215,7 +285,7 @@ See Sprint 2 section above for details.
 
 ### 📋 Stock Take / Physical Inventory - HIGH
 **Priority**: P1 (Critical business feature)  
-**Status**: 📋 Planned for Sprint 5-6
+**Status**: 📋 Planned for Sprint 7-8
 
 - [ ] **Stock Count Mode**
   - [ ] Dedicated "Stock Take" page/mode
@@ -327,6 +397,15 @@ See Sprint 2 section above for details.
 
 ## ✅ Completed Features
 
+### v0.8.2a - Sprint 2 Phase 1: RBAC Implementation ✅ (January 25, 2026)
+- [x] RBAC permission middleware
+- [x] 4-role system (owner, manager, staff, viewer)
+- [x] Protected API routes (products, batches, reports)
+- [x] 38 RBAC unit tests (100% coverage)
+- [x] 24 integration tests for route protection
+- [x] Backward compatibility for admin role
+- [x] 62 total tests passing
+
 ### v0.8.2a - Sprint 1 Week 2: Integration Tests & CI/CD ✅ (January 25, 2026)
 - [x] Integration test framework (supertest)
 - [x] Authentication API tests (11 tests)
@@ -374,7 +453,7 @@ See Sprint 2 section above for details.
 ## 🎓 Success Criteria for v1.0.0
 
 ### Testing & Quality
-- [x] ✅ 60%+ test coverage (achieved 60%)
+- [x] ✅ 60%+ test coverage (achieved 65%)
 - [x] ✅ CI/CD pipeline passing
 - [ ] No critical bugs in issue tracker
 - [ ] Performance benchmarks met
@@ -382,7 +461,8 @@ See Sprint 2 section above for details.
 
 ### Features
 - [ ] All Phase 1-4 features complete
-- [ ] User management and RBAC working
+- [x] ✅ RBAC system working
+- [ ] User management and role assignment working
 - [ ] Multi-user tested in production
 - [ ] Mobile PWA functional
 - [ ] API documented and stable
@@ -400,18 +480,18 @@ See Sprint 2 section above for details.
 
 ### Overall Completion
 - **Sprint 1 (Testing)**: ✅ 100% Complete
-- **Sprint 2 (Auth & RBAC)**: 📋 0% (Next)
-- **Phase 1 (Production Essentials)**: 🔄 20% (In Progress)
+- **Sprint 2 (Auth & RBAC)**: 🔄 50% Complete (RBAC done, User Mgmt next)
+- **Phase 1 (Production Essentials)**: 🔄 35% (In Progress)
 - **Phase 2 (Business Intelligence)**: 📋 0% (Planned)
 - **Phase 3 (Operational Excellence)**: 📋 0% (Planned)
 - **Phase 4 (Scale & Integration)**: 📋 0% (Planned)
 
 ### Next Sprint
-**Sprint 2**: User Authentication & RBAC  
-**Target**: February 8, 2026  
-**Goal**: Complete multi-user system with role-based permissions
+**Sprint 2 Continuation**: User Management UI  
+**Target**: February 1, 2026  
+**Goal**: Complete user CRUD operations and role assignment interface
 
 ---
 
-**Last Updated**: January 25, 2026  
+**Last Updated**: January 25, 2026 (RBAC Phase Complete)  
 **Next Review**: February 1, 2026
