@@ -114,10 +114,14 @@ describe('ActivityLogger', () => {
     });
 
     test('should handle logging errors gracefully', async () => {
+      // Create a separate database for this test to avoid affecting afterEach
+      const testDb = new sqlite3.Database(':memory:');
+      const testLogger = new ActivityLogger(testDb);
+      
       // Close database to simulate error
-      await new Promise(resolve => db.close(resolve));
+      await new Promise(resolve => testDb.close(resolve));
 
-      const result = await logger.log(
+      const result = await testLogger.log(
         'create',
         'product',
         1,
@@ -132,11 +136,15 @@ describe('ActivityLogger', () => {
 
   describe('Retrieval Operations', () => {
     beforeEach(async () => {
-      // Add multiple log entries
+      // Add multiple log entries with small delays to ensure distinct timestamps
       await logger.log('create', 'product', 1, 'Product 1', 'Created Product 1');
+      await new Promise(resolve => setTimeout(resolve, 10));
       await logger.log('update', 'product', 1, 'Product 1', 'Updated Product 1');
+      await new Promise(resolve => setTimeout(resolve, 10));
       await logger.log('create', 'product', 2, 'Product 2', 'Created Product 2');
+      await new Promise(resolve => setTimeout(resolve, 10));
       await logger.log('create', 'batch', 1, 'Batch 1', 'Created Batch 1');
+      await new Promise(resolve => setTimeout(resolve, 10));
       await logger.log('adjust', 'batch', 1, 'Batch 1', 'Adjusted Batch 1');
     });
 
@@ -144,8 +152,10 @@ describe('ActivityLogger', () => {
       const logs = await logger.getRecent(10);
       
       expect(logs).toHaveLength(5);
-      expect(logs[0].description).toBe('Adjusted Batch 1'); // Most recent
-      expect(logs[4].description).toBe('Created Product 1'); // Oldest
+      // Most recent should be last inserted (highest ID)
+      expect(logs[0].description).toBe('Adjusted Batch 1');
+      // Oldest should be first inserted (lowest ID)
+      expect(logs[4].description).toBe('Created Product 1');
     });
 
     test('should limit results correctly', async () => {
@@ -157,6 +167,7 @@ describe('ActivityLogger', () => {
       const productLogs = await logger.getForEntity('product', 1);
       
       expect(productLogs).toHaveLength(2);
+      // Most recent first (update, then create)
       expect(productLogs[0].action_type).toBe('update');
       expect(productLogs[1].action_type).toBe('create');
     });
