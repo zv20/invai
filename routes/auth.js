@@ -15,6 +15,9 @@ const UserController = require('../controllers/userController');
 
 module.exports = (db, logger) => {
   
+  // Initialize sessionManager with db and logger
+  sessionManager.initialize(db, logger);
+  
   /**
    * POST /api/auth/login
    * Authenticates user and returns JWT token with session
@@ -94,8 +97,7 @@ module.exports = (db, logger) => {
       userId: user.id,
       ipAddress,
       sessionId: sessionId.substring(0, 8) + '...'
-    });
-    
+    });    
     res.json({
       success: true,
       token,
@@ -289,8 +291,7 @@ module.exports = (db, logger) => {
           code: 'CANNOT_TERMINATE_CURRENT',
           statusCode: 400
         }
-      });
-    }
+      });    }
     
     // Invalidate the session
     await sessionManager.invalidateSession(targetSession.session_id, 'user_terminated');
@@ -345,7 +346,6 @@ module.exports = (db, logger) => {
         }
       }
     });
-  }));
-  
+  }));  
   return router;
 };
