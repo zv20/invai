@@ -3,251 +3,155 @@
  * 
  * Sprint 3 Phase 3: Security Headers & CSRF Protection
  * 
- * Protects against Cross-Site Request Forgery attacks by:
- * - Generating unique tokens per session
- * - Validating tokens on state-changing requests
- * - Rejecting requests with missing or invalid tokens
+ * Implements Cross-Site Request Forgery (CSRF) protection using:
+ * - Double-submit cookie pattern (stateless)
+ * - Secure token generation
+ * - Token validation on state-changing requests
+ * - Automatic token refresh
  * 
  * @version 0.8.4a
  * @date 2026-01-25
  */
 
 const crypto = require('crypto');
-const security = require('../config/security');
-
-// Store CSRF tokens (in production, use Redis or database)
-// For now, we'll use a simple in-memory store
-const tokenStore = new Map();
 
 /**
- * Generate a secure CSRF token
+ * Generate a cryptographically secure CSRF token
  * 
- * @returns {string} CSRF token
+ * @returns {string} Random token (32 bytes, hex encoded)
  */
 function generateToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
 /**
- * Get or create CSRF token for a user session
+ * Generate CSRF token and set cookie
  * 
- * @param {string} sessionId - User session ID
- * @returns {string} CSRF token
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware
  */
-function getOrCreateToken(sessionId) {
-  if (!sessionId) {
-    throw new Error('Session ID required for CSRF token generation');
-  }
+function generateCsrfToken(req, res, next) {
+  // Generate new token
+  const token = generateToken();
   
-  // Check if token already exists
-  let tokenData = tokenStore.get(sessionId);
+  // Set token in cookie (HttpOnly for security)
+  res.cookie('csrf_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+    sameSite: 'strict',
+    maxAge: 8 * 60 * 60 * 1000 // 8 hours (match session timeout)
+  });
   
-  // Create new token if doesn't exist or expired
-  if (!tokenData || isTokenExpired(tokenData.createdAt)) {
-    const token = generateToken();
-    tokenData = {
-      token,
-      createdAt: new Date()
-    };
-    tokenStore.set(sessionId, tokenData);
-  }
+  // Also attach token to request for easy access
+  req.csrfToken = token;
   
-  return tokenData.token;
+  next();
 }
 
 /**
- * Check if token is expired (24 hours)
+ * Validate CSRF token from request header against cookie
  * 
- * @param {Date} createdAt - Token creation time
- * @returns {boolean} True if expired
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware
  */
-function isTokenExpired(createdAt) {
-  const expirationMs = 24 * 60 * 60 * 1000; // 24 hours
-  return (Date.now() - createdAt.getTime()) > expirationMs;
-}
-
-/**
- * Validate CSRF token
- * 
- * @param {string} sessionId - User session ID
- * @param {string} providedToken - Token from request
- * @returns {boolean} True if valid
- */
-function validateToken(sessionId, providedToken) {
-  if (!sessionId || !providedToken) {
-    return false;
-  }
-  
-  const tokenData = tokenStore.get(sessionId);
-  
-  if (!tokenData) {
-    return false;
-  }
-  
-  // Check if expired
-  if (isTokenExpired(tokenData.createdAt)) {
-    tokenStore.delete(sessionId);
-    return false;
-  }
-  
-  // Constant-time comparison to prevent timing attacks
-  return crypto.timingSafeEqual(
-    Buffer.from(providedToken),
-    Buffer.from(tokenData.token)
-  );
-}
-
-/**
- * Clear CSRF token for a session (on logout)
- * 
- * @param {string} sessionId - User session ID
- */
-function clearToken(sessionId) {
-  tokenStore.delete(sessionId);
-}
-
-/**
- * Middleware to attach CSRF token to response
- * Call this on routes that need to provide tokens (e.g., login)
- */
-function attachToken(req, res, next) {
-  // Only attach token if CSRF is enabled
-  if (!security.csrf.enabled) {
+function validateCsrfToken(req, res, next) {
+  // Skip validation for safe methods (GET, HEAD, OPTIONS)
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
   
-  try {
-    // Get session ID from authenticated user
-    const sessionId = req.user?.sessionId;
-    
-    if (!sessionId) {
-      // No session yet, skip token attachment
-      return next();
-    }
-    
-    // Generate or get existing token
-    const csrfToken = getOrCreateToken(sessionId);
-    
-    // Attach to response for client to use
-    res.locals.csrfToken = csrfToken;
-    
-    // Also send in header for SPA convenience
-    res.setHeader('X-CSRF-Token', csrfToken);
-    
-    next();
-  } catch (error) {
-    console.error('Error attaching CSRF token:', error);
-    next(error);
-  }
-}
-
-/**
- * Middleware to validate CSRF token on state-changing requests
- * Use this on POST, PUT, DELETE, PATCH routes
- */
-function validateCSRF(req, res, next) {
-  // Skip if CSRF protection is disabled
-  if (!security.csrf.enabled) {
+  // Skip validation for public endpoints (login, health check)
+  const publicPaths = ['/api/auth/login', '/api/auth/csrf-token', '/health'];
+  if (publicPaths.includes(req.path)) {
     return next();
   }
   
-  // Only validate state-changing methods
-  const methodsToProtect = ['POST', 'PUT', 'DELETE', 'PATCH'];
-  if (!methodsToProtect.includes(req.method)) {
-    return next();
-  }
+  // Get token from cookie
+  const cookieToken = req.cookies?.csrf_token;
   
-  // Skip validation for public routes (like login, which happens before session)
-  // These routes should be explicitly excluded
-  const publicRoutes = ['/api/auth/login', '/api/auth/register'];
-  if (publicRoutes.includes(req.path)) {
-    return next();
-  }
+  // Get token from header (sent by client)
+  const headerToken = req.headers['x-csrf-token'];
   
-  try {
-    // Get session ID
-    const sessionId = req.user?.sessionId;
-    
-    if (!sessionId) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          message: 'CSRF validation failed: No session found',
-          code: 'CSRF_NO_SESSION',
-          statusCode: 403
-        }
-      });
-    }
-    
-    // Get token from header or body
-    const providedToken = req.headers['x-csrf-token'] || req.body._csrf;
-    
-    if (!providedToken) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          message: 'CSRF validation failed: Token missing',
-          code: 'CSRF_TOKEN_MISSING',
-          statusCode: 403
-        }
-      });
-    }
-    
-    // Validate token
-    const isValid = validateToken(sessionId, providedToken);
-    
-    if (!isValid) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          message: 'CSRF validation failed: Invalid token',
-          code: 'CSRF_TOKEN_INVALID',
-          statusCode: 403
-        }
-      });
-    }
-    
-    // Token is valid, proceed
-    next();
-  } catch (error) {
-    console.error('Error validating CSRF token:', error);
-    return res.status(500).json({
+  // Validate both tokens exist
+  if (!cookieToken || !headerToken) {
+    return res.status(403).json({
       success: false,
       error: {
-        message: 'CSRF validation error',
-        code: 'CSRF_VALIDATION_ERROR',
-        statusCode: 500
+        message: 'CSRF token missing',
+        code: 'CSRF_TOKEN_MISSING',
+        statusCode: 403
       }
     });
   }
+  
+  // Validate tokens match (constant-time comparison to prevent timing attacks)
+  if (!crypto.timingSafeEqual(Buffer.from(cookieToken), Buffer.from(headerToken))) {
+    return res.status(403).json({
+      success: false,
+      error: {
+        message: 'Invalid CSRF token',
+        code: 'CSRF_TOKEN_INVALID',
+        statusCode: 403
+      }
+    });
+  }
+  
+  // Token is valid, proceed
+  next();
 }
 
 /**
- * Cleanup expired tokens periodically
+ * Middleware to provide CSRF token to authenticated users
+ * This generates a new token on each request for maximum security
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware
  */
-function startCleanupSchedule() {
-  setInterval(() => {
-    let cleaned = 0;
-    for (const [sessionId, tokenData] of tokenStore.entries()) {
-      if (isTokenExpired(tokenData.createdAt)) {
-        tokenStore.delete(sessionId);
-        cleaned++;
-      }
-    }
-    if (cleaned > 0) {
-      console.log(`🧹 Cleaned up ${cleaned} expired CSRF tokens`);
-    }
-  }, 60 * 60 * 1000); // Run every hour
+function refreshCsrfToken(req, res, next) {
+  // Only refresh for authenticated users
+  if (req.user) {
+    const token = generateToken();
+    
+    res.cookie('csrf_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 8 * 60 * 60 * 1000
+    });
+    
+    req.csrfToken = token;
+  }
   
-  console.log('✅ CSRF token cleanup scheduler started');
+  next();
+}
+
+/**
+ * Get current CSRF token from request
+ * 
+ * @param {Object} req - Express request object
+ * @returns {string|null} CSRF token or null
+ */
+function getCsrfToken(req) {
+  return req.csrfToken || req.cookies?.csrf_token || null;
+}
+
+/**
+ * Clear CSRF token (logout)
+ * 
+ * @param {Object} res - Express response object
+ */
+function clearCsrfToken(res) {
+  res.clearCookie('csrf_token');
 }
 
 module.exports = {
   generateToken,
-  getOrCreateToken,
-  validateToken,
-  clearToken,
-  attachToken,
-  validateCSRF,
-  startCleanupSchedule
+  generateCsrfToken,
+  validateCsrfToken,
+  refreshCsrfToken,
+  getCsrfToken,
+  clearCsrfToken
 };

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Core Application Logic v0.8.0
+   Core Application Logic v0.8.4a
    Global state, initialization, utilities, and tab management
    ========================================================================== */
 
@@ -11,12 +11,37 @@ let selectedProductId = null;
 let editingProductId = null;
 let editingBatchId = null;
 let editingBatchProductId = null;
+let csrfToken = null; // CSRF token for API requests
+
+/* ==========================================================================
+   CSRF Token Management
+   ========================================================================== */
+
+/**
+ * Fetch CSRF token from server
+ * Called on app initialization and after login
+ */
+async function fetchCsrfToken() {
+    try {
+        const response = await fetch(`${API_URL}/api/auth/csrf-token`);
+        const data = await response.json();
+        
+        if (data.success && data.csrfToken) {
+            csrfToken = data.csrfToken;
+            console.log('✓ CSRF token obtained');
+            return true;
+        }
+    } catch (error) {
+        console.error('Failed to fetch CSRF token:', error);
+    }
+    return false;
+}
 
 /* ==========================================================================
    Authentication Helper
    ========================================================================== */
 
-// Authenticated fetch wrapper
+// Authenticated fetch wrapper with CSRF protection
 async function authFetch(url, options = {}) {
     const token = localStorage.getItem('auth_token');
     
@@ -31,13 +56,37 @@ async function authFetch(url, options = {}) {
         ...options.headers
     };
     
+    // Add CSRF token for state-changing requests
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes((options.method || 'GET').toUpperCase())) {
+        if (!csrfToken) {
+            // Try to fetch token if we don't have it
+            await fetchCsrfToken();
+        }
+        
+        if (csrfToken) {
+            headers['X-CSRF-Token'] = csrfToken;
+        }
+    }
+    
     const response = await fetch(url, { ...options, headers });
     
+    // Handle 401 Unauthorized
     if (response.status === 401) {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user');
         window.location.href = '/login.html';
         throw new Error('Authentication failed');
+    }
+    
+    // Handle 403 Forbidden (CSRF failure)
+    if (response.status === 403) {
+        const data = await response.json();
+        if (data.error && data.error.code === 'CSRF_TOKEN_INVALID') {
+            // Refresh CSRF token and retry once
+            await fetchCsrfToken();
+            headers['X-CSRF-Token'] = csrfToken;
+            return fetch(url, { ...options, headers });
+        }
     }
     
     return response;
@@ -249,7 +298,10 @@ if (productSearchEl) {
    ========================================================================== */
 
 function initializeApp() {
-    console.log('🚀 Starting Grocery Inventory App v0.8.0...');
+    console.log('🚀 Starting Grocery Inventory App v0.8.4a...');
+    
+    // Fetch CSRF token on app start
+    fetchCsrfToken();
     
     // Check if dark mode is loaded (it self-initializes)
     if (typeof DarkMode !== 'undefined') {
@@ -306,7 +358,8 @@ function initializeApp() {
         setupUpdateChecker();
     }
     
-    console.log('✓ Grocery Inventory App v0.8.0 initialized');
+    console.log('✓ Grocery Inventory App v0.8.4a initialized');
+    console.log('✓ CSRF protection active');
 }
 
 // Initialize when DOM is ready

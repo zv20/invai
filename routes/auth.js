@@ -14,11 +14,37 @@ const { validateSession } = require('../middleware/session');
 const sessionManager = require('../utils/sessionManager');
 const passwordValidator = require('../utils/passwordValidator');
 const accountLockout = require('../utils/accountLockout');
+const { getCsrfToken } = require('../middleware/csrf');
 
 module.exports = (db, logger) => {
   
   // Initialize sessionManager with db and logger
   sessionManager.initialize(db, logger);
+  
+  /**
+   * GET /api/auth/csrf-token
+   * Get CSRF token for client-side requests
+   * PUBLIC endpoint (no authentication required)
+   */
+  router.get('/csrf-token', (req, res) => {
+    const token = getCsrfToken(req);
+    
+    if (!token) {
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to generate CSRF token',
+          code: 'CSRF_TOKEN_ERROR',
+          statusCode: 500
+        }
+      });
+    }
+    
+    res.json({
+      success: true,
+      csrfToken: token
+    });
+  });
   
   /**
    * POST /api/auth/login
@@ -157,6 +183,7 @@ module.exports = (db, logger) => {
     const response = {
       success: true,
       token,
+      csrfToken: getCsrfToken(req), // Include CSRF token in login response
       user: {
         id: user.id,
         username: user.username,
