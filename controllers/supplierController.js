@@ -1,9 +1,7 @@
 /**
  * Supplier Controller
- * Phase 2: Business logic for supplier management
+ * Business logic for supplier operations
  */
-
-const { AppError } = require('../middleware/errorHandler');
 
 class SupplierController {
   constructor(db, activityLogger) {
@@ -11,92 +9,96 @@ class SupplierController {
     this.activityLogger = activityLogger;
   }
 
-  async getSuppliers() {
-    return await this.db.all('SELECT * FROM suppliers ORDER BY name', []);
+  async getAllSuppliers() {
+    const query = `
+      SELECT s.*, COUNT(DISTINCT p.id) as product_count,
+             COALESCE(SUM(ib.total_quantity), 0) as total_items
+      FROM suppliers s
+      LEFT JOIN products p ON s.id = p.supplier_id
+      LEFT JOIN inventory_batches ib ON p.id = ib.product_id
+      GROUP BY s.id
+      ORDER BY s.name
+    `;
+    return await this.db.all(query, []);
   }
 
-  async createSupplier(data) {
-    const { name, contact_name, phone, email, address, notes, is_active } = data;
-    
-    if (!name || !name.trim()) {
-      throw new AppError('Supplier name is required', 400, 'VALIDATION_ERROR');
-    }
-
-    try {
-      const result = await this.db.run(
-        `INSERT INTO suppliers (name, contact_name, phone, email, address, notes, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [name.trim(), contact_name || '', phone || '', email || '', address || '', notes || '', is_active !== undefined ? is_active : 1]
-      );
-
-      if (this.activityLogger) {
-        await this.activityLogger.log('create', 'supplier', result.lastID, name, `Created supplier: ${name}`);
-      }
-
-      return { id: result.lastID, message: 'Supplier created successfully' };
-    } catch (err) {
-      if (err.message && err.message.includes('UNIQUE constraint')) {
-        throw new AppError('Supplier name already exists', 409, 'DUPLICATE_NAME');
-      }
-      throw err;
-    }
+  async getActiveSuppliers() {
+    const query = `
+      SELECT s.*, COUNT(DISTINCT p.id) as product_count
+      FROM suppliers s
+      LEFT JOIN products p ON s.id = p.supplier_id
+      WHERE s.is_active = 1
+      GROUP BY s.id
+      ORDER BY s.name
+    `;
+    return await this.db.all(query, []);
   }
 
-  async updateSupplier(id, data) {
-    const { name, contact_name, phone, email, address, notes, is_active } = data;
-    
-    if (!name || !name.trim()) {
-      throw new AppError('Supplier name is required', 400, 'VALIDATION_ERROR');
-    }
-
-    try {
-      const result = await this.db.run(
-        `UPDATE suppliers SET name = ?, contact_name = ?, phone = ?, email = ?, address = ?, notes = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [name.trim(), contact_name || '', phone || '', email || '', address || '', notes || '', is_active !== undefined ? is_active : 1, id]
-      );
-
-      if (result.changes === 0) {
-        throw new AppError('Supplier not found', 404, 'SUPPLIER_NOT_FOUND');
-      }
-
-      if (this.activityLogger) {
-        await this.activityLogger.log('update', 'supplier', id, name, `Updated supplier: ${name}`);
-      }
-
-      return { message: 'Supplier updated successfully' };
-    } catch (err) {
-      if (err.message && err.message.includes('UNIQUE constraint')) {
-        throw new AppError('Supplier name already exists', 409, 'DUPLICATE_NAME');
-      }
-      throw err;
-    }
+  async getSupplierById(id) {
+    const query = `
+      SELECT s.*, COUNT(DISTINCT p.id) as product_count
+      FROM suppliers s
+      LEFT JOIN products p ON s.id = p.supplier_id
+      WHERE s.id = ?
+      GROUP BY s.id
+    `;
+    return await this.db.get(query, [id]);
   }
 
-  async deleteSupplier(id) {
-    // Check if any products use this supplier
-    const check = await this.db.get('SELECT COUNT(*) as count FROM products WHERE supplier_id = ?', [id]);
+  async createSupplier(supplierData, username) {
+    const { name, contact_name, email, phone, address, notes } = supplierData;
     
-    if (check.count > 0) {
-      throw new AppError(
-        `Cannot delete supplier. ${check.count} product(s) are using this supplier. Please reassign them first.`,
-        400,
-        'SUPPLIER_IN_USE'
-      );
+    const result = await this.db.run(
+      `INSERT INTO suppliers (name, contact_name, email, phone, address, notes, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      [name, contact_name || '', email || '', phone || '', address || '', notes || '']
+    );
+
+    await this.activityLogger.log('supplier', result.lastID, 'created', username, { name });
+    return await this.getSupplierById(result.lastID);
+  }
+
+  async updateSupplier(id, supplierData, username) {
+    const { name, contact_name, email, phone, address, notes, is_active } = supplierData;
+    
+    await this.db.run(
+      `UPDATE suppliers 
+       SET name = ?, contact_name = ?, email = ?, phone = ?, address = ?, notes = ?, is_active = ?
+       WHERE id = ?`,
+      [name, contact_name || '', email || '', phone || '', address || '', notes || '', 
+       is_active !== undefined ? is_active : 1, id]
+    );
+
+    await this.activityLogger.log('supplier', id, 'updated', username, { name });
+    return await this.getSupplierById(id);
+  }
+
+  async deleteSupplier(id, username) {
+    const supplier = await this.getSupplierById(id);
+    if (!supplier) return null;
+
+    if (supplier.product_count > 0) {
+      throw new Error('Cannot delete supplier with associated products');
     }
 
-    const supplier = await this.db.get('SELECT name FROM suppliers WHERE id = ?', [id]);
-    const supplierName = supplier ? supplier.name : 'Unknown';
+    await this.db.run('DELETE FROM suppliers WHERE id = ?', [id]);
+    await this.activityLogger.log('supplier', id, 'deleted', username, { name: supplier.name });
+    
+    return supplier;
+  }
 
-    const result = await this.db.run('DELETE FROM suppliers WHERE id = ?', [id]);
+  async toggleSupplierStatus(id, username) {
+    const supplier = await this.getSupplierById(id);
+    if (!supplier) return null;
 
-    if (result.changes === 0) {
-      throw new AppError('Supplier not found', 404, 'SUPPLIER_NOT_FOUND');
-    }
+    const newStatus = supplier.is_active ? 0 : 1;
+    await this.db.run('UPDATE suppliers SET is_active = ? WHERE id = ?', [newStatus, id]);
+    
+    await this.activityLogger.log('supplier', id, newStatus ? 'activated' : 'deactivated', username, {
+      name: supplier.name
+    });
 
-    if (this.activityLogger) {
-      await this.activityLogger.log('delete', 'supplier', id, supplierName, `Deleted supplier: ${supplierName}`);
-    }
-
-    return { message: 'Supplier deleted successfully' };
+    return await this.getSupplierById(id);
   }
 }
 

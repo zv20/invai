@@ -5,6 +5,164 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1b] - 2026-01-25
+📚 **Documentation Update: Production Roadmap**
+
+### Added
+- ✨ **Production Roadmap** - Comprehensive 7-month plan to v1.0.0
+  - [ROADMAP.md](ROADMAP.md): 4-phase production plan with detailed features
+  - [EXECUTION_PLAN.md](EXECUTION_PLAN.md): 32-week implementation guide with daily tasks
+  - Clear path from beta to production-ready system
+  
+#### Roadmap Highlights
+- **Phase 1 (Months 1-2)**: Production Essentials
+  - Testing infrastructure (60%+ coverage, CI/CD)
+  - User management & RBAC (Owner/Manager/Staff/View roles)
+  - PostgreSQL support with automated backups
+  - Stock take system with variance reporting
+  
+- **Phase 2 (Months 3-4)**: Business Intelligence
+  - Enhanced reporting (turnover, cost, waste analysis)
+  - Dashboard improvements (charts, trends, comparisons)
+  - Data import/export (bulk CSV, Excel, PDF)
+  - Scheduled email reports
+  
+- **Phase 3 (Months 5-6)**: Operational Excellence
+  - Mobile PWA with offline support
+  - Reorder automation and advanced features
+  - Monitoring & alerting (Sentry, Prometheus, email/SMS alerts)
+  - Performance optimization
+  
+- **Phase 4 (Month 7+)**: Scale & Integration
+  - Public REST API with documentation
+  - Webhooks and API versioning
+  - Multi-store support (optional)
+  - Integrations (barcode lookup, accounting, label printers, notifications)
+
+#### Execution Plan Highlights
+- **32 detailed sprints** with week-by-week breakdowns
+- **Daily task lists** for each sprint
+- **Resource requirements** (infrastructure, costs ~$50-120/month)
+- **Risk management** with mitigation strategies
+- **Success metrics** for each phase
+- **Weekly/daily templates** for progress tracking
+
+### Changed
+- **ROADMAP.md** - Completely restructured with production focus
+  - Moved from vague future plans to actionable 4-phase timeline
+  - Added success criteria for v1.0.0 launch
+  - Included progress tracking and completion percentages
+  - Clear priorities: Testing (P0), Security (P0), Database (P1)
+  
+- **README.md** - Updated roadmap section to reference new structure
+  - Added Phase 1-4 overview
+  - Updated "Status" badge to reflect production path
+  - Included link to EXECUTION_PLAN.md
+
+### Documentation
+- 📋 New file: [EXECUTION_PLAN.md](EXECUTION_PLAN.md)
+  - 32-week sprint-by-sprint guide
+  - Daily task breakdowns
+  - Templates for weekly standup and retrospectives
+  - Immediate next steps to begin Phase 1
+  
+- 📝 Updated: [ROADMAP.md](ROADMAP.md)
+  - Phase 1: Production Essentials (Testing, Security, PostgreSQL, Stock Take)
+  - Phase 2: Business Intelligence (Reports, Dashboard, Import/Export)
+  - Phase 3: Operational Excellence (Mobile PWA, Automation, Monitoring)
+  - Phase 4: Scale & Integration (API, Multi-store, Integrations)
+  - Success criteria checklist for v1.0.0
+
+### Next Steps
+**Immediate Actions (This Week)**:
+1. Review and approve production roadmap
+2. Set up project management (GitHub Projects)
+3. Install testing framework (Jest + Supertest)
+4. Write first unit tests
+5. Begin Sprint 1: Testing Foundation
+
+**Critical Path**:
+1. Testing Infrastructure (Weeks 1-2) - BLOCKER for production
+2. User Authentication (Weeks 3-4) - BLOCKER for multi-user
+3. PostgreSQL Migration (Weeks 5-6) - Required for scale
+4. Stock Take System (Weeks 7-8) - Critical business feature
+
+### Notes
+- ⚠️ This is a **planning release** - no code changes
+- 🎯 Focus shifts to production readiness and testing
+- 📅 Target v1.0.0 launch: September 2026 (7 months)
+- 🚀 Next code release: v0.8.2 (Sprint 1 deliverables)
+
+---
+
+## [0.8.1a] - 2026-01-25
+🔧 **Stability & Bug Fixes Release**
+
+### Fixed
+- ✅ **SQL Column Errors** - Fixed undefined column references
+  - Resolved `s.contact_name` error in supplier queries
+  - Fixed `c.sort_order` column reference in category queries
+  - Added proper column validation in JOIN statements
+- ✅ **Cache Manager** - Added missing `invalidate()` method
+  - Implemented cache invalidation for data updates
+  - Prevents stale data in dashboard and reports
+  - Supports wildcard and specific key invalidation
+- ✅ **Batch Endpoints** - Corrected API routes
+  - Fixed `/api/batches/product/:productId` endpoint
+  - Proper product-batch relationship queries
+  - Improved error handling for missing products
+- ✅ **Batch Suggestions** - FIFO/FEFO implementation verified
+  - Confirmed proper expiry date sorting
+  - First-in-first-out logic working correctly
+  - FEFO (First-Expired-First-Out) prioritization functional
+- ✅ **Authentication** - Applied `authFetch` throughout frontend
+  - JWT tokens properly attached to all API requests
+  - Session handling improved
+  - Prevents unauthorized access errors
+- ✅ **Health Endpoint** - Added `/api/health` for monitoring
+  - Returns system status and version
+  - Database connectivity check
+  - Uptime and memory usage reporting
+- ✅ **Update Script** - Fixed permissions for root user
+  - Update script now works correctly with root account
+  - Proper git permissions handling
+  - Service restart after updates working
+- ✅ **Console Errors** - All browser console errors resolved
+  - No JavaScript errors on page load
+  - Clean console output
+  - Improved error handling across all modules
+
+### Changed
+- Enhanced error logging with stack traces
+- Improved API response consistency
+- Better null/undefined checks throughout codebase
+- Optimized batch query performance
+
+### Technical Details
+- Fixed SQL query builder for complex JOINs
+- Added missing method implementations in cache-manager.js
+- Corrected Express route definitions
+- Enhanced authentication middleware
+- Improved error response formatting
+
+### Deployment Notes
+- ⚠️ **Database**: No migration required (backward compatible)
+- ⚠️ **Dependencies**: No new packages (same as v0.8.0)
+- 🔄 **Update**: Run `update` or `git pull origin beta && systemctl restart inventory-app`
+- ✅ **Testing**: Verify health endpoint: `curl http://localhost:3000/api/health`
+
+### Upgrade Instructions
+1. Pull latest code: `git pull origin beta`
+2. Restart service: `systemctl restart inventory-app`
+3. Verify version in footer shows 0.8.1a
+4. Check health: `curl http://localhost:3000/api/health`
+5. Test batch suggestions and reports functionality
+
+### Breaking Changes
+**NONE** - Fully backward compatible with v0.8.0.
+
+---
+
 ## [0.8.0] - 2026-01-23
 🎉 **Major Release: Intelligence & Polish**
 
@@ -122,29 +280,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical Details
 - **Migration 007**: Adds activity_log, reorder system, indexes, preferences
-- **New API Endpoints**: 
-  - `/api/activity-log` - Recent activity (GET)
-  - `/api/activity-log/:entity/:id` - Entity history (GET)
-  - `/api/reports/stock-value` - Stock value report (GET)
-  - `/api/reports/expiration` - Expiration report (GET)
-  - `/api/reports/low-stock` - Low stock report (GET)
-  - `/api/reports/turnover` - Turnover report (GET)
-  - `/api/reports/export/:type` - CSV export (GET)
-  - `/api/products/:id/favorite` - Toggle favorite (POST)
-  - `/api/preferences` - User preferences (GET/POST)
-  - `/api/health` - Health check (GET)
-- **New Backend Modules**: 
-  - `lib/activity-logger.js` - Activity tracking
-  - `lib/csv-export.js` - CSV generation
-  - `lib/cache-manager.js` - Response caching
-- **New Frontend Modules**:
-  - `public/js/activity-log.js` - Activity feed UI
-  - `public/js/reports.js` - Reports tab
-  - `public/js/dark-mode.js` - Theme system
-  - `public/js/keyboard-shortcuts.js` - Shortcuts
-  - `public/js/command-palette.js` - Quick commands
-  - `public/js/favorites.js` - Favorites system
-  - `public/js/charts.js` - Visualizations
+- **New API Endpoints**: 10+ endpoints for reports, activity, preferences
+- **New Backend Modules**: activity-logger, csv-export, cache-manager
+- **New Frontend Modules**: reports, dark-mode, keyboard-shortcuts, command-palette, favorites
 
 ### Upgrade Instructions
 1. Pull latest code: `git pull origin beta`
@@ -158,43 +296,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.7.8e] - 2026-01-22
-### Fixed
-- ✅ **Supplier Names Appearing Too Light/Faded** - Fixed visual clarity issue
-  - **Root Cause**: All existing suppliers had `is_active = 0`, causing `opacity: 0.6` to be applied
-  - CSS was correct (`color: #111827` dark + `font-weight: 600` bold), but opacity made text appear light gray
-  - Created Migration 003 to set all suppliers to `is_active = 1`
-  - Supplier names now display with full opacity (dark and bold)
-  - Users can still toggle suppliers inactive if needed
-  - New suppliers default to active status
-
-### Changed
-- Supplier cards now render at full opacity when active
-- Inactive suppliers retain 60% opacity for visual distinction
-- Toggle button functionality preserved (✅ active / ❌ inactive)
-
-### Technical
-- Added `migrations/003_fix_supplier_active_status.js`
-- Updated `suppliers-manager.js` version to 0.7.8e
-- Database migration automatically runs on server restart
-- All existing suppliers updated to active status
-
-## [0.7.8d] - 2026-01-22
-### Fixed
-- ✅ **Settings Tab Crash** - Fixed TypeError when opening Settings tab
-  - Added null check for `updateCheckInterval` element before accessing
-  - Checks if `getUpdateInterval` function exists before calling
-  - Prevents crash: "null is not an object (evaluating 'document.getElementById('updateCheckInterval').value')"
-  - Settings tab now opens without errors
-
-### Technical
-- Enhanced `switchTab` function with defensive null checks
-- Improved DOM element access safety in tab switching logic
-
----
-
 ## Version History Summary
 
+- **v0.8.1b** - Documentation: Production roadmap and execution plan
+- **v0.8.1a** - Stability fixes: SQL errors, cache manager, batch endpoints, authentication
 - **v0.8.0** - Intelligence & Polish: Reports, activity logging, dark mode, keyboard shortcuts, performance
 - **v0.7.8e** - Supplier visibility fix (inactive status causing faded appearance)
 - **v0.7.8d** - Critical hotfix for Settings tab crash
