@@ -158,13 +158,21 @@ describe('Permission Middleware', () => {
       
       test('should return false for invalid role', () => {
         expect(hasPermission('invalid_role', 'products:view')).toBe(false);
-        expect(hasPermission('admin', 'products:view')).toBe(false);
         expect(hasPermission('', 'products:view')).toBe(false);
+        expect(hasPermission('superuser', 'products:view')).toBe(false);
       });
       
       test('should handle null/undefined role', () => {
         expect(hasPermission(null, 'products:view')).toBe(false);
         expect(hasPermission(undefined, 'products:view')).toBe(false);
+      });
+      
+      test('should support backward compatibility for admin role', () => {
+        // Admin should be treated as owner
+        expect(hasPermission('admin', 'products:view')).toBe(true);
+        expect(hasPermission('admin', 'products:delete')).toBe(true);
+        expect(hasPermission('admin', 'users:create')).toBe(true);
+        expect(hasPermission('admin', 'settings:update')).toBe(true);
       });
     });
   });
@@ -398,6 +406,16 @@ describe('Permission Middleware', () => {
     test('should return empty array for invalid role', () => {
       const invalidPerms = getRolePermissions('invalid');
       expect(invalidPerms).toEqual([]);
+    });
+    
+    test('should return owner permissions for admin role (backward compatibility)', () => {
+      const adminPerms = getRolePermissions('admin');
+      const ownerPerms = getRolePermissions('owner');
+      
+      // Admin should have same permissions as owner
+      expect(adminPerms).toEqual(ownerPerms);
+      expect(adminPerms).toContain('users:create');
+      expect(adminPerms).toContain('settings:update');
     });
   });
 });
