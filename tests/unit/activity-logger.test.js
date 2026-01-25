@@ -9,8 +9,10 @@ const sqlite3 = require('sqlite3').verbose();
 describe('ActivityLogger', () => {
   let db;
   let logger;
+  let dbClosed = false;
 
   beforeEach((done) => {
+    dbClosed = false;
     // Create in-memory database for testing
     db = new sqlite3.Database(':memory:');
     
@@ -37,7 +39,7 @@ describe('ActivityLogger', () => {
   });
 
   afterEach((done) => {
-    if (db) {
+    if (db && !dbClosed) {
       db.close(done);
     } else {
       done();
@@ -114,14 +116,11 @@ describe('ActivityLogger', () => {
     });
 
     test('should handle logging errors gracefully', async () => {
-      // Create a separate database for this test to avoid affecting afterEach
-      const testDb = new sqlite3.Database(':memory:');
-      const testLogger = new ActivityLogger(testDb);
-      
-      // Close database to simulate error
-      await new Promise(resolve => testDb.close(resolve));
+      // Close main database and mark it
+      await new Promise(resolve => db.close(resolve));
+      dbClosed = true;
 
-      const result = await testLogger.log(
+      const result = await logger.log(
         'create',
         'product',
         1,
@@ -136,15 +135,11 @@ describe('ActivityLogger', () => {
 
   describe('Retrieval Operations', () => {
     beforeEach(async () => {
-      // Add multiple log entries with small delays to ensure distinct timestamps
+      // Add multiple log entries - no delays needed with id-based ordering
       await logger.log('create', 'product', 1, 'Product 1', 'Created Product 1');
-      await new Promise(resolve => setTimeout(resolve, 10));
       await logger.log('update', 'product', 1, 'Product 1', 'Updated Product 1');
-      await new Promise(resolve => setTimeout(resolve, 10));
       await logger.log('create', 'product', 2, 'Product 2', 'Created Product 2');
-      await new Promise(resolve => setTimeout(resolve, 10));
       await logger.log('create', 'batch', 1, 'Batch 1', 'Created Batch 1');
-      await new Promise(resolve => setTimeout(resolve, 10));
       await logger.log('adjust', 'batch', 1, 'Batch 1', 'Adjusted Batch 1');
     });
 
@@ -167,7 +162,7 @@ describe('ActivityLogger', () => {
       const productLogs = await logger.getForEntity('product', 1);
       
       expect(productLogs).toHaveLength(2);
-      // Most recent first (update, then create)
+      // Most recent first (update has higher ID than create)
       expect(productLogs[0].action_type).toBe('update');
       expect(productLogs[1].action_type).toBe('create');
     });
