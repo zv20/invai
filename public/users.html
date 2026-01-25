@@ -23,6 +23,11 @@
             transition: box-shadow 0.2s;
         }
         
+        .user-card.locked {
+            border-left: 4px solid #ffc107;
+            background: #fff9e6;
+        }
+        
         .user-card:hover {
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
@@ -59,6 +64,7 @@
         
         .status-active { color: #27ae60; font-weight: 500; }
         .status-inactive { color: #e74c3c; font-weight: 500; }
+        .status-locked { color: #ff9800; font-weight: 500; }
         
         .user-actions {
             display: flex;
@@ -112,6 +118,8 @@
             width: 90%;
             max-width: 500px;
             animation: slideDown 0.3s;
+            max-height: 90vh;
+            overflow-y: auto;
         }
         
         @keyframes slideDown {
@@ -144,6 +152,58 @@
             border-radius: 4px;
             font-size: 1rem;
             box-sizing: border-box;
+        }
+        
+        /* Password Strength Meter */
+        .password-strength {
+            margin-top: 0.5rem;
+        }
+        
+        .strength-bar {
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+        
+        .strength-fill {
+            height: 100%;
+            transition: width 0.3s, background-color 0.3s;
+            width: 0;
+        }
+        
+        .strength-fill.weak { background: #f44336; width: 25%; }
+        .strength-fill.fair { background: #ff9800; width: 50%; }
+        .strength-fill.good { background: #ffc107; width: 75%; }
+        .strength-fill.strong { background: #4caf50; width: 100%; }
+        
+        .strength-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .strength-label.weak { color: #f44336; }
+        .strength-label.fair { color: #ff9800; }
+        .strength-label.good { color: #ffc107; }
+        .strength-label.strong { color: #4caf50; }
+        
+        .password-requirements {
+            background: #f5f5f5;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .password-requirements ul {
+            margin: 0.5rem 0 0 0;
+            padding-left: 1.5rem;
+        }
+        
+        .password-requirements li {
+            margin: 0.25rem 0;
+            color: #666;
         }
         
         .form-actions {
@@ -182,6 +242,15 @@
         
         .btn-success:hover {
             background: #229954;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
         }
         
         .empty-state {
@@ -293,8 +362,29 @@
                 </div>
                 
                 <div class="form-group" id="passwordGroup">
-                    <label for="password">Password* (min 6 characters)</label>
-                    <input type="password" id="password" minlength="6">
+                    <label for="password">Password*</label>
+                    <input type="password" id="password" minlength="8">
+                    
+                    <!-- Password Strength Meter -->
+                    <div class="password-strength" id="strengthMeter" style="display: none;">
+                        <div class="strength-bar">
+                            <div class="strength-fill" id="strengthFill"></div>
+                        </div>
+                        <div class="strength-label" id="strengthLabel"></div>
+                    </div>
+                    
+                    <!-- Password Requirements -->
+                    <div class="password-requirements">
+                        <strong>Password Requirements:</strong>
+                        <ul>
+                            <li>At least 8 characters</li>
+                            <li>At least one uppercase letter (A-Z)</li>
+                            <li>At least one lowercase letter (a-z)</li>
+                            <li>At least one number (0-9)</li>
+                            <li>At least one special character (!@#$%^&*)</li>
+                            <li>Cannot be a common password</li>
+                        </ul>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -340,6 +430,65 @@
                 console.error('Error checking permissions:', e);
                 window.location.href = '/login.html';
             }
+        }
+        
+        // Password strength calculator
+        function calculatePasswordStrength(password) {
+            if (!password) return { score: 0, label: 'weak', color: 'weak' };
+            
+            let score = 0;
+            
+            // Length scoring
+            if (password.length >= 8) score++;
+            if (password.length >= 12) score++;
+            if (password.length >= 16) score++;
+            
+            // Character variety
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+            if (/[0-9]/.test(password)) score++;
+            if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) score++;
+            
+            // Bonus for mixing multiple types
+            const hasLower = /[a-z]/.test(password);
+            const hasUpper = /[A-Z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+            const varietyCount = [hasLower, hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
+            
+            if (varietyCount >= 3) score++;
+            if (varietyCount === 4) score++;
+            
+            // Normalize to 0-3
+            score = Math.max(0, Math.min(3, Math.floor(score / 3)));
+            
+            const levels = [
+                { score: 0, label: 'Weak', color: 'weak' },
+                { score: 1, label: 'Fair', color: 'fair' },
+                { score: 2, label: 'Good', color: 'good' },
+                { score: 3, label: 'Strong', color: 'strong' }
+            ];
+            
+            return levels[score];
+        }
+        
+        // Update password strength meter
+        function updateStrengthMeter() {
+            const password = document.getElementById('password').value;
+            const meter = document.getElementById('strengthMeter');
+            const fill = document.getElementById('strengthFill');
+            const label = document.getElementById('strengthLabel');
+            
+            if (!password) {
+                meter.style.display = 'none';
+                return;
+            }
+            
+            meter.style.display = 'block';
+            const strength = calculatePasswordStrength(password);
+            
+            fill.className = `strength-fill ${strength.color}`;
+            label.className = `strength-label ${strength.color}`;
+            label.textContent = `Password Strength: ${strength.label}`;
         }
         
         // Load users
@@ -389,12 +538,17 @@
                 return;
             }
             
-            grid.innerHTML = users.map(user => `
-                <div class="user-card">
+            grid.innerHTML = users.map(user => {
+                const isLocked = user.account_locked && user.locked_until && new Date(user.locked_until) > new Date();
+                const lockClass = isLocked ? 'locked' : '';
+                
+                return `
+                <div class="user-card ${lockClass}">
                     <div class="user-info">
                         <h3>
                             ${escapeHtml(user.username)}
                             <span class="user-badge role-${user.role}">${user.role}</span>
+                            ${isLocked ? '<span class="user-badge" style="background: #ffc107; color: #333;">🔒 Locked</span>' : ''}
                         </h3>
                         <div class="user-meta">
                             <span>📧 ${escapeHtml(user.email)}</span>
@@ -405,6 +559,7 @@
                         </div>
                     </div>
                     <div class="user-actions">
+                        ${isLocked ? `<button onclick="unlockUser(${user.id}, '${escapeHtml(user.username)}')" class="btn btn-sm btn-warning">🔓 Unlock</button>` : ''}
                         <button onclick="editUser(${user.id})" class="btn btn-sm btn-secondary">Edit</button>
                         <button onclick="resetPassword(${user.id}, '${escapeHtml(user.username)}')" class="btn btn-sm btn-secondary">Reset Password</button>
                         ${user.is_active ? 
@@ -413,7 +568,29 @@
                         }
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
+        }
+        
+        // Unlock user account
+        async function unlockUser(userId, username) {
+            if (!confirm(`Unlock account for ${username}?`)) return;
+            
+            try {
+                const response = await authFetch(`/api/auth/unlock/${userId}`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || 'Failed to unlock account');
+                }
+                
+                alert(`✅ Account for ${username} has been unlocked successfully`);
+                loadUsers(currentPage);
+            } catch (error) {
+                console.error('Error unlocking account:', error);
+                alert(`⚠️ Failed to unlock account: ${error.message}`);
+            }
         }
         
         // Pagination
@@ -453,7 +630,13 @@
             document.getElementById('passwordGroup').style.display = 'block';
             document.getElementById('password').required = true;
             document.getElementById('username').readOnly = false;
+            document.getElementById('strengthMeter').style.display = 'none';
             document.getElementById('userModal').style.display = 'block';
+            
+            // Add event listener for password strength
+            const passwordInput = document.getElementById('password');
+            passwordInput.removeEventListener('input', updateStrengthMeter);
+            passwordInput.addEventListener('input', updateStrengthMeter);
         }
         
         // Edit user
@@ -526,11 +709,11 @@
         
         // Reset password
         async function resetPassword(userId, username) {
-            const newPassword = prompt(`Enter new password for ${username} (minimum 6 characters):`);
+            const newPassword = prompt(`Enter new password for ${username}:\n\nRequirements:\n- At least 8 characters\n- Uppercase, lowercase, number, special char`);
             if (!newPassword) return;
             
-            if (newPassword.length < 6) {
-                alert('⚠️ Password must be at least 6 characters');
+            if (newPassword.length < 8) {
+                alert('⚠️ Password must be at least 8 characters');
                 return;
             }
             
