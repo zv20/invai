@@ -9,7 +9,6 @@
  */
 
 const sessionManager = require('../utils/sessionManager');
-const logger = require('../utils/logger');
 
 /**
  * Validate session middleware
@@ -29,7 +28,7 @@ async function validateSession(req, res, next) {
         const sessionId = req.user?.sessionId;
         
         if (!sessionId) {
-            logger.warn('No session ID found in request', {
+            console.warn('No session ID found in request', {
                 path: req.path,
                 userId: req.user?.id
             });
@@ -47,7 +46,7 @@ async function validateSession(req, res, next) {
         const session = await sessionManager.validateSession(sessionId);
         
         if (!session) {
-            logger.info('Invalid or expired session', {
+            console.info('Invalid or expired session', {
                 sessionId: sessionId.substring(0, 8) + '...',
                 path: req.path
             });
@@ -66,7 +65,7 @@ async function validateSession(req, res, next) {
         
         // Verify user from session matches JWT
         if (session.user_id !== req.user.id) {
-            logger.error('Session user mismatch', {
+            console.error('Session user mismatch', {
                 jwtUserId: req.user.id,
                 sessionUserId: session.user_id
             });
@@ -84,7 +83,7 @@ async function validateSession(req, res, next) {
         next();
         
     } catch (error) {
-        logger.error('Session validation error:', error);
+        console.error('Session validation error:', error);
         
         return res.status(500).json({
             success: false,
@@ -120,7 +119,7 @@ async function validateSessionOptional(req, res, next) {
         next();
         
     } catch (error) {
-        logger.error('Optional session validation error:', error);
+        console.error('Optional session validation error:', error);
         // Don't fail the request, just continue without session
         next();
     }
