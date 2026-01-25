@@ -47,15 +47,31 @@ const permissions = {
 };
 
 /**
+ * Normalize role for backward compatibility
+ * Maps legacy 'admin' role to 'owner'
+ * 
+ * @param {string} role - The user's role
+ * @returns {string} Normalized role
+ */
+function normalizeRole(role) {
+  // Backward compatibility: treat 'admin' as 'owner'
+  if (role === 'admin') {
+    return 'owner';
+  }
+  return role;
+}
+
+/**
  * Check if a user role has a specific permission
  * 
- * @param {string} userRole - The role of the user (owner, manager, staff, viewer)
+ * @param {string} userRole - The role of the user (owner, manager, staff, viewer, or legacy 'admin')
  * @param {string} permission - The permission to check (e.g., 'products:create')
  * @returns {boolean} True if the role has permission, false otherwise
  * 
  * @example
  * hasPermission('staff', 'products:create') // returns true
  * hasPermission('viewer', 'products:create') // returns false
+ * hasPermission('admin', 'users:create') // returns true (treated as owner)
  */
 function hasPermission(userRole, permission) {
   // Check if permission exists
@@ -64,8 +80,11 @@ function hasPermission(userRole, permission) {
     return false;
   }
   
+  // Normalize role for backward compatibility
+  const normalizedRole = normalizeRole(userRole);
+  
   // Check if user role is in allowed roles for this permission
-  return permissions[permission].includes(userRole);
+  return permissions[permission].includes(normalizedRole);
 }
 
 /**
@@ -209,10 +228,12 @@ function requireAnyPermission(...allowedPermissions) {
  * 
  * @example
  * getRolePermissions('staff') // returns ['products:view', 'products:create', ...]
+ * getRolePermissions('admin') // returns all owner permissions (backward compatible)
  */
 function getRolePermissions(role) {
+  const normalizedRole = normalizeRole(role);
   return Object.keys(permissions).filter(
-    permission => permissions[permission].includes(role)
+    permission => permissions[permission].includes(normalizedRole)
   );
 }
 
