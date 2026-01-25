@@ -33,7 +33,7 @@ module.exports = (db, activityLogger, cache) => {
     res.json(products);
   }));
 
-  // Get batch suggestion for product (FIFO/FEFO)
+  // Get batch suggestion for product (FIFO/FEFO) - MUST BE BEFORE /:id
   router.get('/:id/batch-suggestion', asyncHandler(async (req, res) => {
     const productId = req.params.id;
     
