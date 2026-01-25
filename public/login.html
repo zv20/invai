@@ -122,9 +122,27 @@
         }
 
         .alert-warning {
-            background-color: #ffc;
-            color: #993;
-            border: 1px solid #ff9;
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-lockout {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffc107;
+        }
+
+        .alert-lockout .countdown {
+            font-weight: 600;
+            font-size: 16px;
+            margin-top: 8px;
+            display: block;
+        }
+
+        .alert strong {
+            display: block;
+            margin-bottom: 4px;
         }
 
         .version {
@@ -188,7 +206,7 @@
             </button>
         </form>
 
-        <div class="version" id="version">v0.8.1</div>
+        <div class="version" id="version">v0.8.4a</div>
     </div>
 
     <script>
@@ -197,6 +215,7 @@
         const alertBox = document.getElementById('alert');
         const usernameInput = document.getElementById('username');
         const passwordInput = document.getElementById('password');
+        let countdownInterval = null;
 
         // Check if already logged in
         if (localStorage.getItem('auth_token')) {
@@ -205,7 +224,13 @@
 
         // Show alert message
         function showAlert(message, type = 'error') {
-            alertBox.textContent = message;
+            // Clear any existing countdown
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+
+            alertBox.innerHTML = message;
             alertBox.className = `alert alert-${type}`;
             alertBox.style.display = 'block';
             
@@ -216,8 +241,47 @@
             }
         }
 
+        // Show lockout alert with countdown
+        function showLockoutAlert(remainingSeconds, message) {
+            loginBtn.disabled = true;
+            
+            const updateCountdown = () => {
+                const minutes = Math.floor(remainingSeconds / 60);
+                const seconds = remainingSeconds % 60;
+                const timeStr = minutes > 0 
+                    ? `${minutes}:${seconds.toString().padStart(2, '0')}`
+                    : `${seconds} second${seconds !== 1 ? 's' : ''}`;
+                
+                alertBox.innerHTML = `
+                    <strong>🔒 Account Locked</strong>
+                    ${message || 'Too many failed login attempts.'}
+                    <span class="countdown">Try again in: ${timeStr}</span>
+                `;
+                
+                if (remainingSeconds <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    loginBtn.disabled = false;
+                    alertBox.style.display = 'none';
+                } else {
+                    remainingSeconds--;
+                }
+            };
+
+            alertBox.className = 'alert alert-lockout';
+            alertBox.style.display = 'block';
+            updateCountdown();
+            
+            // Update countdown every second
+            countdownInterval = setInterval(updateCountdown, 1000);
+        }
+
         // Hide alert
         function hideAlert() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
             alertBox.style.display = 'none';
         }
 
@@ -249,23 +313,42 @@
 
                 const data = await response.json();
 
+                // Handle account lockout (423)
+                if (response.status === 423) {
+                    loginBtn.textContent = 'Sign In';
+                    const remainingTime = data.error?.remainingTime || 900; // Default 15 minutes
+                    showLockoutAlert(remainingTime, data.error?.message);
+                    return;
+                }
+
                 if (!response.ok) {
-                    throw new Error(data.error || 'Login failed');
+                    throw new Error(data.error?.message || data.error || 'Login failed');
                 }
 
                 // Store token and user info
                 localStorage.setItem('auth_token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
 
+                // Check for password expiration warning
+                if (data.passwordStatus) {
+                    if (data.passwordStatus.expired) {
+                        showAlert('⚠️ ' + data.passwordStatus.message, 'warning');
+                    } else if (data.passwordStatus.warning) {
+                        showAlert('⚠️ ' + data.passwordStatus.message, 'warning');
+                    }
+                }
+
                 // Show success message
                 showAlert('Login successful! Redirecting...', 'success');
 
                 // Check if using default password
                 if (username === 'admin' && password === 'admin123') {
-                    showAlert('⚠️ You are using the default password! Please change it immediately.', 'warning');
+                    setTimeout(() => {
+                        showAlert('⚠️ You are using the default password! Please change it immediately.', 'warning');
+                    }, 1000);
                     setTimeout(() => {
                         window.location.href = '/';
-                    }, 2000);
+                    }, 3000);
                 } else {
                     // Redirect to main app
                     setTimeout(() => {
