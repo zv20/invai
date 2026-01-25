@@ -1,8 +1,11 @@
 /**
- * InvAI Server - Phase 2.2 Modular Routes
+ * InvAI Server - Sprint 4 Phase 1: PostgreSQL Support
  * 
- * Streamlined server with extracted routes
- * Reduced from 1,200+ lines to ~450 lines
+ * Enhanced with dual database support:
+ * - SQLite for development/testing (default)
+ * - PostgreSQL for production
+ * - Database abstraction layer
+ * - Connection pooling
  * 
  * Architecture:
  * - Core modular routes (products, batches, categories, suppliers, dashboard, settings, auth, users)
@@ -11,13 +14,13 @@
  * - JWT authentication and authorization
  * - Security headers (Helmet.js)
  * - CSRF protection
+ * - Database adapter system
  */
 
 // Load environment variables FIRST
 require('dotenv').config();
 
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -33,6 +36,9 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key-here-
   console.error('Please set a secure JWT_SECRET in your .env file\n');
   process.exit(1);
 }
+
+// Database adapter system
+const { getDatabase, closeDatabase } = require('./lib/database');
 
 // Architecture imports
 const Database = require('./utils/db');
@@ -52,7 +58,7 @@ const settingsRoutes = require('./routes/settings');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 
-// Extracted route modules (GROUP 2)
+// Extracted route modules
 const reportsRoutes = require('./routes/reports');
 const inventoryHelpersRoutes = require('./routes/inventory-helpers');
 const backupsRoutes = require('./routes/backups');
@@ -77,15 +83,18 @@ const MAX_BACKUPS = 10;
 const cache = new CacheManager();
 let activityLogger;
 let csvExporter;
-let db; // Database wrapper (async/await)
-let sqliteDb; // Raw SQLite connection
+let dbAdapter; // Database adapter (SQLite or PostgreSQL)
+let db; // Legacy wrapper for backward compatibility
 
-console.log('\n🚀 InvAI v' + VERSION + ' - Phase 2.2 Modular Routes');
-console.log('✅ Streamlined server.js (~450 lines)');
-console.log('✅ Modular route architecture');
+const DB_TYPE = (process.env.DATABASE_TYPE || 'sqlite').toLowerCase();
+
+console.log('\n🚀 InvAI v' + VERSION + ' - Sprint 4 Phase 1: PostgreSQL Support');
+console.log('✅ Dual database support (SQLite + PostgreSQL)');
+console.log('✅ Database adapter system active');
 console.log('✅ JWT authentication enabled');
 console.log('✅ Security headers active (Helmet.js)');
-console.log('✅ CSRF protection enabled\n');
+console.log('✅ CSRF protection enabled');
+console.log(`📊 Database: ${DB_TYPE.toUpperCase()}\n`);
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -122,7 +131,8 @@ const ensureDirectories = () => {
   const dirs = [
     path.join(__dirname, 'logs'),
     BACKUP_DIR,
-    path.join(__dirname, 'temp')
+    path.join(__dirname, 'temp'),
+    path.join(__dirname, 'data')
   ];
   
   dirs.forEach(dir => {
@@ -139,13 +149,12 @@ ensureDirectories();
 // SECURITY MIDDLEWARE
 // ===================================
 
-// Helmet.js - Security headers
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for now
-      scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for now
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", 'data:', 'blob:'],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
@@ -155,54 +164,32 @@ app.use(helmet({
     }
   },
   hsts: {
-    maxAge: 31536000, // 1 year
+    maxAge: 31536000,
     includeSubDomains: true,
     preload: true
   }
 }));
 
-// CORS
 app.use(cors());
-
-// Body parsers
 app.use(express.json());
 app.use(express.text({ limit: '10mb', type: 'text/csv' }));
-
-// Cookie parser (for CSRF tokens)
 app.use(cookieParser());
-
-// CSRF token generation (for all requests)
 app.use(generateCsrfToken);
-
-// CSRF token validation (for state-changing requests)
 app.use(validateCsrfToken);
 
-// Serve static files with cache busting
-app.use('/css', express.static(path.join(__dirname, 'public/css'), {
-  maxAge: 0,
-  etag: false
-}));
+app.use('/css', express.static(path.join(__dirname, 'public/css'), { maxAge: 0, etag: false }));
+app.use('/js', express.static(path.join(__dirname, 'public/js'), { maxAge: 0, etag: false }));
+app.use(express.static('public', { maxAge: 0, etag: false }));
 
-app.use('/js', express.static(path.join(__dirname, 'public/js'), {
-  maxAge: 0,
-  etag: false
-}));
-
-app.use(express.static('public', {
-  maxAge: 0,
-  etag: false
-}));
-
-// Health check endpoint (PUBLIC)
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     version: VERSION,
+    database: DB_TYPE,
     timestamp: new Date().toISOString()
   });
 });
 
-// Serve index.html with version-based cache busting
 app.get('/', (req, res) => {
   const indexPath = path.join(__dirname, 'public', 'index.html');
   let html = fs.readFileSync(indexPath, 'utf8');
@@ -217,49 +204,72 @@ app.get('/', (req, res) => {
 });
 
 // Initialize database
-sqliteDb = new sqlite3.Database('./inventory.db', async (err) => {
-  if (err) {
-    console.error('Error opening database:', err);
-    process.exit(1);
-  } else {
-    console.log('Connected to SQLite database');
+async function initializeApp() {
+  try {
+    console.log('\n🔌 Connecting to database...');
     
-    db = new Database(sqliteDb);
+    // Get database adapter (auto-selects SQLite or PostgreSQL)
+    dbAdapter = await getDatabase();
+    console.log(`✓ Connected to ${dbAdapter.getType().toUpperCase()} database`);
+    
+    // Create legacy wrapper for backward compatibility
+    db = new Database(dbAdapter);
     
     await initializeDatabase();
     
-    activityLogger = new ActivityLogger(sqliteDb);
-    csvExporter = new CSVExporter(sqliteDb);
+    // Initialize supporting modules with raw adapter for callback compatibility
+    activityLogger = new ActivityLogger(dbAdapter.db || dbAdapter);
+    csvExporter = new CSVExporter(dbAdapter.db || dbAdapter);
     
     // Start account lockout cleanup scheduler
     accountLockout.startCleanupSchedule();
     
     logger.info('Activity logger and CSV exporter initialized');
-    console.log('✓ Async database wrapper active');
     console.log('✓ Activity logger and CSV exporter initialized');
     console.log('✓ Account lockout cleanup scheduler started');
     
     registerRoutes();
+    
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`\n🎉 InvAI v${VERSION} - Sprint 4 Phase 1: PostgreSQL Support`);
+      console.log(`💻 Server running on port ${PORT}`);
+      console.log(`🔗 Access at http://localhost:${PORT}`);
+      console.log(`\n💾 Database: ${dbAdapter.getType().toUpperCase()}`);
+      console.log(`🔒 Auth: JWT tokens with role-based access`);
+      console.log(`💡 Update channel: ${getCurrentChannel()}`);
+      console.log('\nChecking for updates from GitHub...');
+      
+      const currentChannel = getCurrentChannel();
+      const targetBranch = currentChannel === 'stable' ? 'main' : 'beta';
+      
+      checkGitHubVersion(targetBranch)
+        .then(info => {
+          if (info.updateAvailable) {
+            console.log(`\n⚠️  UPDATE AVAILABLE!`);
+            console.log(`   Current: ${info.currentVersion}`);
+            console.log(`   Latest:  ${info.latestVersion}`);
+            console.log(`   Channel: ${currentChannel}`);
+            console.log(`   Branch:  ${targetBranch}\n`);
+          } else {
+            console.log(`✓ Running latest version (${VERSION}) on ${currentChannel} channel`);
+          }
+        })
+        .catch(err => { 
+          console.log(`Could not check for updates: ${err.message}`); 
+        });
+    });
+    
+  } catch (error) {
+    console.error('\n❌ Failed to initialize application:', error.message);
+    console.error(error.stack);
+    process.exit(1);
   }
-});
+}
 
-/**
- * Register all routes (called after database is initialized)
- */
 function registerRoutes() {
-  // ==============================================
-  // AUTHENTICATION ROUTES (PUBLIC)
-  // ==============================================
   app.use('/api/auth', authRoutes(db, logger));
-
-  // ==============================================
-  // USER MANAGEMENT (ADMIN ONLY)
-  // ==============================================
   app.use('/api/users', userRoutes(db, activityLogger));
-
-  // ==============================================
-  // CORE API ROUTES (PROTECTED)
-  // ==============================================
   app.use('/api/products', authenticate, productRoutes(db, activityLogger, cache));
   app.use('/api/batches', authenticate, batchRoutes(db, activityLogger));
   app.use('/api/inventory/batches', authenticate, batchRoutes(db, activityLogger));
@@ -267,49 +277,20 @@ function registerRoutes() {
   app.use('/api/suppliers', authenticate, supplierRoutes(db, activityLogger));
   app.use('/api/dashboard', authenticate, dashboardRoutes(db, cache));
   app.use('/api/settings', authenticate, authorize('admin'), settingsRoutes(db, createBackup));
-
-  // ==============================================
-  // EXTRACTED ROUTES (GROUP 2 - PROTECTED)
-  // ==============================================
   app.use('/api/reports', authenticate, reportsRoutes(db, cache, csvExporter));
   app.use('/api/inventory', authenticate, inventoryHelpersRoutes(db));
-  app.use('/api/backup', authenticate, backupsRoutes(createBackup, sqliteDb, Database));
-  app.use('/api', systemRoutes(db, logger, VERSION, MigrationRunner, sqliteDb, checkGitHubVersion, getCurrentChannel));
+  app.use('/api/backup', authenticate, backupsRoutes(createBackup, dbAdapter.db || dbAdapter, Database));
+  app.use('/api', systemRoutes(db, logger, VERSION, MigrationRunner, dbAdapter.db || dbAdapter, checkGitHubVersion, getCurrentChannel));
   app.use('/api', authenticate, importExportRoutes(db, activityLogger, logger));
-
+  
   console.log('✓ All routes registered');
-}
-
-/**
- * Database initialization
- */
-async function preMigrationFixes(db) {
-  return new Promise((resolve) => {
-    console.log('\n🔧 Running pre-migration safety checks...');
-    
-    sqliteDb.run(`ALTER TABLE suppliers ADD COLUMN is_active INTEGER DEFAULT 1`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
-        console.log('   ℹ️  Suppliers table may not exist yet (will be created by migrations)');
-      } else if (!err) {
-        console.log('   ✓ Added missing is_active column to suppliers table');
-      } else {
-        console.log('   ✓ Suppliers table schema already complete');
-      }
-      
-      console.log('✓ Pre-migration checks complete\n');
-      resolve();
-    });
-  });
 }
 
 async function initializeDatabase() {
   try {
-    await initDatabase();
-    await preMigrationFixes(sqliteDb);
+    console.log('\n🔧 Checking database migrations...');
     
-    console.log('🔧 Checking database migrations...');
-    
-    const migrator = new MigrationRunner(sqliteDb);
+    const migrator = new MigrationRunner(dbAdapter);
     await migrator.initialize();
     
     const currentVersion = await migrator.getCurrentVersion();
@@ -323,79 +304,28 @@ async function initializeDatabase() {
       console.log(`✓ ${result.message}\n`);
     }
     
-    await migrateLegacyData();
-    
   } catch (error) {
     console.error('\n❌ Migration failed:', error.message);
     console.error(error.stack);
     console.log('\n⚠️  Application cannot start with failed migration.');
     console.log('💡 Check logs above for details or restore from backup.\n');
-    process.exit(1);
+    throw error;
   }
 }
 
-function initDatabase() {
-  return new Promise((resolve, reject) => {
-    sqliteDb.run(`
-      CREATE TABLE IF NOT EXISTS products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        inhouse_number TEXT,
-        barcode TEXT UNIQUE,
-        brand TEXT,
-        supplier TEXT,
-        items_per_case INTEGER,
-        cost_per_case REAL DEFAULT 0,
-        category TEXT,
-        notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `, (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        sqliteDb.run(`
-          CREATE TABLE IF NOT EXISTS inventory_batches (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product_id INTEGER NOT NULL,
-            case_quantity INTEGER NOT NULL,
-            total_quantity INTEGER NOT NULL,
-            expiry_date TEXT,
-            location TEXT,
-            received_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-            notes TEXT,
-            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-          )
-        `, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }
-    });
-  });
-}
-
-function migrateLegacyData() {
-  return new Promise((resolve) => {
-    sqliteDb.get("SELECT name FROM sqlite_master WHERE type='table' AND name='inventory'", (err, row) => {
-      if (!row) {
-        resolve();
-        return;
-      }
-      console.log('Migrating legacy inventory data...');
-      resolve();
-    });
-  });
-}
-
-// Backup functions
 function createBackup(prefix = '') {
   return new Promise((resolve, reject) => {
+    // Only SQLite supports file-based backups currently
+    if (dbAdapter.getType() !== 'sqlite') {
+      console.log('   ℹ️  Backup skipped (PostgreSQL uses external backup solutions)');
+      resolve({ filename: 'n/a', path: 'n/a' });
+      return;
+    }
+    
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0];
     const backupName = prefix ? `backup_${prefix}_${timestamp}.db` : `backup_${timestamp}.db`;
     const backupPath = path.join(BACKUP_DIR, backupName);
-    const dbPath = path.join(__dirname, 'inventory.db');
+    const dbPath = process.env.DATABASE_FILENAME || path.join(__dirname, 'data/inventory.db');
     
     fs.copyFile(dbPath, backupPath, (err) => {
       if (err) {
@@ -489,50 +419,18 @@ function getCurrentChannel() {
   return 'stable';
 }
 
-// Error handler (must be last)
 app.use(errorHandler);
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`\n🎉 InvAI v${VERSION} - Phase 2.2 Modular Routes`);
-  console.log(`💻 Server running on port ${PORT}`);
-  console.log(`🔗 Access at http://localhost:${PORT}`);
-  console.log(`\n🎯 Architecture:`);
-  console.log(`   → Streamlined server.js (~450 lines)`);
-  console.log(`   → Modular route structure (13 route modules)`);
-  console.log(`   → Async/await throughout`);
-  console.log(`   → JWT authentication & authorization`);
-  console.log(`   → Security headers (Helmet.js)`);
-  console.log(`   → CSRF protection active`);
-  console.log(`\n💾 Database: SQLite with async wrapper`);
-  console.log(`🔒 Auth: JWT tokens with role-based access`);
-  console.log(`💡 Update channel: ${getCurrentChannel()}`);
-  console.log('\nChecking for updates from GitHub...');
-  
-  const currentChannel = getCurrentChannel();
-  const targetBranch = currentChannel === 'stable' ? 'main' : 'beta';
-  
-  checkGitHubVersion(targetBranch)
-    .then(info => {
-      if (info.updateAvailable) {
-        console.log(`\n⚠️  UPDATE AVAILABLE!`);
-        console.log(`   Current: ${info.currentVersion}`);
-        console.log(`   Latest:  ${info.latestVersion}`);
-        console.log(`   Channel: ${currentChannel}`);
-        console.log(`   Branch:  ${targetBranch}\n`);
-      } else {
-        console.log(`✓ Running latest version (${VERSION}) on ${currentChannel} channel`);
-      }
-    })
-    .catch(err => { 
-      console.log(`Could not check for updates: ${err.message}`); 
-    });
+process.on('SIGINT', async () => {
+  console.log('\n\n🛑 Shutting down gracefully...');
+  try {
+    await closeDatabase();
+    console.log('✓ Database connection closed');
+  } catch (err) {
+    console.error('Error closing database:', err);
+  }
+  process.exit(0);
 });
 
-process.on('SIGINT', () => {
-  sqliteDb.close((err) => {
-    if (err) console.error('Error closing database:', err);
-    else console.log('Database connection closed');
-    process.exit(0);
-  });
-});
+// Start the application
+initializeApp();
