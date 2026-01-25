@@ -33,6 +33,51 @@ module.exports = (db, activityLogger, cache) => {
     res.json(products);
   }));
 
+  // Get batch suggestion for product (FIFO/FEFO)
+  router.get('/:id/batch-suggestion', asyncHandler(async (req, res) => {
+    const productId = req.params.id;
+    
+    // Get all batches for this product
+    const batches = await db.all(
+      `SELECT * FROM inventory_batches 
+       WHERE product_id = ? AND total_quantity > 0
+       ORDER BY 
+         CASE WHEN expiry_date IS NULL THEN 1 ELSE 0 END,
+         expiry_date ASC,
+         received_date ASC`,
+      [productId]
+    );
+
+    if (batches.length === 0) {
+      return res.json({ suggestion: null, reason: 'No batches available' });
+    }
+
+    const suggestion = batches[0];
+    const now = new Date();
+    let urgency = 'normal';
+    let reason = 'Use oldest batch first (FIFO)';
+
+    if (suggestion.expiry_date) {
+      const expiry = new Date(suggestion.expiry_date);
+      const daysUntilExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+
+      if (daysUntilExpiry < 0) {
+        urgency = 'expired';
+        reason = '⚠️ This batch has expired - use or dispose immediately';
+      } else if (daysUntilExpiry <= 7) {
+        urgency = 'urgent';
+        reason = `⚠️ Expires in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? '' : 's'} - use soon!`;
+      } else if (daysUntilExpiry <= 30) {
+        urgency = 'soon';
+        reason = `Expires in ${daysUntilExpiry} days - use before newer batches`;
+      } else {
+        reason = 'Use oldest batch first (FEFO)';
+      }
+    }
+
+    res.json({ suggestion, urgency, reason });
+  }));
+
   // Get product by ID
   router.get('/:id', asyncHandler(async (req, res) => {
     const product = await controller.getProductById(req.params.id);
