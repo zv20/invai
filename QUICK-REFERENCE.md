@@ -305,6 +305,67 @@ test: Tests
 chore: Maintenance
 ```
 
+## 🤖 AI Agent Workflow
+
+### Development Cycle with AI Assistant
+
+```
+1. PREPARE A PLAN
+   - Analyze current codebase and requirements
+   - Identify files that need changes
+   - Propose implementation approach
+   - List all affected files and changes
+   - Get user approval before proceeding
+
+2. SHOW THE DIFFERENCE
+   - Display code changes (before/after)
+   - Explain what each change does
+   - Highlight important decisions
+   - Show commit message preview
+   - Confirm changes with user
+
+3. COMMIT
+   - Create/update files via GitHub API
+   - Write proper conventional commit message
+   - Push to beta branch
+   - Verify commit on GitHub
+   - Ready for testing
+```
+
+### Commit Message Format
+```
+<type>: <description>
+
+<body explaining changes>
+
+Files:
+- NEW/UPDATE/DELETE: path/to/file (description)
+- NEW/UPDATE/DELETE: path/to/file (description)
+```
+
+### Example AI Workflow
+```
+User: "Add password reset feature"
+
+AI (Step 1 - Plan):
+  ✓ Analyze auth system
+  ✓ Propose: email token system
+  ✓ Files needed:
+    - routes/auth.js (add endpoints)
+    - lib/email-sender.js (new)
+    - public/js/auth.js (UI)
+
+AI (Step 2 - Difference):
+  📝 Show code snippets
+  📝 Explain token generation
+  📝 Show commit message
+
+AI (Step 3 - Commit):
+  ✅ Push to beta branch
+  ✅ Provide GitHub commit URL
+  ✅ Ready for systemctl restart
+```
+
 ## 🛠️ Quick Fixes
 
 ### App won't start
@@ -507,5 +568,5 @@ Public:
 
 ---
 
-**Last Updated:** January 2026 (v0.8.1 - Modular Architecture)
+**Last Updated:** January 2026 (v0.8.1 - Modular Architecture + AI Workflow)
 **Repo:** [github.com/zv20/invai](https://github.com/zv20/invai)
