@@ -73,21 +73,27 @@ function getExpiryStatus(date) {
    ========================================================================== */
 
 function updateCurrentTime() {
+    const timeEl = document.getElementById('currentTime');
+    if (!timeEl) return; // Element doesn't exist on this page
+    
     const now = new Date();
     const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    document.getElementById('currentTime').textContent = `${dateStr} ${timeStr}`;
+    timeEl.textContent = `${dateStr} ${timeStr}`;
 }
 
 async function checkConnection() {
+    const statusEl = document.getElementById('status');
+    if (!statusEl) return; // Element doesn't exist on this page
+    
     try {
         const response = await fetch(`${API_URL}/health`);
         const data = await response.json();
-        document.getElementById('status').className = 'status connected';
-        document.getElementById('status').textContent = '✓ Connected';
+        statusEl.className = 'status connected';
+        statusEl.textContent = '✓ Connected';
     } catch (error) {
-        document.getElementById('status').className = 'status';
-        document.getElementById('status').textContent = '✕ Disconnected';
+        statusEl.className = 'status';
+        statusEl.textContent = '✕ Disconnected';
     }
 }
 
@@ -99,22 +105,23 @@ function toggleMenu() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
     
-    sidebar.classList.toggle('open');
-    overlay.classList.toggle('active');
+    if (sidebar) sidebar.classList.toggle('open');
+    if (overlay) overlay.classList.toggle('active');
 }
 
 function switchTab(tabName) {
     // Close sidebar on mobile after selection
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
-    sidebar.classList.remove('open');
-    overlay.classList.remove('active');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
     
     // Update tab content visibility
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    document.getElementById(tabName + 'Tab').classList.add('active');
+    const tabContent = document.getElementById(tabName + 'Tab');
+    if (tabContent) tabContent.classList.add('active');
     
     // Update active nav item
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -142,7 +149,9 @@ function switchTab(tabName) {
             listView.style.display = 'block';
             detailView.style.display = 'none';
         }
-        loadProducts();
+        if (typeof loadProducts === 'function') {
+            loadProducts();
+        }
     }
     if (tabName === 'reports') {
         if (typeof Reports !== 'undefined') {
@@ -221,11 +230,19 @@ if (!document.getElementById('notification-styles')) {
    Event Listeners
    ========================================================================== */
 
-let searchTimeout;
-document.getElementById('productSearch').addEventListener('input', () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(loadProducts, 300);
-});
+// Only add product search listener if element exists
+const productSearchEl = document.getElementById('productSearch');
+if (productSearchEl) {
+    let searchTimeout;
+    productSearchEl.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            if (typeof loadProducts === 'function') {
+                loadProducts();
+            }
+        }, 300);
+    });
+}
 
 /* ==========================================================================
    Application Initialization
@@ -249,20 +266,25 @@ function initializeApp() {
         console.log('✓ Command palette available');
     }
     
-    // Start clock
-    updateCurrentTime();
-    setInterval(updateCurrentTime, 1000);
+    // Start clock (only if element exists)
+    if (document.getElementById('currentTime')) {
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+    }
     
-    // Check connection
-    checkConnection();
-    setInterval(checkConnection, 30000);
+    // Check connection (only if element exists)
+    if (document.getElementById('status')) {
+        checkConnection();
+        setInterval(checkConnection, 30000);
+    }
     
-    // Load categories and suppliers for product form dropdowns (BUG #3 FIX)
-    console.log('📂 Loading categories and suppliers...');
+    // Load categories and suppliers for product form dropdowns (only if functions exist)
     if (typeof loadCategories === 'function') {
+        console.log('📂 Loading categories...');
         loadCategories().catch(err => console.error('Failed to load categories:', err));
     }
     if (typeof loadSuppliers === 'function') {
+        console.log('📦 Loading suppliers...');
         loadSuppliers().catch(err => console.error('Failed to load suppliers:', err));
     }
     
