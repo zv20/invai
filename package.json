@@ -12,6 +12,7 @@
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration --runInBand --forceExit",
     "test:all": "jest --coverage --runInBand --forceExit",
+    "test:setup": "node scripts/create-test-user.js",
     "jwt:status": "node scripts/jwt-status.js",
     "jwt:rotate": "node scripts/rotate-jwt.js",
     "jwt:generate": "node scripts/generate-jwt.js"
