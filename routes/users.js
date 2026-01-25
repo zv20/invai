@@ -1,131 +1,52 @@
 /**
- * User Management Routes (Admin Only)
- * Handles user creation, listing, and deletion
+ * User Management Routes
+ * HTTP layer for user management operations
+ * Uses RBAC middleware for access control (owner only)
  */
 
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const asyncHandler = require('../middleware/asyncHandler');
-const { authenticate, authorize } = require('../middleware/auth');
+const authenticate = require('../middleware/auth');
+const { requirePermission } = require('../middleware/permissions');
+const UserController = require('../controllers/userController');
 
-module.exports = (db, logger) => {
+module.exports = (db, activityLogger) => {
+  const controller = new UserController(db, activityLogger);
   
   /**
    * GET /api/users
-   * List all users (Admin only)
+   * List all users with optional filtering and pagination
+   * Query params: page, limit, search, role, is_active
+   * Requires: users:view permission (owner only)
    */
-  router.get('/', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
-    const users = await db.all(
-      'SELECT id, username, role, created_at, updated_at FROM users ORDER BY created_at DESC',
-      []
-    );
+  router.get('/', authenticate, requirePermission('users:view'), asyncHandler(async (req, res) => {
+    const { page, limit, search, role, is_active } = req.query;
+    
+    const result = await controller.getAllUsers({
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+      search,
+      role,
+      is_active
+    });
     
     res.json({
       success: true,
-      users
+      data: result
     });
   }));
   
   /**
-   * POST /api/users
-   * Create a new user (Admin only)
+   * GET /api/users/:id
+   * Get a single user by ID
+   * Requires: users:view permission (owner only)
    */
-  router.post('/', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
-    const { username, password, role } = req.body;
-    
-    if (!username || !password) {
-      return res.status(400).json({ 
-        success: false,
-        error: {
-          message: 'Username and password required',
-          code: 'MISSING_FIELDS',
-          statusCode: 400
-        }
-      });
-    }
-    
-    if (password.length < 6) {
-      return res.status(400).json({ 
-        success: false,
-        error: {
-          message: 'Password must be at least 6 characters',
-          code: 'PASSWORD_TOO_SHORT',
-          statusCode: 400
-        }
-      });
-    }
-    
-    if (!['user', 'admin'].includes(role)) {
-      return res.status(400).json({ 
-        success: false,
-        error: {
-          message: 'Invalid role',
-          code: 'INVALID_ROLE',
-          statusCode: 400
-        }
-      });
-    }
-    
-    // Hash password
-    const hash = await bcrypt.hash(password, 10);
-    
-    try {
-      // Insert user
-      const result = await db.run(
-        'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-        [username, hash, role]
-      );
-      
-      logger.info(`New user created: ${username} (${role}) by ${req.user.username}`);
-      
-      res.status(201).json({
-        success: true,
-        user: {
-          id: result.lastID,
-          username,
-          role
-        }
-      });
-    } catch (error) {
-      if (error.message.includes('UNIQUE constraint')) {
-        return res.status(409).json({ 
-          success: false,
-          error: {
-            message: 'Username already exists',
-            code: 'USERNAME_EXISTS',
-            statusCode: 409
-          }
-        });
-      }
-      throw error;
-    }
-  }));
-  
-  /**
-   * DELETE /api/users/:id
-   * Delete a user (Admin only)
-   */
-  router.delete('/:id', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    
-    // Prevent deleting self
-    if (parseInt(id) === req.user.id) {
-      return res.status(400).json({ 
-        success: false,
-        error: {
-          message: 'Cannot delete your own account',
-          code: 'CANNOT_DELETE_SELF',
-          statusCode: 400
-        }
-      });
-    }
-    
-    // Get user info before deleting (for logging)
-    const user = await db.get('SELECT username FROM users WHERE id = ?', [id]);
+  router.get('/:id', authenticate, requirePermission('users:view'), asyncHandler(async (req, res) => {
+    const user = await controller.getUserById(parseInt(req.params.id));
     
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         error: {
           message: 'User not found',
@@ -135,15 +56,196 @@ module.exports = (db, logger) => {
       });
     }
     
-    // Delete user
-    await db.run('DELETE FROM users WHERE id = ?', [id]);
-    
-    logger.info(`User deleted: ${user.username} by ${req.user.username}`);
-    
     res.json({
       success: true,
-      message: 'User deleted successfully'
+      data: user
     });
+  }));
+  
+  /**
+   * POST /api/users
+   * Create a new user
+   * Body: { username, email, password, role }
+   * Requires: users:create permission (owner only)
+   */
+  router.post('/', authenticate, requirePermission('users:create'), asyncHandler(async (req, res) => {
+    try {
+      const user = await controller.createUser(
+        req.body,
+        req.user.username,
+        req.user.id
+      );
+      
+      res.status(201).json({
+        success: true,
+        data: user,
+        message: 'User created successfully'
+      });
+    } catch (error) {
+      // Handle specific validation errors
+      if (error.message.includes('already exists')) {
+        return res.status(409).json({
+          success: false,
+          error: {
+            message: error.message,
+            code: 'DUPLICATE_USER',
+            statusCode: 409
+          }
+        });
+      }
+      
+      if (error.message.includes('required') || error.message.includes('Invalid')) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: error.message,
+            code: 'VALIDATION_ERROR',
+            statusCode: 400
+          }
+        });
+      }
+      
+      throw error;
+    }
+  }));
+  
+  /**
+   * PUT /api/users/:id
+   * Update user information
+   * Body: { email?, role?, is_active? }
+   * Requires: users:update permission (owner only)
+   */
+  router.put('/:id', authenticate, requirePermission('users:update'), asyncHandler(async (req, res) => {
+    try {
+      const user = await controller.updateUser(
+        parseInt(req.params.id),
+        req.body,
+        req.user.username,
+        req.user.id
+      );
+      
+      res.json({
+        success: true,
+        data: user,
+        message: 'User updated successfully'
+      });
+    } catch (error) {
+      if (error.message === 'User not found') {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: error.message,
+            code: 'USER_NOT_FOUND',
+            statusCode: 404
+          }
+        });
+      }
+      
+      if (error.message.includes('Cannot') || error.message.includes('Invalid')) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: error.message,
+            code: 'FORBIDDEN',
+            statusCode: 403
+          }
+        });
+      }
+      
+      if (error.message.includes('No valid fields')) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: error.message,
+            code: 'VALIDATION_ERROR',
+            statusCode: 400
+          }
+        });
+      }
+      
+      throw error;
+    }
+  }));
+  
+  /**
+   * DELETE /api/users/:id
+   * Delete user (soft delete - sets is_active to false)
+   * Requires: users:delete permission (owner only)
+   */
+  router.delete('/:id', authenticate, requirePermission('users:delete'), asyncHandler(async (req, res) => {
+    try {
+      const user = await controller.deleteUser(
+        parseInt(req.params.id),
+        req.user.username,
+        req.user.id
+      );
+      
+      res.json({
+        success: true,
+        message: `User ${user.username} deactivated successfully`
+      });
+    } catch (error) {
+      if (error.message === 'User not found') {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: error.message,
+            code: 'USER_NOT_FOUND',
+            statusCode: 404
+          }
+        });
+      }
+      
+      if (error.message.includes('Cannot delete yourself')) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: error.message,
+            code: 'FORBIDDEN',
+            statusCode: 403
+          }
+        });
+      }
+      
+      throw error;
+    }
+  }));
+  
+  /**
+   * PUT /api/users/:id/password
+   * Change user password
+   * Body: { newPassword }
+   * Requires: users:update permission (owner only)
+   */
+  router.put('/:id/password', authenticate, requirePermission('users:update'), asyncHandler(async (req, res) => {
+    const { newPassword } = req.body;
+    
+    try {
+      await controller.updatePassword(
+        parseInt(req.params.id),
+        newPassword,
+        req.user.username,
+        req.user.id
+      );
+      
+      res.json({
+        success: true,
+        message: 'Password updated successfully'
+      });
+    } catch (error) {
+      if (error.message.includes('Password must')) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: error.message,
+            code: 'VALIDATION_ERROR',
+            statusCode: 400
+          }
+        });
+      }
+      
+      throw error;
+    }
   }));
   
   return router;
