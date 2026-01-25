@@ -7,20 +7,136 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for Sprint 2 Continuation (v0.8.3a)
-- User management UI (create, edit, delete users)
-- Role assignment interface (assign roles to users)
-- User profile management page
-- Enhanced authentication with password policies
-- User-specific settings and preferences
-- Enhanced audit trail with user tracking
-- Security hardening (CSRF, XSS, rate limiting)
+### Planned for Sprint 3 (v0.9.x)
+- User profile management page (view/edit own profile)
+- Enhanced activity audit trail UI
+- Security hardening (CSRF tokens, XSS prevention, rate limiting)
+- Password policies (complexity, expiration, history)
+- Session management (timeout, concurrent sessions)
+- Two-factor authentication (TOTP)
+
+---
+
+## [0.8.3a] - 2026-01-25
+
+### Added - Sprint 2 Phase 3: User Management UI & API
+- **Enhanced User Schema (Migration 008)**
+  - `email` field (VARCHAR 255, UNIQUE) - User email address
+  - `is_active` field (BOOLEAN) - Soft delete flag for user deactivation
+  - `last_login` field (DATETIME) - Track last successful login
+  - `created_at`, `created_by` - Audit trail for user creation
+  - `updated_at`, `updated_by` - Audit trail for user modifications
+  - Automatic `updated_at` trigger on user changes
+  - Unique index on email field
+  - Backward compatible migration (handles existing users)
+
+- **UserController** (`controllers/userController.js`)
+  - `getAllUsers(options)` - Paginated user list with search and filters
+  - `getUserById(id)` - Fetch single user with audit trail
+  - `createUser(data, creator, creatorId)` - Create user with validation
+  - `updateUser(id, updates, updater, updaterId)` - Update with self-protection
+  - `deleteUser(id, deleter, deleterId)` - Soft delete (set is_active=0)
+  - `updatePassword(id, password, updater, updaterId)` - Password reset
+  - `updateLastLogin(id)` - Track login activity
+  - Password validation (minimum 6 characters)
+  - Email uniqueness validation
+  - Role validation (owner, manager, staff, viewer)
+  - Self-modification protection (can't change own role or deactivate self)
+  - Activity logging integration
+
+- **Enhanced User Management Routes** (`routes/users.js`)
+  - `GET /api/users` - List users (paginated, searchable, filterable)
+    - Query params: `page`, `limit`, `search`, `role`, `is_active`
+    - Returns: user list with pagination metadata
+  - `GET /api/users/:id` - Get single user details
+  - `POST /api/users` - Create new user
+    - Body: `{ username, email, password, role }`
+    - Validation: all fields required, password ≥ 6 chars
+  - `PUT /api/users/:id` - Update user information
+    - Body: `{ email?, role?, is_active? }`
+    - Protection: cannot change own role or deactivate self
+  - `DELETE /api/users/:id` - Deactivate user (soft delete)
+    - Sets `is_active = 0` instead of hard delete
+    - Protection: cannot delete yourself
+  - `PUT /api/users/:id/password` - Reset user password
+    - Body: `{ newPassword }`
+    - Validation: minimum 6 characters
+  - All endpoints protected by RBAC (`users:*` permissions - owner only)
+  - Comprehensive error handling (400, 401, 403, 404, 409)
+  - Activity logging for all operations
+
+- **User Management UI** (`public/users.html`)
+  - User list with card-based layout
+  - Real-time search by username or email
+  - Filter by role (owner, manager, staff, viewer)
+  - Filter by status (active, inactive)
+  - Pagination (20 users per page)
+  - User cards display:
+    - Username and role badge (color-coded)
+    - Email address
+    - Active/inactive status
+    - Last login timestamp
+    - Action buttons (Edit, Reset Password, Activate/Deactivate)
+  - Create/Edit user modal:
+    - Form validation (required fields, email format, password length)
+    - Role selection with descriptions
+    - Read-only username on edit
+    - Password field only shown on create
+  - Password reset dialog with validation
+  - Activate/deactivate confirmation dialogs
+  - Permission check (redirects non-owners to dashboard)
+  - Responsive design following existing patterns
+  - Error handling with user-friendly messages
+
+- **Documentation**
+  - `docs/PHASE_3_USER_MANAGEMENT.md` - Complete implementation guide
+  - Migration instructions and expected output
+  - API endpoint documentation with examples
+  - Manual testing checklist
+  - Security features documentation
+  - Troubleshooting guide
+  - Database schema changes documentation
+
+### Changed
+- User routes now use MVC pattern with UserController
+- Enhanced error responses with specific codes (VALIDATION_ERROR, DUPLICATE_USER, etc.)
+- Improved permission checking for user management operations
+- Better HTTP status code usage (400, 401, 403, 404, 409)
+
+### Security
+- **Access Control**: All user management endpoints require `users:*` permissions (owner only)
+- **Self-Protection**: Users cannot modify their own role or deactivate themselves
+- **Password Security**: Bcrypt hashing (10 rounds), minimum 6 characters
+- **Audit Trail**: Complete tracking of who created/modified each user
+- **Soft Deletes**: User deactivation instead of hard deletion preserves audit trail
+- **Email Uniqueness**: Enforced at database level with unique index
+- **Input Validation**: All fields validated before processing
+
+### Testing
+- Manual testing checklist (15 test scenarios)
+- User list, create, edit, delete functionality verified
+- Password reset tested
+- Permission checks verified
+- Self-protection rules tested
+
+### Documentation
+- Complete API documentation with request/response examples
+- Deployment guide with step-by-step instructions
+- Troubleshooting section for common issues
+- Database migration documentation
+- Security features documented
+
+### Status
+- ✅ **Sprint 2 Complete (100%)**
+- Phase 1: RBAC Middleware ✔️
+- Phase 2: Protected Routes ✔️
+- Phase 3: User Management UI ✔️
 
 ---
 
 ## [0.8.2a] - 2026-01-25
 
-### Added - Sprint 2 Phase 1: RBAC Implementation
+### Added - Sprint 2 Phase 1-2: RBAC Implementation
 - **Role-Based Access Control (RBAC) System**
   - 4-role permission system: Owner, Manager, Staff, View-Only
   - Granular permissions for all resources (products, batches, reports, users, settings)
@@ -409,7 +525,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **b**: Beta (feature complete, testing)
 - **rc**: Release candidate (production ready, final testing)
 
-**Current**: v0.8.2a (Alpha - Active Development, Sprint 2 50% complete)
+**Current**: v0.8.3a (Alpha - Sprint 2 Complete)
+**Next**: v0.9.0a (Sprint 3 - Security & Profile Management)
 **Target**: v1.0.0 (Production Ready)
 
 ---
