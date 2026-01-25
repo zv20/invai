@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - InvAI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .icon {
+            font-size: 120px;
+            margin-bottom: 30px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.95); }
+        }
+
+        h1 {
+            font-size: 36px;
+            margin-bottom: 16px;
+            color: #FF9800;
+        }
+
+        p {
+            font-size: 18px;
+            line-height: 1.6;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #252525;
+            padding: 12px 24px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f44336;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .features {
+            margin-top: 50px;
+            text-align: left;
+        }
+
+        .feature {
+            display: flex;
+            align-items: start;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .feature-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .feature-text h3 {
+            font-size: 16px;
+            margin-bottom: 5px;
+            color: #4CAF50;
+        }
+
+        .feature-text p {
+            font-size: 14px;
+            margin: 0;
+        }
+
+        @media (max-width: 600px) {
+            .icon {
+                font-size: 80px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            p {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">📡</div>
+        
+        <h1>You're Offline</h1>
+        
+        <p>It looks like you've lost your internet connection. Don't worry, InvAI works offline too!</p>
+        
+        <div class="status">
+            <div class="status-dot"></div>
+            <span>Connection: Offline</span>
+        </div>
+        
+        <button class="btn" onclick="window.location.reload()">Try Again</button>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">💾</div>
+                <div class="feature-text">
+                    <h3>Cached Data</h3>
+                    <p>View your recently accessed products and inventory data from the cache.</p>
+                </div>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">📝</div>
+                <div class="feature-text">
+                    <h3>Offline Changes</h3>
+                    <p>Any changes you make will be saved and synced when you're back online.</p>
+                </div>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">🔄</div>
+                <div class="feature-text">
+                    <h3>Auto Sync</h3>
+                    <p>Your data will automatically sync in the background once connection is restored.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check for connection every 5 seconds
+        setInterval(() => {
+            if (navigator.onLine) {
+                window.location.reload();
+            }
+        }, 5000);
+
+        // Listen for online event
+        window.addEventListener('online', () => {
+            window.location.reload();
+        });
+    </script>
+</body>
+</html>
