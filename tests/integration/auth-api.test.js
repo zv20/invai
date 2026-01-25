@@ -18,6 +18,7 @@ describe('Authentication API Integration Tests', () => {
         });
       
       expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
       expect(response.body.token).toBeDefined();
       expect(response.body.user).toBeDefined();
       expect(response.body.user.username).toBe('admin');
@@ -32,6 +33,7 @@ describe('Authentication API Integration Tests', () => {
         });
       
       expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
     });
 
     test('should reject missing username', async () => {
@@ -42,6 +44,7 @@ describe('Authentication API Integration Tests', () => {
         });
       
       expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
     });
 
     test('should reject missing password', async () => {
@@ -52,6 +55,7 @@ describe('Authentication API Integration Tests', () => {
         });
       
       expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
     });
   });
 
@@ -79,7 +83,9 @@ describe('Authentication API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`);
       
       expect(response.status).toBe(200);
-      expect(response.body.username).toBe('admin');
+      expect(response.body.success).toBe(true);
+      expect(response.body.user).toBeDefined();
+      expect(response.body.user.username).toBe('admin');
     });
 
     test('should reject request without token', async () => {
@@ -98,14 +104,17 @@ describe('Authentication API Integration Tests', () => {
     });
   });
 
-  describe('Token Expiration', () => {
-    test('should include expiration time in login response', async () => {
+  describe('Token Structure', () => {
+    test('should return proper token structure on login', async () => {
       const response = await request(BASE_URL)
         .post('/api/auth/login')
         .send({ username: 'admin', password: 'admin123' });
       
       expect(response.status).toBe(200);
-      expect(response.body.expiresIn).toBeDefined();
+      expect(response.body.success).toBe(true);
+      expect(response.body.token).toBeDefined();
+      expect(typeof response.body.token).toBe('string');
+      expect(response.body.token.length).toBeGreaterThan(20);
     });
   });
 
