@@ -5,6 +5,7 @@
  */
 
 const bcrypt = require('bcryptjs');
+const passwordValidator = require('../utils/passwordValidator');
 
 class UserController {
   constructor(db, activityLogger) {
@@ -112,9 +113,10 @@ class UserController {
       throw new Error('Username, email, and password are required');
     }
     
-    // Validate password length
-    if (password.length < 6) {
-      throw new Error('Password must be at least 6 characters');
+    // Validate password complexity
+    const validation = passwordValidator.validatePasswordComplexity(password);
+    if (!validation.valid) {
+      throw new Error(`Password validation failed: ${validation.errors.join(', ')}`);
     }
     
     // Validate role
@@ -135,11 +137,14 @@ class UserController {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
     
-    // Insert user
+    // Insert user with password_changed_at set to now
     const result = await this.db.run(`
-      INSERT INTO users (username, password, email, role, is_active, created_by, created_at)
-      VALUES (?, ?, ?, ?, 1, ?, CURRENT_TIMESTAMP)
+      INSERT INTO users (username, password, email, role, is_active, password_changed_at, created_by, created_at)
+      VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
     `, [username, passwordHash, email, role, creatorId]);
+    
+    // Add initial password to history
+    await passwordValidator.addPasswordToHistory(result.lastID, passwordHash);
     
     // Log activity
     await this.activityLogger.log(
@@ -274,16 +279,29 @@ class UserController {
    * @returns {boolean} Success
    */
   async updatePassword(id, newPassword, updaterUsername, updaterId) {
-    if (!newPassword || newPassword.length < 6) {
-      throw new Error('Password must be at least 6 characters');
+    // Validate password complexity
+    const validation = passwordValidator.validatePasswordComplexity(newPassword);
+    if (!validation.valid) {
+      throw new Error(`Password validation failed: ${validation.errors.join(', ')}`);
     }
     
+    // Check password history
+    const inHistory = await passwordValidator.isPasswordInHistory(id, newPassword);
+    if (inHistory) {
+      throw new Error('Password has been used recently. Please choose a different password.');
+    }
+    
+    // Hash new password
     const passwordHash = await bcrypt.hash(newPassword, 10);
     
+    // Update password and set password_changed_at
     await this.db.run(
-      'UPDATE users SET password = ?, updated_by = ? WHERE id = ?',
+      'UPDATE users SET password = ?, password_changed_at = CURRENT_TIMESTAMP, updated_by = ? WHERE id = ?',
       [passwordHash, updaterId, id]
     );
+    
+    // Add password to history
+    await passwordValidator.addPasswordToHistory(id, passwordHash);
     
     // Log activity (without exposing password)
     await this.activityLogger.log(
