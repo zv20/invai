@@ -197,7 +197,7 @@
             <h1>👥 User Management</h1>
             <div class="header-actions">
                 <button onclick="showCreateModal()" class="btn btn-primary">+ Add User</button>
-                <a href="/dashboard.html" class="btn btn-secondary">← Dashboard</a>
+                <a href="/" class="btn btn-secondary">← Dashboard</a>
             </div>
         </div>
 
@@ -276,7 +276,7 @@
         
         // Check if user has permission to view this page
         async function checkPermissions() {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('auth_token');
             if (!token) {
                 window.location.href = '/login.html';
                 return;
@@ -287,7 +287,7 @@
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 if (payload.role !== 'owner' && payload.role !== 'admin') {
                     alert('⚠️ You do not have permission to access this page');
-                    window.location.href = '/dashboard.html';
+                    window.location.href = '/';
                     return;
                 }
             } catch (e) {
