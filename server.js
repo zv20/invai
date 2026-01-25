@@ -9,6 +9,7 @@
  * - New extracted routes (reports, inventory-helpers, backups, system, import-export)
  * - Async/await throughout
  * - JWT authentication and authorization
+ * - Security hardening (helmet, CSRF protection)
  */
 
 // Load environment variables FIRST
@@ -22,6 +23,7 @@ const fs = require('fs');
 const https = require('https');
 const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
+const helmet = require('helmet');
 
 // Validate JWT_SECRET
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key-here-change-this-in-production') {
@@ -36,6 +38,7 @@ const { errorHandler } = require('./middleware/errorHandler');
 const asyncHandler = require('./middleware/asyncHandler');
 const { authenticate, authorize } = require('./middleware/auth');
 const accountLockout = require('./utils/accountLockout');
+const csrf = require('./middleware/csrf');
 
 // Core route modules
 const productRoutes = require('./routes/products');
@@ -78,7 +81,8 @@ let sqliteDb; // Raw SQLite connection
 console.log('\n🚀 InvAI v' + VERSION + ' - Phase 2.2 Modular Routes');
 console.log('✅ Streamlined server.js (~450 lines)');
 console.log('✅ Modular route architecture');
-console.log('✅ JWT authentication enabled\n');
+console.log('✅ JWT authentication enabled');
+console.log('✅ Security hardening (helmet + CSRF)\n');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -127,6 +131,35 @@ const ensureDirectories = () => {
 };
 
 ensureDirectories();
+
+// Security headers with helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for now
+      scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for now
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"]
+    }
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: {
+    action: 'deny' // Prevent clickjacking
+  },
+  noSniff: true, // Prevent MIME sniffing
+  referrerPolicy: {
+    policy: 'strict-origin-when-cross-origin'
+  }
+}));
 
 app.use(cors());
 app.use(express.json());
@@ -186,13 +219,15 @@ sqliteDb = new sqlite3.Database('./inventory.db', async (err) => {
     activityLogger = new ActivityLogger(sqliteDb);
     csvExporter = new CSVExporter(sqliteDb);
     
-    // Start account lockout cleanup scheduler
+    // Start security background jobs
     accountLockout.startCleanupSchedule();
+    csrf.startCleanupSchedule();
     
     logger.info('Activity logger and CSV exporter initialized');
     console.log('✓ Async database wrapper active');
     console.log('✓ Activity logger and CSV exporter initialized');
     console.log('✓ Account lockout cleanup scheduler started');
+    console.log('✓ CSRF token cleanup scheduler started');
     
     registerRoutes();
   }
@@ -208,31 +243,36 @@ function registerRoutes() {
   app.use('/api/auth', authRoutes(db, logger));
 
   // ==============================================
-  // USER MANAGEMENT (ADMIN ONLY)
+  // CSRF TOKEN ATTACHMENT (for authenticated users)
   // ==============================================
-  app.use('/api/users', userRoutes(db, activityLogger));
+  app.use(authenticate, csrf.attachToken);
 
   // ==============================================
-  // CORE API ROUTES (PROTECTED)
+  // USER MANAGEMENT (ADMIN ONLY) - PROTECTED WITH CSRF
   // ==============================================
-  app.use('/api/products', authenticate, productRoutes(db, activityLogger, cache));
-  app.use('/api/batches', authenticate, batchRoutes(db, activityLogger));
-  app.use('/api/inventory/batches', authenticate, batchRoutes(db, activityLogger));
-  app.use('/api/categories', authenticate, categoryRoutes(db, activityLogger));
-  app.use('/api/suppliers', authenticate, supplierRoutes(db, activityLogger));
+  app.use('/api/users', authenticate, csrf.validateCSRF, userRoutes(db, activityLogger));
+
+  // ==============================================
+  // CORE API ROUTES (PROTECTED WITH CSRF)
+  // ==============================================
+  app.use('/api/products', authenticate, csrf.validateCSRF, productRoutes(db, activityLogger, cache));
+  app.use('/api/batches', authenticate, csrf.validateCSRF, batchRoutes(db, activityLogger));
+  app.use('/api/inventory/batches', authenticate, csrf.validateCSRF, batchRoutes(db, activityLogger));
+  app.use('/api/categories', authenticate, csrf.validateCSRF, categoryRoutes(db, activityLogger));
+  app.use('/api/suppliers', authenticate, csrf.validateCSRF, supplierRoutes(db, activityLogger));
   app.use('/api/dashboard', authenticate, dashboardRoutes(db, cache));
-  app.use('/api/settings', authenticate, authorize('admin'), settingsRoutes(db, createBackup));
+  app.use('/api/settings', authenticate, authorize('admin'), csrf.validateCSRF, settingsRoutes(db, createBackup));
 
   // ==============================================
-  // EXTRACTED ROUTES (GROUP 2 - PROTECTED)
+  // EXTRACTED ROUTES (GROUP 2 - PROTECTED WITH CSRF)
   // ==============================================
   app.use('/api/reports', authenticate, reportsRoutes(db, cache, csvExporter));
-  app.use('/api/inventory', authenticate, inventoryHelpersRoutes(db));
-  app.use('/api/backup', authenticate, backupsRoutes(createBackup, sqliteDb, Database));
+  app.use('/api/inventory', authenticate, csrf.validateCSRF, inventoryHelpersRoutes(db));
+  app.use('/api/backup', authenticate, csrf.validateCSRF, backupsRoutes(createBackup, sqliteDb, Database));
   app.use('/api', systemRoutes(db, logger, VERSION, MigrationRunner, sqliteDb, checkGitHubVersion, getCurrentChannel));
-  app.use('/api', authenticate, importExportRoutes(db, activityLogger, logger));
+  app.use('/api', authenticate, csrf.validateCSRF, importExportRoutes(db, activityLogger, logger));
 
-  console.log('✓ All routes registered');
+  console.log('✓ All routes registered with CSRF protection');
 }
 
 /**
@@ -453,12 +493,14 @@ app.listen(PORT, () => {
   console.log(`💻 Server running on port ${PORT}`);
   console.log(`🔗 Access at http://localhost:${PORT}`);
   console.log(`\n🎯 Architecture:`);
-  console.log(`   → Streamlined server.js (~450 lines)`);
+  console.log(`   → Streamlined server.js (~500 lines)`);
   console.log(`   → Modular route structure (13 route modules)`);
   console.log(`   → Async/await throughout`);
   console.log(`   → JWT authentication & authorization`);
+  console.log(`   → Security hardening (helmet + CSRF)`);
   console.log(`\n💾 Database: SQLite with async wrapper`);
   console.log(`🔒 Auth: JWT tokens with role-based access`);
+  console.log(`🛡️  Security: Helmet headers + CSRF protection`);
   console.log(`💡 Update channel: ${getCurrentChannel()}`);
   console.log('\nChecking for updates from GitHub...');
   
