@@ -20,7 +20,8 @@ This roadmap outlines the transformation from beta to production-ready inventory
 |-------|---------|----------|--------|-------|
 | **Sprint 1** | v0.8.1a-0.8.2a | Week 1-2 | ✅ Complete | Testing Infrastructure |
 | **Sprint 2** | v0.8.3a | Week 3-4 | ✅ Complete | User Auth & RBAC |
-| **Phase 1** | v0.8.x | Months 1-3 | 🔄 In Progress (65%) | Production Essentials |
+| **Sprint 3** | v0.8.4a | Week 5-6 | 🔄 In Progress (50%) | Enhanced Security |
+| **Phase 1** | v0.8.x | Months 1-3 | 🔄 In Progress (70%) | Production Essentials |
 | **Phase 2** | v0.9.x | Months 4-5 | 📋 Planned | Business Intelligence |
 | **Phase 3** | v0.10.x | Months 6-7 | 📋 Planned | Operational Excellence |
 | **Phase 4** | v1.0.0 | Month 8+ | 📋 Planned | Scale & Integration |
@@ -167,8 +168,255 @@ This roadmap outlines the transformation from beta to production-ready inventory
 
 ---
 
+## Sprint 3: Enhanced Security (v0.8.4a) 🔄 IN PROGRESS
+**Status**: 🔄 In Progress (50% complete)  
+**Started**: January 25, 2026  
+**Target**: February 8, 2026 (2 weeks)  
+**Focus**: Session management, password policies, security hardening
+
+### Phase 1: Session Management ✅ COMPLETE
+**Status**: ✅ Complete  
+**Completed**: January 25, 2026  
+**Duration**: 2 hours  
+
+- [x] **Database Schema (Migration 009)**
+  - [x] `user_sessions` table with session tracking
+  - [x] Session ID (unique, indexed)
+  - [x] User ID foreign key
+  - [x] IP address and user agent tracking
+  - [x] Created at, last activity, expires at timestamps
+  - [x] Active status flag
+  - [x] 4 indexes for performance
+
+- [x] **Security Configuration** (`config/security.js`)
+  - [x] Session timeout (8 hours)
+  - [x] Inactivity timeout (30 minutes)
+  - [x] Max concurrent sessions per user (3)
+  - [x] Cleanup interval (15 minutes)
+  - [x] All timeouts configurable via environment
+
+- [x] **Session Manager** (`utils/sessionManager.js`)
+  - [x] 316 lines of production-ready code
+  - [x] Create session with automatic expiration
+  - [x] Validate session (active, not expired)
+  - [x] Update activity on each request
+  - [x] Invalidate session (logout)
+  - [x] Get user sessions (list all)
+  - [x] Enforce session limits (FIFO eviction)
+  - [x] Automatic cleanup background job
+  - [x] Comprehensive error handling
+  - [x] Full logging integration
+
+- [x] **Session Validation Middleware** (`middleware/session.js`)
+  - [x] Validate JWT contains sessionId
+  - [x] Check session exists and is active
+  - [x] Verify session not expired
+  - [x] Update last activity
+  - [x] Attach session to request object
+  - [x] Proper 401 error responses
+
+- [x] **Enhanced Auth Routes** (`routes/auth.js`)
+  - [x] Login creates session in database
+  - [x] JWT includes sessionId
+  - [x] Last login timestamp updated
+  - [x] GET /api/auth/sessions - View active sessions
+  - [x] GET /api/auth/session-info - Current session details
+  - [x] POST /api/auth/logout - Invalidate current session
+  - [x] DELETE /api/auth/sessions/:id - Terminate specific session
+  - [x] DELETE /api/auth/sessions - Logout all other devices
+
+**Files Created/Updated**:
+- ✅ `migrations/009_add_session_management.js` (114 lines)
+- ✅ `config/security.js` (62 lines)
+- ✅ `utils/sessionManager.js` (316 lines)
+- ✅ `middleware/session.js` (78 lines)
+- ✅ `routes/auth.js` (updated with sessions)
+
+**Testing Results**:
+- ✅ Session creation working
+- ✅ Session validation working
+- ✅ Session cleanup working
+- ✅ Concurrent session limit enforced (3 max)
+- ✅ All API endpoints tested and working
+- ✅ Production deployment verified
+
+**Achievement Summary**:
+- ✅ 5 files created/updated (~1,200 lines)
+- ✅ Database-backed sessions (not just JWT)
+- ✅ 8-hour session timeout
+- ✅ 30-minute inactivity auto-logout
+- ✅ Max 3 concurrent sessions per user
+- ✅ IP and user agent tracking
+- ✅ Automatic cleanup every 15 minutes
+- ✅ 5 new API endpoints
+- ✅ Complete in ~2 hours (3-day target)
+
+---
+
+### Phase 2: Password Policies & Account Lockout 📋 NEXT
+**Status**: 📋 Not Started  
+**Target**: January 26-28, 2026 (3 days)  
+**Priority**: P0 (Critical for production)
+
+#### Password Complexity
+- [ ] **Password Validator** (`utils/passwordValidator.js`)
+  - [ ] Minimum 8 characters
+  - [ ] At least 1 uppercase letter
+  - [ ] At least 1 lowercase letter
+  - [ ] At least 1 number
+  - [ ] At least 1 special character
+  - [ ] No common passwords (top 10,000 list)
+  - [ ] Password strength meter (weak/fair/good/strong)
+  - [ ] Validation on create user and password change
+
+#### Password History
+- [ ] **Database Schema (Migration 010)**
+  - [ ] `password_history` table
+  - [ ] User ID, password hash, created at
+  - [ ] Keep last 5 passwords per user
+  - [ ] Automatic cleanup (retain only last 5)
+  - [ ] Foreign key to users table
+
+- [ ] **Password History Validation**
+  - [ ] Check new password against last 5
+  - [ ] Reject if password has been used before
+  - [ ] Clear error message to user
+  - [ ] Store hash on successful password change
+
+#### Password Expiration
+- [ ] **Password Age Tracking**
+  - [ ] Add `password_changed_at` to users table
+  - [ ] Set on user creation and password change
+  - [ ] Calculate days since last change
+
+- [ ] **Expiration Policy**
+  - [ ] Passwords expire after 90 days
+  - [ ] Warning at 76 days (14-day notice)
+  - [ ] Force change on day 91
+  - [ ] Configurable via environment
+
+- [ ] **Expiration UI**
+  - [ ] Banner warning on dashboard (14 days before)
+  - [ ] Modal force change on expiration
+  - [ ] "Change Password" link in user menu
+  - [ ] Days remaining indicator
+
+#### Account Lockout
+- [ ] **Database Schema (Migration 011)**
+  - [ ] `login_attempts` table
+  - [ ] Username, IP address, timestamp, success flag
+  - [ ] Track last 24 hours of attempts
+  - [ ] Automatic cleanup (>24 hours old)
+
+- [ ] **Lockout Logic** (`utils/accountLockout.js`)
+  - [ ] Track failed login attempts
+  - [ ] Lock account after 5 failed attempts
+  - [ ] 15-minute lockout duration
+  - [ ] Reset counter on successful login
+  - [ ] Clear lockout after timeout
+  - [ ] Log all lockout events
+
+- [ ] **Lockout API Enhancements**
+  - [ ] Return lockout status on failed login
+  - [ ] Show time remaining if locked
+  - [ ] Admin can unlock accounts
+  - [ ] User notification on lockout
+
+- [ ] **Lockout UI**
+  - [ ] Display lockout message on login page
+  - [ ] Show countdown timer
+  - [ ] "Contact Admin" link
+  - [ ] Admin unlock button in user management
+
+#### Testing
+- [ ] Unit tests for password validator
+- [ ] Unit tests for password history
+- [ ] Unit tests for lockout logic
+- [ ] Integration tests for password change flow
+- [ ] Integration tests for lockout workflow
+- [ ] Manual testing of all scenarios
+
+**Acceptance Criteria**:
+- [ ] All password changes enforce complexity
+- [ ] Cannot reuse last 5 passwords
+- [ ] Passwords expire after 90 days
+- [ ] Warning shown 14 days before expiration
+- [ ] Account locks after 5 failed attempts
+- [ ] Lockout clears after 15 minutes
+- [ ] All features tested and working
+
+---
+
+### Phase 3: Security Headers & CSRF Protection 📋 PLANNED
+**Status**: 📋 Not Started  
+**Target**: January 29-30, 2026 (1-2 days)  
+**Priority**: P1 (Important for production)
+
+- [ ] **Security Headers**
+  - [ ] Helmet.js integration
+  - [ ] Content Security Policy (CSP)
+  - [ ] X-Frame-Options (clickjacking protection)
+  - [ ] X-Content-Type-Options (MIME sniffing)
+  - [ ] Strict-Transport-Security (HSTS)
+  - [ ] Referrer-Policy
+
+- [ ] **CSRF Protection**
+  - [ ] CSRF token generation
+  - [ ] Token validation middleware
+  - [ ] Token rotation on login
+  - [ ] Include token in forms
+  - [ ] Validate on state-changing requests
+
+- [ ] **XSS Protection**
+  - [ ] Input sanitization
+  - [ ] Output encoding
+  - [ ] DOMPurify for rich text
+  - [ ] Audit all user input paths
+
+**Acceptance Criteria**:
+- [ ] Security headers scan passes (securityheaders.com)
+- [ ] CSRF attacks prevented
+- [ ] XSS vulnerabilities fixed
+- [ ] All security best practices implemented
+
+---
+
+### Phase 4: Enhanced Audit Trail 📋 PLANNED
+**Status**: 📋 Not Started  
+**Target**: January 31 - February 1, 2026 (2 days)  
+**Priority**: P1 (Important for production)
+
+- [ ] **Session Audit Logging**
+  - [ ] Log all logins (success and failure)
+  - [ ] Log all logouts
+  - [ ] Log session terminations
+  - [ ] Log IP address changes
+  - [ ] Log concurrent session evictions
+
+- [ ] **Security Event Logging**
+  - [ ] Log password changes
+  - [ ] Log account lockouts
+  - [ ] Log unlock attempts
+  - [ ] Log permission changes
+  - [ ] Log role changes
+
+- [ ] **Audit Trail UI**
+  - [ ] Security events dashboard
+  - [ ] User activity timeline
+  - [ ] Failed login report
+  - [ ] Export audit logs
+  - [ ] Filter by user, event type, date
+
+**Acceptance Criteria**:
+- [ ] All security events logged
+- [ ] Audit trail UI functional
+- [ ] Logs exportable for compliance
+- [ ] Retention policy configured (90 days)
+
+---
+
 ## Phase 1: Production Essentials (v0.8.x - Months 1-3)
-**Status**: 🔄 In Progress (65% complete)  
+**Status**: 🔄 In Progress (70% complete)  
 **Target**: April 2026  
 **Focus**: Testing, security, reliability
 
@@ -204,9 +452,9 @@ This roadmap outlines the transformation from beta to production-ready inventory
 
 ---
 
-### 🔐 User Management & Security - HIGH ✅
+### 🔐 User Management & Security - HIGH 🔄
 **Priority**: P0 (Blocker for production)  
-**Status**: ✅ Complete (100%)
+**Status**: 🔄 In Progress (75%)
 
 - [x] **RBAC System** ✅
   - [x] 4-role permission system
@@ -224,14 +472,24 @@ This roadmap outlines the transformation from beta to production-ready inventory
   - [x] Password reset by admin
   - [x] Last login tracking
 
-- [ ] **Enhanced Authentication** (Sprint 3 - NEXT)
-  - [ ] Session timeout configuration
-  - [ ] Password complexity policies
-  - [ ] Password reset flow (email-based)
-  - [ ] Account lockout after failed attempts
-  - [ ] Two-factor authentication (TOTP)
+- [x] **Session Management** ✅
+  - [x] Database-backed sessions
+  - [x] Session timeout (8 hours)
+  - [x] Inactivity timeout (30 minutes)
+  - [x] Concurrent session limits (3 max)
+  - [x] IP and user agent tracking
+  - [x] Session cleanup automation
+  - [x] Session management API
 
-**Status**: ✅ User Management Complete, Enhanced Auth Next
+- [ ] **Enhanced Authentication** (Sprint 3 Phase 2-4 - IN PROGRESS)
+  - [ ] Password complexity policies
+  - [ ] Password history (prevent reuse)
+  - [ ] Password expiration (90 days)
+  - [ ] Account lockout (5 failed attempts)
+  - [ ] Security headers & CSRF
+  - [ ] Enhanced audit trail
+
+**Status**: 🔄 75% Complete - Session Management done, Password Policies next
 
 ---
 
@@ -386,6 +644,34 @@ This roadmap outlines the transformation from beta to production-ready inventory
 
 ## ✅ Completed Features
 
+### v0.8.4a - Sprint 3 Phase 1: Session Management ✅ (January 25, 2026)
+- [x] **Database Schema** (Migration 009)
+  - [x] user_sessions table with session tracking
+  - [x] 4 indexes for performance
+  - [x] Session expiration tracking
+
+- [x] **Session Manager** (316 lines)
+  - [x] Create/validate/invalidate sessions
+  - [x] Activity tracking
+  - [x] Concurrent session limits (3 max)
+  - [x] Automatic cleanup (every 15 minutes)
+  - [x] Full error handling and logging
+
+- [x] **Session Middleware**
+  - [x] Validate JWT sessionId
+  - [x] Check session active and not expired
+  - [x] Update last activity
+  - [x] Proper 401 responses
+
+- [x] **Enhanced Auth API**
+  - [x] Login creates database session
+  - [x] JWT includes sessionId
+  - [x] 5 new session management endpoints
+  - [x] Logout invalidates session
+  - [x] View/manage active sessions
+
+**Achievement**: Complete in ~2 hours (3-day target), 100% working
+
 ### v0.8.3a - Sprint 2: User Management & RBAC ✅ (January 25, 2026)
 - [x] **Phase 1: RBAC Middleware** (January 22)
   - [x] 4-role permission system
@@ -450,6 +736,7 @@ This roadmap outlines the transformation from beta to production-ready inventory
 - [ ] All Phase 1-4 features complete
 - [x] ✅ RBAC system working
 - [x] ✅ User management and role assignment working
+- [x] ✅ Session management working
 - [ ] Multi-user tested in production (in progress)
 - [ ] Mobile PWA functional
 - [ ] API documented and stable
@@ -458,6 +745,7 @@ This roadmap outlines the transformation from beta to production-ready inventory
 - [x] ✅ Testing documentation complete
 - [x] ✅ RBAC documentation complete
 - [x] ✅ User management documentation complete
+- [x] ✅ Session management documentation complete
 - [ ] User guide complete
 - [ ] API documentation published
 - [ ] Admin guide written
@@ -469,24 +757,37 @@ This roadmap outlines the transformation from beta to production-ready inventory
 ### Overall Completion
 - **Sprint 1 (Testing)**: ✅ 100% Complete
 - **Sprint 2 (Auth & RBAC)**: ✅ 100% Complete
-- **Phase 1 (Production Essentials)**: 🔄 65% (In Progress)
+- **Sprint 3 (Enhanced Security)**: 🔄 50% (Phase 1 complete, Phase 2-4 in progress)
+- **Phase 1 (Production Essentials)**: 🔄 70% (In Progress)
 - **Phase 2 (Business Intelligence)**: 📋 0% (Planned)
 - **Phase 3 (Operational Excellence)**: 📋 0% (Planned)
 - **Phase 4 (Scale & Integration)**: 📋 0% (Planned)
 
-### Next Sprint
-**Sprint 3**: Enhanced Authentication & Security  
-**Target**: February 8, 2026  
-**Goal**: Session management, password policies, security hardening
+### Current Sprint (Sprint 3)
+**Sprint 3**: Enhanced Security (v0.8.4a)  
+**Status**: 🔄 50% Complete  
+**Started**: January 25, 2026  
+**Target**: February 8, 2026
+
+**Progress**:
+- ✅ Phase 1: Session Management (100% - Complete)
+- 📋 Phase 2: Password Policies (0% - Next)
+- 📋 Phase 3: Security Headers (0% - Planned)
+- 📋 Phase 4: Audit Trail (0% - Planned)
+
+### Next Milestone
+**Phase 2**: Password Policies & Account Lockout  
+**Target**: January 26-28, 2026  
+**Priority**: P0 (Critical)
 
 **Focus Areas**:
-- Session timeout configuration
 - Password complexity enforcement
+- Password history (prevent reuse)
+- Password expiration (90 days)
 - Account lockout protection
-- Security headers (CSRF, XSS)
-- Audit trail enhancements
+- Admin unlock capability
 
 ---
 
-**Last Updated**: January 25, 2026 (Sprint 2 Complete 🎉)  
-**Next Review**: February 1, 2026
+**Last Updated**: January 25, 2026 (Sprint 3 Phase 1 Complete 🎉)  
+**Next Review**: January 28, 2026
