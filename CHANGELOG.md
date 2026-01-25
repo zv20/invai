@@ -5,6 +5,74 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1a] - 2026-01-25
+🔧 **Stability & Bug Fixes Release**
+
+### Fixed
+- ✅ **SQL Column Errors** - Fixed undefined column references
+  - Resolved `s.contact_name` error in supplier queries
+  - Fixed `c.sort_order` column reference in category queries
+  - Added proper column validation in JOIN statements
+- ✅ **Cache Manager** - Added missing `invalidate()` method
+  - Implemented cache invalidation for data updates
+  - Prevents stale data in dashboard and reports
+  - Supports wildcard and specific key invalidation
+- ✅ **Batch Endpoints** - Corrected API routes
+  - Fixed `/api/batches/product/:productId` endpoint
+  - Proper product-batch relationship queries
+  - Improved error handling for missing products
+- ✅ **Batch Suggestions** - FIFO/FEFO implementation verified
+  - Confirmed proper expiry date sorting
+  - First-in-first-out logic working correctly
+  - FEFO (First-Expired-First-Out) prioritization functional
+- ✅ **Authentication** - Applied `authFetch` throughout frontend
+  - JWT tokens properly attached to all API requests
+  - Session handling improved
+  - Prevents unauthorized access errors
+- ✅ **Health Endpoint** - Added `/api/health` for monitoring
+  - Returns system status and version
+  - Database connectivity check
+  - Uptime and memory usage reporting
+- ✅ **Update Script** - Fixed permissions for root user
+  - Update script now works correctly with root account
+  - Proper git permissions handling
+  - Service restart after updates working
+- ✅ **Console Errors** - All browser console errors resolved
+  - No JavaScript errors on page load
+  - Clean console output
+  - Improved error handling across all modules
+
+### Changed
+- Enhanced error logging with stack traces
+- Improved API response consistency
+- Better null/undefined checks throughout codebase
+- Optimized batch query performance
+
+### Technical Details
+- Fixed SQL query builder for complex JOINs
+- Added missing method implementations in cache-manager.js
+- Corrected Express route definitions
+- Enhanced authentication middleware
+- Improved error response formatting
+
+### Deployment Notes
+- ⚠️ **Database**: No migration required (backward compatible)
+- ⚠️ **Dependencies**: No new packages (same as v0.8.0)
+- 🔄 **Update**: Run `update` or `git pull origin beta && systemctl restart inventory-app`
+- ✅ **Testing**: Verify health endpoint: `curl http://localhost:3000/api/health`
+
+### Upgrade Instructions
+1. Pull latest code: `git pull origin beta`
+2. Restart service: `systemctl restart inventory-app`
+3. Verify version in footer shows 0.8.1a
+4. Check health: `curl http://localhost:3000/api/health`
+5. Test batch suggestions and reports functionality
+
+### Breaking Changes
+**NONE** - Fully backward compatible with v0.8.0.
+
+---
+
 ## [0.8.0] - 2026-01-23
 🎉 **Major Release: Intelligence & Polish**
 
@@ -195,6 +263,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **v0.8.1a** - Stability fixes: SQL errors, cache manager, batch endpoints, authentication
 - **v0.8.0** - Intelligence & Polish: Reports, activity logging, dark mode, keyboard shortcuts, performance
 - **v0.7.8e** - Supplier visibility fix (inactive status causing faded appearance)
 - **v0.7.8d** - Critical hotfix for Settings tab crash
