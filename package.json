@@ -1,6 +1,6 @@
 {
   "name": "grocery-inventory",
-  "version": "0.9.0-beta",
+  "version": "0.10.0-beta",
   "description": "Professional inventory management system with intelligence and analytics",
   "main": "server.js",
   "scripts": {
@@ -20,7 +20,7 @@
     "jwt:rotate": "node scripts/rotate-jwt.js",
     "jwt:generate": "node scripts/generate-jwt.js"
   },
-  "keywords": ["inventory", "grocery", "management", "analytics", "reports", "security", "testing", "backup"],
+  "keywords": ["inventory", "grocery", "management", "analytics", "reports", "security", "testing", "backup", "charts"],
   "author": "zv20",
   "license": "MIT",
   "dependencies": {
