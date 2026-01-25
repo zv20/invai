@@ -1,6 +1,6 @@
 /**
  * Authentication Routes
- * Handles user login, logout, token refresh, and password changes
+ * Handles user login, logout, token refresh, password changes, and session management
  */
 
 const express = require('express');
@@ -9,12 +9,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('../middleware/asyncHandler');
 const { authenticate } = require('../middleware/auth');
+const { validateSession } = require('../middleware/session');
+const sessionManager = require('../utils/sessionManager');
+const UserController = require('../controllers/userController');
 
 module.exports = (db, logger) => {
   
   /**
    * POST /api/auth/login
-   * Authenticates user and returns JWT token
+   * Authenticates user and returns JWT token with session
    */
   router.post('/login', asyncHandler(async (req, res) => {
     const { username, password } = req.body;
@@ -31,7 +34,10 @@ module.exports = (db, logger) => {
     }
     
     // Get user from database
-    const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
+    const user = await db.get(
+      'SELECT * FROM users WHERE username = ? AND is_active = 1',
+      [username]
+    );
     
     if (!user) {
       return res.status(401).json({ 
@@ -58,14 +64,37 @@ module.exports = (db, logger) => {
       });
     }
     
-    // Generate JWT token
+    // Get client IP and user agent
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('user-agent');
+    
+    // Create session in database
+    const sessionId = await sessionManager.createSession(
+      user.id,
+      ipAddress,
+      userAgent
+    );
+    
+    // Update last login timestamp
+    await UserController.updateLastLogin(user.id);
+    
+    // Generate JWT token with session ID
     const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
+      { 
+        id: user.id, 
+        username: user.username, 
+        role: user.role,
+        sessionId // Include session ID in JWT
+      },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
     
-    logger.info(`User logged in: ${username}`);
+    logger.info(`User logged in: ${username}`, {
+      userId: user.id,
+      ipAddress,
+      sessionId: sessionId.substring(0, 8) + '...'
+    });
     
     res.json({
       success: true,
@@ -73,6 +102,7 @@ module.exports = (db, logger) => {
       user: {
         id: user.id,
         username: user.username,
+        email: user.email,
         role: user.role
       }
     });
@@ -81,10 +111,11 @@ module.exports = (db, logger) => {
   /**
    * GET /api/auth/me
    * Returns authenticated user's information
+   * Validates session before returning data
    */
-  router.get('/me', authenticate, asyncHandler(async (req, res) => {
+  router.get('/me', authenticate, validateSession, asyncHandler(async (req, res) => {
     const user = await db.get(
-      'SELECT id, username, role, created_at FROM users WHERE id = ?',
+      'SELECT id, username, email, role, last_login, created_at FROM users WHERE id = ?',
       [req.user.id]
     );
     
@@ -109,7 +140,7 @@ module.exports = (db, logger) => {
    * POST /api/auth/change-password
    * Allows authenticated users to change their password
    */
-  router.post('/change-password', authenticate, asyncHandler(async (req, res) => {
+  router.post('/change-password', authenticate, validateSession, asyncHandler(async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     
     if (!currentPassword || !newPassword) {
@@ -173,22 +204,146 @@ module.exports = (db, logger) => {
     
     logger.info(`Password changed for user: ${user.username}`);
     
+    // Invalidate all other sessions (force re-login)
+    await sessionManager.invalidateAllUserSessions(req.user.id, req.user.sessionId);
+    
     res.json({ 
       success: true,
-      message: 'Password changed successfully' 
+      message: 'Password changed successfully. Other sessions have been logged out.' 
     });
   }));
   
   /**
    * POST /api/auth/logout
-   * Invalidates current session (client should delete token)
+   * Invalidates current session
    */
-  router.post('/logout', authenticate, asyncHandler(async (req, res) => {
-    logger.info(`User logged out: ${req.user.username}`);
+  router.post('/logout', authenticate, validateSession, asyncHandler(async (req, res) => {
+    // Invalidate current session
+    await sessionManager.invalidateSession(
+      req.user.sessionId,
+      'user_logout'
+    );
+    
+    logger.info(`User logged out: ${req.user.username}`, {
+      sessionId: req.user.sessionId.substring(0, 8) + '...'
+    });
     
     res.json({ 
       success: true,
       message: 'Logged out successfully' 
+    });
+  }));
+  
+  /**
+   * GET /api/auth/sessions
+   * Get all active sessions for the current user
+   */
+  router.get('/sessions', authenticate, validateSession, asyncHandler(async (req, res) => {
+    const sessions = await sessionManager.getUserSessions(req.user.id);
+    
+    // Mark current session
+    const sessionsWithCurrent = sessions.map(session => ({
+      ...session,
+      isCurrent: session.session_id === req.user.sessionId,
+      // Hide full session ID for security
+      session_id: session.session_id.substring(0, 8) + '...'
+    }));
+    
+    res.json({
+      success: true,
+      data: {
+        sessions: sessionsWithCurrent,
+        count: sessionsWithCurrent.length
+      }
+    });
+  }));
+  
+  /**
+   * DELETE /api/auth/sessions/:sessionId
+   * Terminate a specific session
+   */
+  router.delete('/sessions/:sessionId', authenticate, validateSession, asyncHandler(async (req, res) => {
+    const { sessionId } = req.params;
+    
+    // Verify the session belongs to the current user
+    const sessions = await sessionManager.getUserSessions(req.user.id);
+    const targetSession = sessions.find(s => s.session_id.startsWith(sessionId));
+    
+    if (!targetSession) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Session not found',
+          code: 'SESSION_NOT_FOUND',
+          statusCode: 404
+        }
+      });
+    }
+    
+    // Prevent terminating current session (use logout instead)
+    if (targetSession.session_id === req.user.sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Cannot terminate current session. Use /logout instead.',
+          code: 'CANNOT_TERMINATE_CURRENT',
+          statusCode: 400
+        }
+      });
+    }
+    
+    // Invalidate the session
+    await sessionManager.invalidateSession(targetSession.session_id, 'user_terminated');
+    
+    logger.info(`Session terminated by user`, {
+      userId: req.user.id,
+      terminatedSession: sessionId
+    });
+    
+    res.json({
+      success: true,
+      message: 'Session terminated successfully'
+    });
+  }));
+  
+  /**
+   * DELETE /api/auth/sessions
+   * Terminate all other sessions (keep current)
+   */
+  router.delete('/sessions', authenticate, validateSession, asyncHandler(async (req, res) => {
+    // Invalidate all sessions except current
+    await sessionManager.invalidateAllUserSessions(
+      req.user.id,
+      req.user.sessionId
+    );
+    
+    logger.info(`All other sessions terminated by user`, {
+      userId: req.user.id
+    });
+    
+    res.json({
+      success: true,
+      message: 'All other sessions terminated successfully'
+    });
+  }));
+  
+  /**
+   * GET /api/auth/session-info
+   * Get information about current session
+   */
+  router.get('/session-info', authenticate, validateSession, asyncHandler(async (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        session: {
+          sessionId: req.session.session_id.substring(0, 8) + '...',
+          ipAddress: req.session.ip_address,
+          userAgent: req.session.user_agent,
+          createdAt: req.session.created_at,
+          lastActivity: req.session.last_activity,
+          expiresAt: req.session.expires_at
+        }
+      }
     });
   }));
   
