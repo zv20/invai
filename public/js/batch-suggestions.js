@@ -6,7 +6,12 @@ async function loadBatchSuggestion(productId) {
   if (!container) return;
   
   try {
-    const response = await fetch(`${API_URL}/api/products/${productId}/batch-suggestion`);
+    const response = await authFetch(`${API_URL}/api/products/${productId}/batch-suggestion`);
+    if (!response.ok) {
+      container.innerHTML = '<div class="no-suggestion">✓ No batches available</div>';
+      return;
+    }
+    
     const data = await response.json();
     
     if (!data.suggestion) {
