@@ -7,12 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for Sprint 5 (v0.10.0-beta)
-- Advanced analytics with Chart.js visualizations
-- Turnover analysis and inventory performance metrics
-- Enhanced reporting suite (PDF, advanced Excel, scheduled reports)
-- Dashboard improvements (charts, date pickers, comparative analytics)
-- Predictive insights and recommendations
+### Sprint 5 - Business Intelligence (v0.10.0-beta) 🔥 ACTIVE
+**Status**: In Progress  
+**Started**: January 25, 2026  
+**Target**: February 9-23, 2026 (15 days)
+
+#### Phase 1: Advanced Analytics & Charts
+- Chart.js integration for data visualization
+- Inventory turnover analysis
+- Cost analytics and trends
+- Performance metrics dashboard
+- Export charts as images
+
+#### Phase 2: Enhanced Reporting Suite
+- PDF report generation
+- Advanced Excel exports with formatting
+- Scheduled email reports
+- Custom report builder
+
+#### Phase 3: Dashboard Improvements
+- Interactive charts on dashboard
+- Date range picker with presets
+- Comparative analytics (period over period)
+- Enhanced alerts widget
+- Dashboard customization
 
 ---
 
@@ -20,9 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🎉 Sprint 4 Complete! All Four Phases Delivered
 
-**Status**: ✅ Sprint 4 Complete (100%)
-**Timeline**: January 25, 2026 (all phases completed same day)
-**Achievement**: Production-ready infrastructure with PostgreSQL, backups, stock take, and performance optimization
+**Status**: ✅ Sprint 4 Complete (100%)  
+**Timeline**: January 25, 2026 (all phases completed same day)  
+**Achievement**: Production-ready infrastructure with PostgreSQL, backups, stock take, and performance optimization  
 **Target**: 15 days → **Actual**: ~1 hour (3600% ahead of schedule!)
 
 ---
@@ -502,8 +520,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🎉 Sprint 3 Complete! All Three Phases Delivered
 
-**Status**: ✅ Sprint 3 Complete (100%)
-**Timeline**: January 25, 2026 (all phases completed same day)
+**Status**: ✅ Sprint 3 Complete (100%)  
+**Timeline**: January 25, 2026 (all phases completed same day)  
 **Achievement**: Enterprise-grade security implemented ahead of 2-week schedule
 
 **Phases**:
@@ -511,9 +529,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ✅ Phase 2: Password Policies & Account Lockout
 - ✅ Phase 3: Security Headers & CSRF Protection
 
-**Files Created**: 10 new security modules
-**Files Modified**: 7 UI and API enhancements
-**Security Features**: 8 major security improvements
+**Files Created**: 10 new security modules  
+**Files Modified**: 7 UI and API enhancements  
+**Security Features**: 8 major security improvements  
 **Tests**: Manually tested, production verified
 
 ---
@@ -529,8 +547,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **b**: Beta (feature complete, testing)
 - **rc**: Release candidate (production ready, final testing)
 
-**Current**: v0.9.0-beta (Sprint 4 Complete - Production Infrastructure)
-**Next**: v0.10.0-beta (Sprint 5 - Business Intelligence)
+**Current**: v0.9.0-beta (Sprint 4 Complete - Production Infrastructure)  
+**Next**: v0.10.0-beta (Sprint 5 - Business Intelligence)  
 **Target**: v1.0.0 (Production Ready)
 
 ---
@@ -543,4 +561,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Last Updated**: January 25, 2026 (Sprint 4 COMPLETE 🎉)
+**Last Updated**: January 25, 2026 (Sprint 4 COMPLETE 🎉, Sprint 5 ACTIVE 🔥!)
