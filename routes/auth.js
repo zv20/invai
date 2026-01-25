@@ -11,7 +11,6 @@ const asyncHandler = require('../middleware/asyncHandler');
 const { authenticate } = require('../middleware/auth');
 const { validateSession } = require('../middleware/session');
 const sessionManager = require('../utils/sessionManager');
-const UserController = require('../controllers/userController');
 
 module.exports = (db, logger) => {
   
@@ -79,7 +78,10 @@ module.exports = (db, logger) => {
     );
     
     // Update last login timestamp
-    await UserController.updateLastLogin(user.id);
+    await db.run(
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
+      [user.id]
+    );
     
     // Generate JWT token with session ID
     const token = jwt.sign(
@@ -97,7 +99,8 @@ module.exports = (db, logger) => {
       userId: user.id,
       ipAddress,
       sessionId: sessionId.substring(0, 8) + '...'
-    });    
+    });
+    
     res.json({
       success: true,
       token,
@@ -291,7 +294,8 @@ module.exports = (db, logger) => {
           code: 'CANNOT_TERMINATE_CURRENT',
           statusCode: 400
         }
-      });    }
+      });
+    }
     
     // Invalidate the session
     await sessionManager.invalidateSession(targetSession.session_id, 'user_terminated');
@@ -346,6 +350,7 @@ module.exports = (db, logger) => {
         }
       }
     });
-  }));  
+  }));
+  
   return router;
 };
