@@ -276,6 +276,56 @@ if (!document.getElementById('notification-styles')) {
 }
 
 /* ==========================================================================
+   Event Listeners Setup (FIX #13)
+   Properly attach event listeners instead of relying on inline onclick
+   ========================================================================== */
+
+function setupEventListeners() {
+    // Menu toggle button
+    const menuToggle = document.querySelector('.menu-toggle');
+    if (menuToggle) {
+        menuToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            toggleMenu();
+        });
+    }
+    
+    // Sidebar overlay
+    const overlay = document.getElementById('sidebarOverlay');
+    if (overlay) {
+        overlay.addEventListener('click', function(e) {
+            e.preventDefault();
+            toggleMenu();
+        });
+    }
+    
+    // Close sidebar button
+    const closeSidebar = document.querySelector('.close-sidebar');
+    if (closeSidebar) {
+        closeSidebar.addEventListener('click', function(e) {
+            e.preventDefault();
+            toggleMenu();
+        });
+    }
+    
+    // Navigation items - extract tab name from onclick attribute
+    document.querySelectorAll('.nav-item[onclick]').forEach(item => {
+        const onclickAttr = item.getAttribute('onclick');
+        const match = onclickAttr.match(/switchTab\('(\w+)'\)/);
+        
+        if (match) {
+            const tabName = match[1];
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                switchTab(tabName);
+            });
+        }
+    });
+    
+    console.log('✓ Event listeners setup complete (CSP-compliant)');
+}
+
+/* ==========================================================================
    Event Listeners
    ========================================================================== */
 
@@ -302,6 +352,9 @@ function initializeApp() {
     
     // Fetch CSRF token on app start
     fetchCsrfToken();
+    
+    // Setup event listeners for menu and navigation (FIX #13)
+    setupEventListeners();
     
     // Check if dark mode is loaded (it self-initializes)
     if (typeof DarkMode !== 'undefined') {
