@@ -2,9 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>User Management - InvAI</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InvAI">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
     <link rel="stylesheet" href="/css/styles.css">
+    
+    <!-- Mobile CSS -->
+    <link rel="stylesheet" href="/css/mobile.css">
+    
     <style>
         .user-grid {
             display: grid;
@@ -154,7 +172,6 @@
             box-sizing: border-box;
         }
         
-        /* Password Strength Meter */
         .password-strength {
             margin-top: 0.5rem;
         }
@@ -316,7 +333,6 @@
             </div>
         </div>
 
-        <!-- Filters -->
         <div class="filters">
             <input type="search" id="searchInput" placeholder="Search by username or email..." onkeyup="filterUsers()">
             <select id="roleFilter" onchange="filterUsers()">
@@ -333,18 +349,15 @@
             </select>
         </div>
 
-        <!-- User List -->
         <div id="userGrid" class="user-grid">
             <div class="empty-state">
                 <p>Loading users...</p>
             </div>
         </div>
 
-        <!-- Pagination -->
         <div id="pagination" class="pagination"></div>
     </div>
 
-    <!-- Create/Edit User Modal -->
     <div id="userModal" class="modal">
         <div class="modal-content">
             <h2 id="modalTitle">Add New User</h2>
@@ -365,7 +378,6 @@
                     <label for="password">Password*</label>
                     <input type="password" id="password" minlength="8">
                     
-                    <!-- Password Strength Meter -->
                     <div class="password-strength" id="strengthMeter" style="display: none;">
                         <div class="strength-bar">
                             <div class="strength-fill" id="strengthFill"></div>
@@ -373,7 +385,6 @@
                         <div class="strength-label" id="strengthLabel"></div>
                     </div>
                     
-                    <!-- Password Requirements -->
                     <div class="password-requirements">
                         <strong>Password Requirements:</strong>
                         <ul>
@@ -410,7 +421,6 @@
         let currentPage = 1;
         let totalPages = 1;
         
-        // Check if user has permission to view this page
         async function checkPermissions() {
             const token = localStorage.getItem('auth_token');
             if (!token) {
@@ -418,7 +428,6 @@
                 return;
             }
             
-            // Decode token to check role
             try {
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 if (payload.role !== 'owner' && payload.role !== 'admin') {
@@ -432,23 +441,19 @@
             }
         }
         
-        // Password strength calculator
         function calculatePasswordStrength(password) {
             if (!password) return { score: 0, label: 'weak', color: 'weak' };
             
             let score = 0;
             
-            // Length scoring
             if (password.length >= 8) score++;
             if (password.length >= 12) score++;
             if (password.length >= 16) score++;
             
-            // Character variety
             if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
             if (/[0-9]/.test(password)) score++;
             if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) score++;
             
-            // Bonus for mixing multiple types
             const hasLower = /[a-z]/.test(password);
             const hasUpper = /[A-Z]/.test(password);
             const hasNumber = /[0-9]/.test(password);
@@ -458,7 +463,6 @@
             if (varietyCount >= 3) score++;
             if (varietyCount === 4) score++;
             
-            // Normalize to 0-3
             score = Math.max(0, Math.min(3, Math.floor(score / 3)));
             
             const levels = [
@@ -471,7 +475,6 @@
             return levels[score];
         }
         
-        // Update password strength meter
         function updateStrengthMeter() {
             const password = document.getElementById('password').value;
             const meter = document.getElementById('strengthMeter');
@@ -491,7 +494,6 @@
             label.textContent = `Password Strength: ${strength.label}`;
         }
         
-        // Load users
         async function loadUsers(page = 1) {
             try {
                 const search = document.getElementById('searchInput').value;
@@ -529,7 +531,6 @@
             }
         }
         
-        // Display users
         function displayUsers(users) {
             const grid = document.getElementById('userGrid');
             
@@ -571,7 +572,6 @@
             `}).join('');
         }
         
-        // Unlock user account
         async function unlockUser(userId, username) {
             if (!confirm(`Unlock account for ${username}?`)) return;
             
@@ -593,7 +593,6 @@
             }
         }
         
-        // Pagination
         function updatePagination(pagination) {
             const paginationDiv = document.getElementById('pagination');
             
@@ -617,12 +616,10 @@
             paginationDiv.innerHTML = html;
         }
         
-        // Filter users
         function filterUsers() {
             loadUsers(1);
         }
         
-        // Show create modal
         function showCreateModal() {
             document.getElementById('modalTitle').textContent = 'Add New User';
             document.getElementById('userForm').reset();
@@ -633,13 +630,11 @@
             document.getElementById('strengthMeter').style.display = 'none';
             document.getElementById('userModal').style.display = 'block';
             
-            // Add event listener for password strength
             const passwordInput = document.getElementById('password');
             passwordInput.removeEventListener('input', updateStrengthMeter);
             passwordInput.addEventListener('input', updateStrengthMeter);
         }
         
-        // Edit user
         async function editUser(userId) {
             try {
                 const response = await authFetch(`/api/users/${userId}`);
@@ -666,7 +661,6 @@
             }
         }
         
-        // Save user
         async function saveUser(event) {
             event.preventDefault();
             
@@ -707,7 +701,6 @@
             }
         }
         
-        // Reset password
         async function resetPassword(userId, username) {
             const newPassword = prompt(`Enter new password for ${username}:\n\nRequirements:\n- At least 8 characters\n- Uppercase, lowercase, number, special char`);
             if (!newPassword) return;
@@ -736,7 +729,6 @@
             }
         }
         
-        // Deactivate user
         async function deactivateUser(userId, username) {
             if (!confirm(`Are you sure you want to deactivate ${username}?`)) return;
             
@@ -758,7 +750,6 @@
             }
         }
         
-        // Activate user
         async function activateUser(userId, username) {
             try {
                 const response = await authFetch(`/api/users/${userId}`, {
@@ -780,12 +771,10 @@
             }
         }
         
-        // Close modal
         function closeModal() {
             document.getElementById('userModal').style.display = 'none';
         }
         
-        // Close modal when clicking outside
         window.onclick = function(event) {
             const modal = document.getElementById('userModal');
             if (event.target === modal) {
@@ -793,16 +782,24 @@
             }
         }
         
-        // Escape HTML to prevent XSS
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
         
-        // Initialize
         checkPermissions();
         loadUsers();
     </script>
+    
+    <!-- PWA Scripts -->
+    <script src="/lib/pwa/offlineStorage.js"></script>
+    <script src="/js/pwa-init.js"></script>
+    <script src="/js/pwa-install.js"></script>
+    
+    <!-- Mobile Scripts -->
+    <script src="/js/touch-gestures.js"></script>
+    <script src="/js/mobile-components.js"></script>
+    <script src="/js/mobile-navigation.js"></script>
 </body>
 </html>

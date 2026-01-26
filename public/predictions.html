@@ -2,10 +2,28 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Predictive Analytics - InvAI</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InvAI">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/charts.css">
+    
+    <!-- Mobile CSS -->
+    <link rel="stylesheet" href="/css/mobile.css">
+    
     <style>
         .predictions-container {
             max-width: 1400px;
@@ -211,7 +229,6 @@
             <button class="tab" data-tab="optimization">Optimization</button>
         </div>
 
-        <!-- Demand Forecast Tab -->
         <div id="demand-tab" class="tab-content active">
             <div class="prediction-card">
                 <h3>Product Demand Forecast</h3>
@@ -220,7 +237,6 @@
             </div>
         </div>
 
-        <!-- Reorder Points Tab -->
         <div id="reorder-tab" class="tab-content">
             <div class="prediction-card">
                 <div class="prediction-header">
@@ -231,7 +247,6 @@
             </div>
         </div>
 
-        <!-- Optimization Tab -->
         <div id="optimization-tab" class="tab-content">
             <div class="prediction-card">
                 <h3>📊 Inventory Optimization Report</h3>
@@ -241,5 +256,15 @@
     </div>
 
     <script src="/js/predictions.js"></script>
+    
+    <!-- PWA Scripts -->
+    <script src="/lib/pwa/offlineStorage.js"></script>
+    <script src="/js/pwa-init.js"></script>
+    <script src="/js/pwa-install.js"></script>
+    
+    <!-- Mobile Scripts -->
+    <script src="/js/touch-gestures.js"></script>
+    <script src="/js/mobile-components.js"></script>
+    <script src="/js/mobile-navigation.js"></script>
 </body>
 </html>

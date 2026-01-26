@@ -2,9 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Dashboard Builder - InvAI</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InvAI">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
     <link rel="stylesheet" href="/css/style.css">
+    
+    <!-- Mobile CSS -->
+    <link rel="stylesheet" href="/css/mobile.css">
+    
     <style>
         .builder-container {
             display: grid;
@@ -253,26 +271,21 @@
 </head>
 <body>
     <div class="builder-container">
-        <!-- Sidebar -->
         <div class="builder-sidebar">
             <h3>🎨 Dashboard Builder</h3>
             
-            <!-- Templates -->
             <div style="margin-bottom: 30px;">
                 <h4 style="color: #888; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Templates</h4>
                 <div id="template-list" class="template-grid"></div>
             </div>
 
-            <!-- Widget Gallery -->
             <div>
                 <h4 style="color: #888; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Widget Gallery</h4>
                 <div id="widget-gallery" class="widget-gallery"></div>
             </div>
         </div>
 
-        <!-- Main Area -->
         <div class="builder-main">
-            <!-- Toolbar -->
             <div class="builder-toolbar">
                 <div>
                     <h2 style="margin: 0;">Dashboard Editor</h2>
@@ -280,12 +293,11 @@
                 <div style="display: flex; gap: 10px;">
                     <button id="save-dashboard" class="btn btn-primary">💾 Save Dashboard</button>
                     <button id="new-dashboard" class="btn btn-secondary">➕ New</button>
-                    <button id="export-dashboard" class="btn btn-secondary">📥 Export</button>
+                    <button id="export-dashboard" class="btn btn-secondary">📅 Export</button>
                     <button id="import-dashboard" class="btn btn-secondary">📤 Import</button>
                 </div>
             </div>
 
-            <!-- Dashboard Selector -->
             <div class="dashboard-selector">
                 <select id="dashboard-select">
                     <option value="">Select a dashboard...</option>
@@ -294,7 +306,6 @@
                 <button id="delete-dashboard" class="btn btn-danger">🗑️ Delete</button>
             </div>
 
-            <!-- Dashboard Grid -->
             <div id="dashboard-grid" class="dashboard-grid">
                 <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 40px;">
                     🎉 Start by adding widgets from the gallery or selecting a template
@@ -303,7 +314,6 @@
         </div>
     </div>
 
-    <!-- Widget Config Modal -->
     <div id="config-modal" class="modal">
         <div class="modal-content">
             <h3>Configure Widget</h3>
@@ -315,7 +325,6 @@
         </div>
     </div>
 
-    <!-- Create Dashboard Modal -->
     <div id="create-modal" class="modal">
         <div class="modal-content">
             <h3>Create Dashboard</h3>
@@ -335,5 +344,15 @@
     </div>
 
     <script src="/js/dashboard-builder.js"></script>
+    
+    <!-- PWA Scripts -->
+    <script src="/lib/pwa/offlineStorage.js"></script>
+    <script src="/js/pwa-init.js"></script>
+    <script src="/js/pwa-install.js"></script>
+    
+    <!-- Mobile Scripts -->
+    <script src="/js/touch-gestures.js"></script>
+    <script src="/js/mobile-components.js"></script>
+    <script src="/js/mobile-navigation.js"></script>
 </body>
 </html>

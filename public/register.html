@@ -2,8 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Register - InvAI</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InvAI">
+    <meta name="theme-color" content="#667eea">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
+    <!-- Mobile CSS -->
+    <link rel="stylesheet" href="/css/mobile.css">
+    
     <style>
         * {
             margin: 0;
@@ -321,17 +338,13 @@
                     }
                 });
 
-                // If we can access the users endpoint without auth, something is wrong
-                // But typically, this will fail with 401, which is expected
                 if (response.status === 401) {
-                    // No auth yet, so we're good to register first user
                     return;
                 }
 
                 if (response.ok) {
                     const data = await response.json();
                     if (data.data && data.data.users && data.data.users.length > 0) {
-                        // Users exist, redirect to login
                         showAlert('Users already exist. Redirecting to login...', 'info');
                         setTimeout(() => {
                             window.location.href = '/login.html';
@@ -339,7 +352,6 @@
                     }
                 }
             } catch (error) {
-                // Expected to fail if no users exist yet
                 console.log('No users exist yet, can proceed with registration');
             }
         }
@@ -348,21 +360,18 @@
         function checkPasswordStrength(password) {
             strengthIndicator.style.display = 'block';
 
-            // Check requirements
             requirements.length = password.length >= 8;
             requirements.upper = /[A-Z]/.test(password);
             requirements.lower = /[a-z]/.test(password);
             requirements.number = /[0-9]/.test(password);
             requirements.special = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
 
-            // Update UI for each requirement
             document.getElementById('req-length').className = requirements.length ? 'met' : '';
             document.getElementById('req-upper').className = requirements.upper ? 'met' : '';
             document.getElementById('req-lower').className = requirements.lower ? 'met' : '';
             document.getElementById('req-number').className = requirements.number ? 'met' : '';
             document.getElementById('req-special').className = requirements.special ? 'met' : '';
 
-            // Calculate strength
             const metCount = Object.values(requirements).filter(Boolean).length;
             
             strengthFill.className = 'strength-fill';
@@ -383,12 +392,10 @@
             return metCount === 5;
         }
 
-        // Password input listener
         passwordInput.addEventListener('input', (e) => {
             checkPasswordStrength(e.target.value);
         });
 
-        // Show alert message
         function showAlert(message, type = 'error') {
             alertBox.innerHTML = message;
             alertBox.className = `alert alert-${type}`;
@@ -401,12 +408,10 @@
             }
         }
 
-        // Hide alert
         function hideAlert() {
             alertBox.style.display = 'none';
         }
 
-        // Handle form submission
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             hideAlert();
@@ -416,7 +421,6 @@
             const password = passwordInput.value;
             const confirmPassword = confirmPasswordInput.value;
 
-            // Validation
             if (!username || !email || !password || !confirmPassword) {
                 showAlert('All fields are required');
                 return;
@@ -437,7 +441,6 @@
                 return;
             }
 
-            // Disable button and show loading
             registerBtn.disabled = true;
             registerBtn.innerHTML = '<span class="spinner"></span>Creating account...';
 
@@ -456,10 +459,8 @@
                     throw new Error(data.error?.message || data.error || 'Registration failed');
                 }
 
-                // Show success message
                 showAlert('✓ Account created successfully! Redirecting to login...', 'success');
 
-                // Redirect to login
                 setTimeout(() => {
                     window.location.href = '/login.html';
                 }, 2000);
@@ -472,8 +473,16 @@
             }
         });
 
-        // Check on page load
         checkFirstUser();
     </script>
+    
+    <!-- PWA Scripts -->
+    <script src="/lib/pwa/offlineStorage.js"></script>
+    <script src="/js/pwa-init.js"></script>
+    <script src="/js/pwa-install.js"></script>
+    
+    <!-- Mobile Scripts -->
+    <script src="/js/touch-gestures.js"></script>
+    <script src="/js/mobile-components.js"></script>
 </body>
 </html>

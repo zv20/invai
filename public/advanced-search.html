@@ -2,9 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Advanced Search - InvAI</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InvAI">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
     <link rel="stylesheet" href="/css/style.css">
+    
+    <!-- Mobile CSS -->
+    <link rel="stylesheet" href="/css/mobile.css">
+    
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
     <style>
         .search-container {
             display: grid;
@@ -219,36 +239,30 @@
 </head>
 <body>
     <div class="search-container">
-        <!-- Sidebar -->
         <div class="search-sidebar">
             <h3>🔍 Filters</h3>
             
-            <!-- Quick Searches -->
             <div class="filter-section">
                 <h4>Quick Searches</h4>
                 <div id="quick-searches" class="quick-searches"></div>
             </div>
 
-            <!-- Saved Searches -->
             <div class="filter-section">
                 <h4>Saved Searches</h4>
                 <button id="save-current-search" class="btn btn-sm btn-primary" style="width: 100%; margin-bottom: 10px;">💾 Save Current</button>
                 <div id="saved-searches-list" class="saved-searches-list"></div>
             </div>
 
-            <!-- Category Filter -->
             <div class="filter-section">
                 <h4>Category</h4>
                 <div id="category-filters"></div>
             </div>
 
-            <!-- Stock Status Filter -->
             <div class="filter-section">
                 <h4>Stock Status</h4>
                 <div id="stock-status-filters"></div>
             </div>
 
-            <!-- Price Range -->
             <div class="filter-section">
                 <h4>Price Range</h4>
                 <input type="number" id="price-min" placeholder="Min" class="form-input" style="width: 100%; margin-bottom: 5px;">
@@ -259,15 +273,15 @@
             <button id="clear-filters" class="btn btn-secondary" style="width: 100%; margin-top: 10px;">Clear All</button>
         </div>
 
-        <!-- Main Content -->
         <div class="search-main">
             <h1>Advanced Product Search</h1>
             
-            <!-- Search Box -->
-            <input type="text" id="main-search" class="search-box" placeholder="Search products by name, SKU, or description...">
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="text" id="main-search" class="search-box" placeholder="Search products by name, SKU, or description..." style="flex: 1; margin: 0;">
+                <button id="scan-barcode-btn" class="btn btn-primary" style="white-space: nowrap;">📷 Scan</button>
+            </div>
             <div id="autocomplete-results" class="autocomplete-results" style="display: none;"></div>
 
-            <!-- Bulk Actions -->
             <div id="bulk-actions" class="bulk-actions">
                 <span id="selected-count">0 items selected</span>
                 <div class="results-actions">
@@ -277,14 +291,13 @@
                 </div>
             </div>
 
-            <!-- Results -->
             <div class="results-header">
                 <div>
                     <h3 id="results-count">Search products...</h3>
                 </div>
                 <div class="results-actions">
-                    <button id="export-csv" class="btn btn-sm btn-secondary">📥 Export CSV</button>
-                    <button id="export-json" class="btn btn-sm btn-secondary">📥 Export JSON</button>
+                    <button id="export-csv" class="btn btn-sm btn-secondary">📅 Export CSV</button>
+                    <button id="export-json" class="btn btn-sm btn-secondary">📅 Export JSON</button>
                 </div>
             </div>
 
@@ -314,6 +327,40 @@
         </div>
     </div>
 
+    <div id="scannerModal" class="modal" style="display: none;">
+        <div class="modal-content scanner-content">
+            <div class="modal-header">
+                <h2>📷 Barcode Scanner</h2>
+                <button class="close-modal" onclick="closeScanner()">✕ Close</button>
+            </div>
+            <div id="reader"></div>
+            <div class="scanner-info">
+                <strong>💡 Tips:</strong>
+                <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+                    <li>Allow camera access when prompted</li>
+                    <li>Hold barcode steady in camera view</li>
+                    <li>Works with UPC, EAN, QR codes</li>
+                </ul>
+            </div>
+            <div id="scannerResult" class="scanner-result">
+                <strong>✓ Scanned:</strong> <span id="scannedCode"></span>
+            </div>
+        </div>
+    </div>
+
     <script src="/js/advanced-search.js"></script>
+    
+    <!-- PWA Scripts -->
+    <script src="/lib/pwa/offlineStorage.js"></script>
+    <script src="/js/pwa-init.js"></script>
+    <script src="/js/pwa-install.js"></script>
+    
+    <!-- Mobile Scripts -->
+    <script src="/js/touch-gestures.js"></script>
+    <script src="/js/mobile-components.js"></script>
+    <script src="/js/mobile-navigation.js"></script>
+    
+    <!-- Mobile Features -->
+    <script src="/js/barcode-scanner.js"></script>
 </body>
 </html>
