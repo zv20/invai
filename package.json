@@ -42,7 +42,8 @@
     "cookie-parser": "^1.4.6",
     "express-mongo-sanitize": "^2.2.0",
     "xss-clean": "^0.1.4",
-    "json2csv": "^6.0.0-alpha.2"
+    "json2csv": "^6.0.0-alpha.2",
+    "web-push": "^3.6.6"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
