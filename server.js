@@ -1,15 +1,19 @@
 /**
- * InvAI Server - Sprint 4 Phase 1: PostgreSQL Support
+ * InvAI Server - Sprint 6: Mobile & PWA Integration
  * 
- * Enhanced with dual database support:
- * - SQLite for development/testing (default)
- * - PostgreSQL for production
- * - Database abstraction layer
- * - Connection pooling
+ * Enhanced with:
+ * - PWA support with push notifications
+ * - Mobile-optimized routes
+ * - Sprint 5 BI features (analytics, predictions, search, dashboards)
+ * - Sprint 4 database & backup features
+ * - Sprint 3 enhanced security
+ * - Sprint 2 authentication & RBAC
  * 
  * Architecture:
  * - Core modular routes (products, batches, categories, suppliers, dashboard, settings, auth, users)
- * - New extracted routes (reports, inventory-helpers, backups, system, import-export)
+ * - Business Intelligence routes (analytics, predictions, search, dashboards)
+ * - Mobile & PWA routes (notifications, offline sync)
+ * - Supporting routes (reports, inventory-helpers, backups, system, import-export)
  * - Async/await throughout
  * - JWT authentication and authorization
  * - Security headers (Helmet.js)
@@ -58,7 +62,16 @@ const settingsRoutes = require('./routes/settings');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 
-// Extracted route modules
+// Sprint 5: Business Intelligence routes
+const analyticsRoutes = require('./routes/analytics');
+const predictionsRoutes = require('./routes/predictions');
+const searchRoutes = require('./routes/search');
+const dashboardsRoutes = require('./routes/dashboards');
+
+// Sprint 6: Mobile & PWA routes
+const notificationsRoutes = require('./routes/notifications');
+
+// Supporting route modules
 const reportsRoutes = require('./routes/reports');
 const inventoryHelpersRoutes = require('./routes/inventory-helpers');
 const backupsRoutes = require('./routes/backups');
@@ -88,8 +101,13 @@ let db; // Legacy wrapper for backward compatibility
 
 const DB_TYPE = (process.env.DATABASE_TYPE || 'sqlite').toLowerCase();
 
-console.log('\n🚀 InvAI v' + VERSION + ' - Sprint 4 Phase 1: PostgreSQL Support');
-console.log('✅ Dual database support (SQLite + PostgreSQL)');
+console.log('\n🚀 InvAI v' + VERSION + ' - Sprint 6: Mobile & PWA');
+console.log('✅ Progressive Web App (PWA) support');
+console.log('✅ Push notifications enabled');
+console.log('✅ Mobile-optimized UI');
+console.log('✅ Offline mode with IndexedDB');
+console.log('✅ Barcode scanner ready');
+console.log('✅ Sprint 5 BI features (analytics, predictions, search, dashboards)');
 console.log('✅ Database adapter system active');
 console.log('✅ JWT authentication enabled');
 console.log('✅ Security headers active (Helmet.js)');
@@ -179,6 +197,7 @@ app.use(validateCsrfToken);
 
 app.use('/css', express.static(path.join(__dirname, 'public/css'), { maxAge: 0, etag: false }));
 app.use('/js', express.static(path.join(__dirname, 'public/js'), { maxAge: 0, etag: false }));
+app.use('/lib', express.static(path.join(__dirname, 'public/lib'), { maxAge: 0, etag: false }));
 app.use(express.static('public', { maxAge: 0, etag: false }));
 
 app.get('/health', (req, res) => {
@@ -186,6 +205,7 @@ app.get('/health', (req, res) => {
     status: 'ok', 
     version: VERSION,
     database: DB_TYPE,
+    pwa: process.env.PWA_ENABLED === 'true',
     timestamp: new Date().toISOString()
   });
 });
@@ -232,11 +252,13 @@ async function initializeApp() {
     
     // Start server
     app.listen(PORT, () => {
-      console.log(`\n🎉 InvAI v${VERSION} - Sprint 4 Phase 1: PostgreSQL Support`);
+      console.log(`\n🎉 InvAI v${VERSION} - Sprint 6: Mobile & PWA`);
       console.log(`💻 Server running on port ${PORT}`);
       console.log(`🔗 Access at http://localhost:${PORT}`);
       console.log(`\n💾 Database: ${dbAdapter.getType().toUpperCase()}`);
       console.log(`🔒 Auth: JWT tokens with role-based access`);
+      console.log(`📱 PWA: ${process.env.PWA_ENABLED === 'true' ? 'Enabled' : 'Disabled'}`);
+      console.log(`🔔 Push Notifications: ${process.env.PUSH_NOTIFICATIONS_ENABLED === 'true' ? 'Enabled' : 'Disabled'}`);
       console.log(`💡 Update channel: ${getCurrentChannel()}`);
       console.log('\nChecking for updates from GitHub...');
       
@@ -268,8 +290,11 @@ async function initializeApp() {
 }
 
 function registerRoutes() {
+  // Authentication & User Management
   app.use('/api/auth', authRoutes(db, logger));
   app.use('/api/users', userRoutes(db, activityLogger));
+  
+  // Core Inventory Management
   app.use('/api/products', authenticate, productRoutes(db, activityLogger, cache));
   app.use('/api/batches', authenticate, batchRoutes(db, activityLogger));
   app.use('/api/inventory/batches', authenticate, batchRoutes(db, activityLogger));
@@ -279,11 +304,28 @@ function registerRoutes() {
   app.use('/api/settings', authenticate, authorize('admin'), settingsRoutes(db, createBackup));
   app.use('/api/reports', authenticate, reportsRoutes(db, cache, csvExporter));
   app.use('/api/inventory', authenticate, inventoryHelpersRoutes(db));
+  
+  // Sprint 5: Business Intelligence
+  app.use('/api/analytics', authenticate, analyticsRoutes(db, cache));
+  app.use('/api/predictions', authenticate, predictionsRoutes(db, cache));
+  app.use('/api/search', authenticate, searchRoutes(db));
+  app.use('/api/saved-searches', authenticate, searchRoutes(db));
+  app.use('/api/dashboards', authenticate, dashboardsRoutes(db));
+  app.use('/api/widgets', authenticate, dashboardsRoutes(db));
+  
+  // Sprint 6: Mobile & PWA
+  app.use('/api/notifications', authenticate, notificationsRoutes(db, logger));
+  
+  // System & Admin
   app.use('/api/backup', authenticate, backupsRoutes(createBackup, dbAdapter.db || dbAdapter, Database));
   app.use('/api', systemRoutes(db, logger, VERSION, MigrationRunner, dbAdapter.db || dbAdapter, checkGitHubVersion, getCurrentChannel));
   app.use('/api', authenticate, importExportRoutes(db, activityLogger, logger));
   
   console.log('✓ All routes registered');
+  console.log('  - Core: products, batches, categories, suppliers, dashboard');
+  console.log('  - Sprint 5 BI: analytics, predictions, search, dashboards');
+  console.log('  - Sprint 6 Mobile: notifications, PWA');
+  console.log('  - System: auth, users, reports, backups, import/export');
 }
 
 async function initializeDatabase() {
