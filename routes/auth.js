@@ -1,6 +1,11 @@
 /**
  * Authentication Routes
  * Handles user registration, login, logout, token refresh, password changes, and session management
+ * 
+ * SECURITY PATCHES APPLIED:
+ * - PATCH 2: bcrypt salt rounds increased to 12
+ * - PATCH 3: JWT expiration reduced to 2h (configurable)
+ * - PATCH 8: Rate limiting on auth endpoints
  */
 
 const express = require('express');
@@ -15,6 +20,9 @@ const sessionManager = require('../utils/sessionManager');
 const passwordValidator = require('../utils/passwordValidator');
 const accountLockout = require('../utils/accountLockout');
 const { getCsrfToken } = require('../middleware/csrf');
+
+// PATCH 8: Rate limiting
+const { authLimiter, strictLimiter } = require('../middleware/rateLimitConfig');
 
 module.exports = (db, logger) => {
   
@@ -50,8 +58,9 @@ module.exports = (db, logger) => {
    * POST /api/auth/register
    * Register the first user (becomes owner)
    * PUBLIC endpoint - only works if no users exist
+   * PATCH 8: Rate limited
    */
-  router.post('/register', asyncHandler(async (req, res) => {
+  router.post('/register', authLimiter, asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
     
     // Validation
@@ -130,8 +139,8 @@ module.exports = (db, logger) => {
       });
     }
     
-    // Hash password
-    const hash = await bcrypt.hash(password, 10);
+    // PATCH 2: Hash password with bcrypt rounds 12 (increased from 10)
+    const hash = await bcrypt.hash(password, 12);
     
     // Create first user with owner role
     const result = await db.run(
@@ -167,8 +176,10 @@ module.exports = (db, logger) => {
    * POST /api/auth/login
    * Authenticates user and returns JWT token with session
    * Includes account lockout protection and login attempt tracking
+   * PATCH 3: JWT expiration reduced to 2h
+   * PATCH 8: Rate limited
    */
-  router.post('/login', asyncHandler(async (req, res) => {
+  router.post('/login', authLimiter, asyncHandler(async (req, res) => {
     const { username, password } = req.body;
     
     if (!username || !password) {
@@ -279,7 +290,7 @@ module.exports = (db, logger) => {
       [user.id]
     );
     
-    // Generate JWT token with session ID
+    // PATCH 3: Generate JWT token with configurable expiration (default 2h)
     const token = jwt.sign(
       { 
         id: user.id, 
@@ -288,7 +299,7 @@ module.exports = (db, logger) => {
         sessionId // Include session ID in JWT
       },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: process.env.JWT_EXPIRATION || '2h' } // Reduced from 24h
     );
     
     logger.info(`User logged in: ${username}`, {
@@ -359,8 +370,10 @@ module.exports = (db, logger) => {
    * POST /api/auth/change-password
    * Allows authenticated users to change their password
    * Includes password complexity validation and history checking
+   * PATCH 2: bcrypt rounds 12
+   * PATCH 8: Strict rate limiting
    */
-  router.post('/change-password', authenticate, validateSession, asyncHandler(async (req, res) => {
+  router.post('/change-password', authenticate, validateSession, strictLimiter, asyncHandler(async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     
     if (!currentPassword || !newPassword) {
@@ -429,8 +442,8 @@ module.exports = (db, logger) => {
       });
     }
     
-    // Hash new password
-    const hash = await bcrypt.hash(newPassword, 10);
+    // PATCH 2: Hash new password with bcrypt rounds 12
+    const hash = await bcrypt.hash(newPassword, 12);
     
     // Update password and password_changed_at timestamp
     await db.run(

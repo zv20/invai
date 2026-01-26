@@ -4,6 +4,7 @@
  * Enhanced with:
  * - PWA support with push notifications
  * - Mobile-optimized routes
+ * - CRITICAL SECURITY PATCHES (12 major fixes)
  * - Sprint 5 BI features (analytics, predictions, search, dashboards)
  * - Sprint 4 database & backup features
  * - Sprint 3 enhanced security
@@ -34,12 +35,43 @@ const DailyRotateFile = require('winston-daily-rotate-file');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 
-// Validate JWT_SECRET
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key-here-change-this-in-production') {
-  console.error('\n❌ ERROR: JWT_SECRET not configured properly!');
-  console.error('Please set a secure JWT_SECRET in your .env file\n');
+// ===================================
+// CRITICAL SECURITY PATCH 1: JWT_SECRET Validation
+// ===================================
+if (!process.env.JWT_SECRET || 
+    process.env.JWT_SECRET.length < 64 || 
+    process.env.JWT_SECRET === 'your-secret-key-here-change-this-in-production' ||
+    process.env.JWT_SECRET.includes('your_jwt_secret_here')) {
+  console.error('\n❌ CRITICAL: JWT_SECRET must be at least 64 characters of random data!');
+  console.error('Generate one with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))")\n');
   process.exit(1);
 }
+
+// ===================================
+// CRITICAL SECURITY PATCH 6: Input Sanitization
+// ===================================
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
+
+// ===================================
+// CRITICAL SECURITY PATCH 10: HTTPS Enforcement
+// ===================================
+const httpsRedirect = require('./middleware/httpsRedirect');
+const { enforceHSTS } = require('./middleware/httpsRedirect');
+
+// ===================================
+// CRITICAL SECURITY PATCH 12: Security Validation
+// ===================================
+const { 
+  validateSecurityHeaders, 
+  validateOrigin, 
+  preventPathTraversal 
+} = require('./middleware/securityValidation');
+
+// ===================================
+// CRITICAL SECURITY PATCH 8: Rate Limiting
+// ===================================
+const { apiLimiter } = require('./middleware/rateLimitConfig');
 
 // Database adapter system
 const { getDatabase, closeDatabase } = require('./lib/database');
@@ -110,6 +142,7 @@ console.log('✅ Barcode scanner ready');
 console.log('✅ Sprint 5 BI features (analytics, predictions, search, dashboards)');
 console.log('✅ Database adapter system active');
 console.log('✅ JWT authentication enabled');
+console.log('🔒 CRITICAL SECURITY PATCHES APPLIED (12 major fixes)');
 console.log('✅ Security headers active (Helmet.js)');
 console.log('✅ CSRF protection enabled');
 console.log(`📊 Database: ${DB_TYPE.toUpperCase()}\n`);
@@ -167,34 +200,72 @@ ensureDirectories();
 // SECURITY MIDDLEWARE
 // ===================================
 
+// PATCH 10: HTTPS Redirect (production only)
+if (process.env.NODE_ENV === 'production') {
+  app.use(httpsRedirect);
+  app.use(enforceHSTS);
+}
+
+// PATCH 7: Strengthened Helmet CSP (removed unsafe-inline)
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'"], // Removed unsafe-inline
+      scriptSrc: ["'self'"], // Removed unsafe-inline - use nonces if needed
       imgSrc: ["'self'", 'data:', 'blob:'],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
+      frameSrc: ["'none'"],
+      upgradeInsecureRequests: [] // Force HTTPS
     }
   },
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
     preload: true
-  }
+  },
+  noSniff: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
 
-app.use(cors());
-app.use(express.json());
-app.use(express.text({ limit: '10mb', type: 'text/csv' }));
+// PATCH 4: Fix Wide-Open CORS
+const corsOptions = {
+  origin: process.env.ALLOWED_ORIGINS ? 
+    process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : 
+    ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+};
+app.use(cors(corsOptions));
+
+// PATCH 5: Add Request Size Limits
+app.use(express.json({ limit: '1mb' })); // Added limit
+app.use(express.urlencoded({ extended: true, limit: '1mb' })); // Added
+app.use(express.text({ limit: '5mb', type: 'text/csv' })); // Reduced from 10mb
 app.use(cookieParser());
+
+// PATCH 6: Input Sanitization
+app.use(mongoSanitize()); // Prevent NoSQL injection (also helps with SQL)
+app.use(xss()); // Prevent XSS attacks
+
+// PATCH 12: Security Validation
+app.use(validateOrigin);
+app.use(preventPathTraversal);
+app.use(validateSecurityHeaders);
+
+// CSRF Protection
 app.use(generateCsrfToken);
 app.use(validateCsrfToken);
 
+// PATCH 8: API Rate Limiting
+app.use('/api', apiLimiter);
+
+// Static files
 app.use('/css', express.static(path.join(__dirname, 'public/css'), { maxAge: 0, etag: false }));
 app.use('/js', express.static(path.join(__dirname, 'public/js'), { maxAge: 0, etag: false }));
 app.use('/lib', express.static(path.join(__dirname, 'public/lib'), { maxAge: 0, etag: false }));
@@ -206,6 +277,7 @@ app.get('/health', (req, res) => {
     version: VERSION,
     database: DB_TYPE,
     pwa: process.env.PWA_ENABLED === 'true',
+    securityPatches: 12, // Indicator of security patches applied
     timestamp: new Date().toISOString()
   });
 });
@@ -214,8 +286,8 @@ app.get('/', (req, res) => {
   const indexPath = path.join(__dirname, 'public', 'index.html');
   let html = fs.readFileSync(indexPath, 'utf8');
   
-  html = html.replace(/href="css\/styles\.css"/g, `href="css/styles.css?v=${VERSION}"`);
-  html = html.replace(/src="js\/(\w+)\.js"/g, `src="js/$1.js?v=${VERSION}"`);
+  html = html.replace(/href="css\/styles\.css"/g, `href="css/styles.css?v=${VERSION}`);
+  html = html.replace(/src="js\/(\w+)\.js"/g, `src="js/$1.js?v=${VERSION}`);
   
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -257,6 +329,7 @@ async function initializeApp() {
       console.log(`🔗 Access at http://localhost:${PORT}`);
       console.log(`\n💾 Database: ${dbAdapter.getType().toUpperCase()}`);
       console.log(`🔒 Auth: JWT tokens with role-based access`);
+      console.log(`🔒 Security: 12 critical patches applied`);
       console.log(`📱 PWA: ${process.env.PWA_ENABLED === 'true' ? 'Enabled' : 'Disabled'}`);
       console.log(`🔔 Push Notifications: ${process.env.PUSH_NOTIFICATIONS_ENABLED === 'true' ? 'Enabled' : 'Disabled'}`);
       console.log(`💡 Update channel: ${getCurrentChannel()}`);
