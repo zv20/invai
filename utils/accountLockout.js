@@ -14,7 +14,7 @@
  * @date 2026-01-25
  */
 
-const db = require('../lib/db');
+const db = require('./db');
 const security = require('../config/security');
 
 /**
