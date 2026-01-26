@@ -103,7 +103,7 @@ verify_dependencies() {
     echo "🔍 Verifying dependencies..."
     
     # List of critical dependencies to check
-    local REQUIRED_MODULES=("express" "sqlite3" "jsonwebtoken" "bcryptjs" "helmet" "json2csv")
+    local REQUIRED_MODULES=("express" "sqlite3" "jsonwebtoken" "bcryptjs" "helmet" "json2csv" "web-push")
     local MISSING=()
     
     for module in "${REQUIRED_MODULES[@]}"; do
