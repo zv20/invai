@@ -19,7 +19,7 @@ class MigrationRunner {
   async initialize() {
     const sql = `
       CREATE TABLE IF NOT EXISTS schema_migrations (
-        ${this.adapter.getSyntax('autoincrement')},
+        id ${this.adapter.getSyntax('autoincrement')},
         version INTEGER NOT NULL UNIQUE,
         name TEXT NOT NULL,
         applied_at ${this.adapter.getSyntax('timestamp_default')},
