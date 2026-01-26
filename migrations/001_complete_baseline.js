@@ -198,14 +198,17 @@ module.exports = {
     // INVENTORY MANAGEMENT
     // ============================================
 
-    // Inventory batches table
+    // Inventory batches table (with all columns expected by batchController)
     await db.run(`
       CREATE TABLE IF NOT EXISTS inventory_batches (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
         batch_number TEXT NOT NULL,
-        quantity INTEGER NOT NULL,
+        case_quantity INTEGER DEFAULT 0,
+        total_quantity INTEGER NOT NULL,
         expiry_date DATE,
+        location TEXT DEFAULT '',
+        notes TEXT DEFAULT '',
         received_date DATE DEFAULT CURRENT_DATE,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
