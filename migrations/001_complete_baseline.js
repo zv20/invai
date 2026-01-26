@@ -106,20 +106,21 @@ module.exports = {
     `);
     console.log('   ✅ Users table created');
 
-    // Sessions table
+    // User sessions table (note: named user_sessions to match sessionManager.js)
     await db.run(`
-      CREATE TABLE IF NOT EXISTS sessions (
+      CREATE TABLE IF NOT EXISTS user_sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL UNIQUE,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        token TEXT NOT NULL UNIQUE,
         ip_address TEXT,
         user_agent TEXT,
+        is_active INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        expires_at DATETIME NOT NULL,
-        last_activity DATETIME DEFAULT CURRENT_TIMESTAMP
+        last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME NOT NULL
       )
     `);
-    console.log('   ✅ Sessions table created');
+    console.log('   ✅ User sessions table created');
 
     // Password history table
     await db.run(`
@@ -297,9 +298,9 @@ module.exports = {
       'CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)',
       'CREATE INDEX IF NOT EXISTS idx_batches_product ON inventory_batches(product_id)',
       'CREATE INDEX IF NOT EXISTS idx_batches_expiration ON inventory_batches(expiry_date)',
-      'CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)',
-      'CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)',
-      'CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)',
+      'CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_user_sessions_session_id ON user_sessions(session_id)',
+      'CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at)',
       'CREATE INDEX IF NOT EXISTS idx_password_history_user ON password_history(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_login_attempts_username ON login_attempts(username)',
       'CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address)',
@@ -348,7 +349,7 @@ module.exports = {
       'login_attempts',
       'account_lockout',
       'password_history',
-      'sessions',
+      'user_sessions',
       'users',
       'suppliers',
       'categories',
