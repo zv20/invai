@@ -197,29 +197,39 @@ const ensureDirectories = () => {
 ensureDirectories();
 
 // ===================================
+// TRUST PROXY CONFIGURATION
+// ===================================
+if (process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', true);
+  console.log('✓ Trust proxy enabled for reverse proxy support');
+}
+
+// ===================================
 // SECURITY MIDDLEWARE
 // ===================================
 
-// PATCH 10: HTTPS Redirect (production only)
-if (process.env.NODE_ENV === 'production') {
+// PATCH 10: HTTPS Redirect (disabled when behind proxy)
+if (process.env.NODE_ENV === 'production' && !process.env.BEHIND_PROXY) {
   app.use(httpsRedirect);
   app.use(enforceHSTS);
 }
 
-// PATCH 7: Strengthened Helmet CSP (removed unsafe-inline)
+// ===================================
+// ⚠️  TEMPORARY SECURITY REDUCTION - SEE GITHUB ISSUE #1
+// TODO: Implement nonce-based CSP IMMEDIATELY
+// ===================================
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'"], // Removed unsafe-inline
-      scriptSrc: ["'self'"], // Removed unsafe-inline - use nonces if needed
+      styleSrc: ["'self'", "'unsafe-inline'"], // TEMP: Allow inline styles - REPLACE WITH NONCES
+      scriptSrc: ["'self'", "'unsafe-inline'"], // TEMP: Allow inline scripts - REPLACE WITH NONCES
       imgSrc: ["'self'", 'data:', 'blob:'],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
-      upgradeInsecureRequests: [] // Force HTTPS
+      frameSrc: ["'none'"]
     }
   },
   hsts: {
@@ -230,6 +240,10 @@ app.use(helmet({
   noSniff: true,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
+
+console.log('⚠️  WARNING: CSP using unsafe-inline (TEMPORARY)');
+console.log('   This reduces XSS protection. See GitHub Issue #1');
+console.log('   Acceptable for internal systems behind HTTPS proxy\n');
 
 // PATCH 4: Fix Wide-Open CORS
 const corsOptions = {
@@ -277,7 +291,8 @@ app.get('/health', (req, res) => {
     version: VERSION,
     database: DB_TYPE,
     pwa: process.env.PWA_ENABLED === 'true',
-    securityPatches: 12, // Indicator of security patches applied
+    securityPatches: 12,
+    cspWarning: 'unsafe-inline enabled - see issue #1',
     timestamp: new Date().toISOString()
   });
 });
@@ -320,6 +335,9 @@ async function initializeApp() {
     console.log('✓ Activity logger and CSV exporter initialized');
     console.log('✓ Account lockout cleanup scheduler started');
     
+    // Create default admin user if none exists
+    await createDefaultAdmin();
+    
     registerRoutes();
     
     // Start server
@@ -359,6 +377,30 @@ async function initializeApp() {
     console.error('\n❌ Failed to initialize application:', error.message);
     console.error(error.stack);
     process.exit(1);
+  }
+}
+
+async function createDefaultAdmin() {
+  try {
+    const bcrypt = require('bcryptjs');
+    const users = await dbAdapter.all('SELECT * FROM users LIMIT 1');
+    
+    if (users.length === 0) {
+      console.log('\n👤 Creating default admin user...');
+      const hashedPassword = await bcrypt.hash('admin', 10);
+      
+      await dbAdapter.run(
+        'INSERT INTO users (username, password, email, is_active) VALUES (?, ?, ?, 1)',
+        ['admin', hashedPassword, 'admin@invai.local']
+      );
+      
+      console.log('✅ Default admin user created');
+      console.log('   Username: admin');
+      console.log('   Password: admin');
+      console.log('   ⚠️  CHANGE THIS PASSWORD IMMEDIATELY!\n');
+    }
+  } catch (error) {
+    console.error('Error creating default admin:', error);
   }
 }
 
