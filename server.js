@@ -324,16 +324,19 @@ async function initializeApp() {
     
     await initializeDatabase();
     
-    // Initialize supporting modules with raw adapter for callback compatibility
+    // Initialize supporting modules with database instance
     activityLogger = new ActivityLogger(dbAdapter.db || dbAdapter);
     csvExporter = new CSVExporter(dbAdapter.db || dbAdapter);
+    
+    // Initialize account lockout manager with db instance
+    accountLockout.initialize(db);
     
     // Start account lockout cleanup scheduler
     accountLockout.startCleanupSchedule();
     
-    logger.info('Activity logger and CSV exporter initialized');
+    logger.info('Supporting modules initialized');
     console.log('✓ Activity logger and CSV exporter initialized');
-    console.log('✓ Account lockout cleanup scheduler started');
+    console.log('✓ Account lockout manager initialized');
     
     // Create default admin user if none exists
     await createDefaultAdmin();
