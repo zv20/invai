@@ -23,6 +23,8 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in RateLimit-* headers
   legacyHeaders: false, // Disable X-RateLimit-* headers
+  // Trust proxy - required when behind reverse proxy
+  validate: {trustProxy: false}, // Disable validation since we're behind a reverse proxy
   handler: (req, res) => {
     res.status(429).json({
       success: false,
@@ -54,6 +56,8 @@ const apiLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Trust proxy - required when behind reverse proxy
+  validate: {trustProxy: false}, // Disable validation since we're behind a reverse proxy
   skip: (req) => {
     // Skip rate limiting for health checks
     return req.path === '/health';
@@ -78,6 +82,8 @@ const strictLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Trust proxy - required when behind reverse proxy
+  validate: {trustProxy: false}, // Disable validation since we're behind a reverse proxy
   handler: (req, res) => {
     res.status(429).json({
       success: false,
@@ -108,7 +114,9 @@ const userManagementLimiter = rateLimit({
     }
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // Trust proxy - required when behind reverse proxy
+  validate: {trustProxy: false} // Disable validation since we're behind a reverse proxy
 });
 
 module.exports = { 
