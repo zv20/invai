@@ -146,6 +146,20 @@ module.exports = {
     `);
     console.log('   ✅ Account lockout table created');
 
+    // Login attempts table (for tracking login history)
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS login_attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        ip_address TEXT NOT NULL,
+        user_agent TEXT,
+        success INTEGER DEFAULT 0,
+        attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        failure_reason TEXT
+      )
+    `);
+    console.log('   ✅ Login attempts table created');
+
     // ============================================
     // ACTIVITY & PREFERENCES
     // ============================================
@@ -287,6 +301,9 @@ module.exports = {
       'CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)',
       'CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)',
       'CREATE INDEX IF NOT EXISTS idx_password_history_user ON password_history(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_login_attempts_username ON login_attempts(username)',
+      'CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address)',
+      'CREATE INDEX IF NOT EXISTS idx_login_attempts_time ON login_attempts(attempted_at)',
       'CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id)',
       'CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(created_at DESC)',
       'CREATE INDEX IF NOT EXISTS idx_stock_take_items_take ON stock_take_items(stock_take_id)',
@@ -328,6 +345,7 @@ module.exports = {
       'inventory_batches',
       'user_preferences',
       'activity_log',
+      'login_attempts',
       'account_lockout',
       'password_history',
       'sessions',
