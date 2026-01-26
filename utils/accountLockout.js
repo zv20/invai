@@ -14,8 +14,21 @@
  * @date 2026-01-25
  */
 
-const db = require('./db');
 const security = require('../config/security');
+
+// Database instance will be set via initialize()
+let db = null;
+
+/**
+ * Initialize the account lockout manager with database instance
+ * MUST be called before using any other functions
+ * 
+ * @param {Object} database - Database instance with async methods (get, run, all)
+ */
+function initialize(database) {
+    db = database;
+    console.log('✓ Account lockout manager initialized');
+}
 
 /**
  * Record a login attempt (success or failure)
@@ -27,20 +40,18 @@ const security = require('../config/security');
  * @returns {Promise<void>}
  */
 async function recordLoginAttempt(username, ipAddress, success, userAgent = null) {
-    return new Promise((resolve, reject) => {
-        db.run(
+    if (!db) throw new Error('Account lockout not initialized');
+    
+    try {
+        await db.run(
             `INSERT INTO login_attempts (username, ip_address, success, user_agent) 
              VALUES (?, ?, ?, ?)`,
-            [username, ipAddress, success ? 1 : 0, userAgent],
-            (err) => {
-                if (err) {
-                    console.error('Error recording login attempt:', err);
-                    return reject(err);
-                }
-                resolve();
-            }
+            [username, ipAddress, success ? 1 : 0, userAgent]
         );
-    });
+    } catch (err) {
+        console.error('Error recording login attempt:', err);
+        throw err;
+    }
 }
 
 /**
@@ -52,40 +63,40 @@ async function recordLoginAttempt(username, ipAddress, success, userAgent = null
  * @returns {Promise<number>} Count of failed attempts
  */
 async function getFailedAttempts(username, ipAddress = null, windowMinutes = null) {
-    return new Promise((resolve, reject) => {
-        const config = security.lockout;
-        
-        if (!config.enabled) {
-            return resolve(0);
-        }
-        
-        const lockoutDuration = windowMinutes || config.lockoutDuration;
-        const sinceTime = new Date(Date.now() - lockoutDuration * 60 * 1000).toISOString();
-        
-        let query = `
-            SELECT COUNT(*) as count 
-            FROM login_attempts 
-            WHERE username = ? 
-            AND success = 0 
-            AND attempted_at > ?
-        `;
-        
-        const params = [username, sinceTime];
-        
-        // Also filter by IP if tracking by IP is enabled and IP is provided
-        if (config.trackByIp && ipAddress) {
-            query += ' AND ip_address = ?';
-            params.push(ipAddress);
-        }
-        
-        db.get(query, params, (err, row) => {
-            if (err) {
-                console.error('Error getting failed attempts:', err);
-                return reject(err);
-            }
-            resolve(row.count || 0);
-        });
-    });
+    if (!db) throw new Error('Account lockout not initialized');
+    
+    const config = security.lockout;
+    
+    if (!config.enabled) {
+        return 0;
+    }
+    
+    const lockoutDuration = windowMinutes || config.lockoutDuration;
+    const sinceTime = new Date(Date.now() - lockoutDuration * 60 * 1000).toISOString();
+    
+    let query = `
+        SELECT COUNT(*) as count 
+        FROM login_attempts 
+        WHERE username = ? 
+        AND success = 0 
+        AND attempted_at > ?
+    `;
+    
+    const params = [username, sinceTime];
+    
+    // Also filter by IP if tracking by IP is enabled and IP is provided
+    if (config.trackByIp && ipAddress) {
+        query += ' AND ip_address = ?';
+        params.push(ipAddress);
+    }
+    
+    try {
+        const row = await db.get(query, params);
+        return row.count || 0;
+    } catch (err) {
+        console.error('Error getting failed attempts:', err);
+        throw err;
+    }
 }
 
 /**
@@ -96,71 +107,66 @@ async function getFailedAttempts(username, ipAddress = null, windowMinutes = nul
  * @returns {Promise<Object>} Lock status { locked: boolean, remainingTime: number }
  */
 async function isAccountLocked(username, ipAddress = null) {
+    if (!db) throw new Error('Account lockout not initialized');
+    
     const config = security.lockout;
     
     if (!config.enabled) {
         return { locked: false, remainingTime: 0 };
     }
     
-    return new Promise((resolve, reject) => {
+    try {
         // Check if user has locked_until set and it's still in the future
-        db.get(
+        const row = await db.get(
             `SELECT account_locked, locked_until 
              FROM users 
              WHERE username = ?`,
-            [username],
-            async (err, row) => {
-                if (err) {
-                    console.error('Error checking account lock status:', err);
-                    return reject(err);
-                }
-                
-                if (!row) {
-                    return resolve({ locked: false, remainingTime: 0 });
-                }
-                
-                // Check if locked_until has passed
-                if (row.locked_until) {
-                    const lockedUntil = new Date(row.locked_until);
-                    const now = new Date();
-                    
-                    if (lockedUntil > now) {
-                        const remainingMs = lockedUntil - now;
-                        return resolve({
-                            locked: true,
-                            remainingTime: Math.ceil(remainingMs / 1000), // seconds
-                            unlocksAt: lockedUntil.toISOString()
-                        });
-                    } else {
-                        // Lock has expired, unlock the account
-                        await unlockAccount(username).catch(console.error);
-                        return resolve({ locked: false, remainingTime: 0 });
-                    }
-                }
-                
-                // Check failed attempts count
-                try {
-                    const failedCount = await getFailedAttempts(username, ipAddress);
-                    
-                    if (failedCount >= config.maxAttempts) {
-                        // Lock the account
-                        await lockAccount(username);
-                        
-                        const remainingTime = config.lockoutDuration * 60; // seconds
-                        return resolve({
-                            locked: true,
-                            remainingTime,
-                            unlocksAt: new Date(Date.now() + remainingTime * 1000).toISOString()
-                        });
-                    }
-                    
-                    resolve({ locked: false, remainingTime: 0 });
-                } catch (error) {
-                    reject(error);
-                }
-            }
+            [username]
         );
-    });
+        
+        if (!row) {
+            return { locked: false, remainingTime: 0 };
+        }
+        
+        // Check if locked_until has passed
+        if (row.locked_until) {
+            const lockedUntil = new Date(row.locked_until);
+            const now = new Date();
+            
+            if (lockedUntil > now) {
+                const remainingMs = lockedUntil - now;
+                return {
+                    locked: true,
+                    remainingTime: Math.ceil(remainingMs / 1000), // seconds
+                    unlocksAt: lockedUntil.toISOString()
+                };
+            } else {
+                // Lock has expired, unlock the account
+                await unlockAccount(username);
+                return { locked: false, remainingTime: 0 };
+            }
+        }
+        
+        // Check failed attempts count
+        const failedCount = await getFailedAttempts(username, ipAddress);
+        
+        if (failedCount >= config.maxAttempts) {
+            // Lock the account
+            await lockAccount(username);
+            
+            const remainingTime = config.lockoutDuration * 60; // seconds
+            return {
+                locked: true,
+                remainingTime,
+                unlocksAt: new Date(Date.now() + remainingTime * 1000).toISOString()
+            };
+        }
+        
+        return { locked: false, remainingTime: 0 };
+    } catch (error) {
+        console.error('Error checking account lock status:', error);
+        throw error;
+    }
 }
 
 /**
@@ -170,25 +176,23 @@ async function isAccountLocked(username, ipAddress = null) {
  * @returns {Promise<void>}
  */
 async function lockAccount(username) {
-    return new Promise((resolve, reject) => {
-        const config = security.lockout;
-        const lockedUntil = new Date(Date.now() + config.lockoutDuration * 60 * 1000).toISOString();
-        
-        db.run(
+    if (!db) throw new Error('Account lockout not initialized');
+    
+    const config = security.lockout;
+    const lockedUntil = new Date(Date.now() + config.lockoutDuration * 60 * 1000).toISOString();
+    
+    try {
+        await db.run(
             `UPDATE users 
              SET account_locked = 1, locked_until = ? 
              WHERE username = ?`,
-            [lockedUntil, username],
-            (err) => {
-                if (err) {
-                    console.error('Error locking account:', err);
-                    return reject(err);
-                }
-                console.log(`🔒 Account locked: ${username} until ${lockedUntil}`);
-                resolve();
-            }
+            [lockedUntil, username]
         );
-    });
+        console.log(`🔒 Account locked: ${username} until ${lockedUntil}`);
+    } catch (err) {
+        console.error('Error locking account:', err);
+        throw err;
+    }
 }
 
 /**
@@ -198,22 +202,20 @@ async function lockAccount(username) {
  * @returns {Promise<void>}
  */
 async function unlockAccount(username) {
-    return new Promise((resolve, reject) => {
-        db.run(
+    if (!db) throw new Error('Account lockout not initialized');
+    
+    try {
+        await db.run(
             `UPDATE users 
              SET account_locked = 0, locked_until = NULL 
              WHERE username = ?`,
-            [username],
-            (err) => {
-                if (err) {
-                    console.error('Error unlocking account:', err);
-                    return reject(err);
-                }
-                console.log(`🔓 Account unlocked: ${username}`);
-                resolve();
-            }
+            [username]
         );
-    });
+        console.log(`🔓 Account unlocked: ${username}`);
+    } catch (err) {
+        console.error('Error unlocking account:', err);
+        throw err;
+    }
 }
 
 /**
@@ -223,22 +225,20 @@ async function unlockAccount(username) {
  * @returns {Promise<void>}
  */
 async function unlockAccountById(userId) {
-    return new Promise((resolve, reject) => {
-        db.run(
+    if (!db) throw new Error('Account lockout not initialized');
+    
+    try {
+        await db.run(
             `UPDATE users 
              SET account_locked = 0, locked_until = NULL 
              WHERE id = ?`,
-            [userId],
-            (err) => {
-                if (err) {
-                    console.error('Error unlocking account by ID:', err);
-                    return reject(err);
-                }
-                console.log(`🔓 Account unlocked: User ID ${userId}`);
-                resolve();
-            }
+            [userId]
         );
-    });
+        console.log(`🔓 Account unlocked: User ID ${userId}`);
+    } catch (err) {
+        console.error('Error unlocking account by ID:', err);
+        throw err;
+    }
 }
 
 /**
@@ -248,20 +248,18 @@ async function unlockAccountById(userId) {
  * @returns {Promise<void>}
  */
 async function resetFailedAttempts(username) {
-    return new Promise((resolve, reject) => {
-        db.run(
+    if (!db) throw new Error('Account lockout not initialized');
+    
+    try {
+        await db.run(
             `DELETE FROM login_attempts 
              WHERE username = ? AND success = 0`,
-            [username],
-            (err) => {
-                if (err) {
-                    console.error('Error resetting failed attempts:', err);
-                    return reject(err);
-                }
-                resolve();
-            }
+            [username]
         );
-    });
+    } catch (err) {
+        console.error('Error resetting failed attempts:', err);
+        throw err;
+    }
 }
 
 /**
@@ -272,23 +270,22 @@ async function resetFailedAttempts(username) {
  * @returns {Promise<Array>} Array of login attempts
  */
 async function getRecentAttempts(username, limit = 10) {
-    return new Promise((resolve, reject) => {
-        db.all(
+    if (!db) throw new Error('Account lockout not initialized');
+    
+    try {
+        const rows = await db.all(
             `SELECT ip_address, success, attempted_at, user_agent 
              FROM login_attempts 
              WHERE username = ? 
              ORDER BY attempted_at DESC 
              LIMIT ?`,
-            [username, limit],
-            (err, rows) => {
-                if (err) {
-                    console.error('Error getting recent attempts:', err);
-                    return reject(err);
-                }
-                resolve(rows || []);
-            }
+            [username, limit]
         );
-    });
+        return rows || [];
+    } catch (err) {
+        console.error('Error getting recent attempts:', err);
+        throw err;
+    }
 }
 
 /**
@@ -298,25 +295,24 @@ async function getRecentAttempts(username, limit = 10) {
  * @returns {Promise<number>} Number of deleted records
  */
 async function cleanupOldAttempts() {
-    return new Promise((resolve, reject) => {
-        const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        
-        db.run(
+    if (!db) throw new Error('Account lockout not initialized');
+    
+    const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    
+    try {
+        const result = await db.run(
             `DELETE FROM login_attempts WHERE attempted_at < ?`,
-            [cutoffTime],
-            function(err) {
-                if (err) {
-                    console.error('Error cleaning up old attempts:', err);
-                    return reject(err);
-                }
-                
-                if (this.changes > 0) {
-                    console.log(`🧹 Cleaned up ${this.changes} old login attempts`);
-                }
-                resolve(this.changes);
-            }
+            [cutoffTime]
         );
-    });
+        
+        if (result.changes > 0) {
+            console.log(`🧹 Cleaned up ${result.changes} old login attempts`);
+        }
+        return result.changes;
+    } catch (err) {
+        console.error('Error cleaning up old attempts:', err);
+        throw err;
+    }
 }
 
 /**
@@ -325,8 +321,10 @@ async function cleanupOldAttempts() {
  * @returns {Promise<Object>} Lockout statistics
  */
 async function getLockoutStats() {
-    return new Promise((resolve, reject) => {
-        db.all(
+    if (!db) throw new Error('Account lockout not initialized');
+    
+    try {
+        const stats = await db.all(
             `SELECT 
                 COUNT(*) as total_attempts,
                 SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_attempts,
@@ -335,33 +333,24 @@ async function getLockoutStats() {
                 COUNT(DISTINCT ip_address) as unique_ips
              FROM login_attempts
              WHERE attempted_at > datetime('now', '-24 hours')`,
-            [],
-            (err, rows) => {
-                if (err) {
-                    console.error('Error getting lockout stats:', err);
-                    return reject(err);
-                }
-                
-                db.get(
-                    `SELECT COUNT(*) as locked_accounts 
-                     FROM users 
-                     WHERE account_locked = 1 AND locked_until > datetime('now')`,
-                    [],
-                    (err2, lockedRow) => {
-                        if (err2) {
-                            console.error('Error getting locked accounts count:', err2);
-                            return reject(err2);
-                        }
-                        
-                        resolve({
-                            ...rows[0],
-                            locked_accounts: lockedRow.locked_accounts
-                        });
-                    }
-                );
-            }
+            []
         );
-    });
+        
+        const lockedRow = await db.get(
+            `SELECT COUNT(*) as locked_accounts 
+             FROM users 
+             WHERE account_locked = 1 AND locked_until > datetime('now')`,
+            []
+        );
+        
+        return {
+            ...stats[0],
+            locked_accounts: lockedRow.locked_accounts
+        };
+    } catch (err) {
+        console.error('Error getting lockout stats:', err);
+        throw err;
+    }
 }
 
 /**
@@ -369,6 +358,11 @@ async function getLockoutStats() {
  * Cleans up old login attempts every hour
  */
 function startCleanupSchedule() {
+    if (!db) {
+        console.warn('⚠️  Account lockout cleanup scheduler requires initialization');
+        return;
+    }
+    
     // Run cleanup immediately
     cleanupOldAttempts().catch(console.error);
     
@@ -381,6 +375,7 @@ function startCleanupSchedule() {
 }
 
 module.exports = {
+    initialize,
     recordLoginAttempt,
     getFailedAttempts,
     isAccountLocked,
