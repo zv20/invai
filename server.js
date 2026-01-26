@@ -393,14 +393,16 @@ async function createDefaultAdmin() {
       console.log('\n👤 Creating default admin user...');
       const hashedPassword = await bcrypt.hash('admin', 10);
       
+      // FIX: Set role='admin' to ensure proper permissions on first login
       await dbAdapter.run(
-        'INSERT INTO users (username, password, email, is_active) VALUES (?, ?, ?, 1)',
-        ['admin', hashedPassword, 'admin@invai.local']
+        'INSERT INTO users (username, password, email, role, is_active) VALUES (?, ?, ?, ?, 1)',
+        ['admin', hashedPassword, 'admin@invai.local', 'admin']
       );
       
       console.log('✅ Default admin user created');
       console.log('   Username: admin');
       console.log('   Password: admin');
+      console.log('   Role: admin');
       console.log('   ⚠️  CHANGE THIS PASSWORD IMMEDIATELY!\n');
     }
   } catch (error) {
