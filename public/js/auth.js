@@ -51,7 +51,10 @@
       }
       return response.json();
     })
-    .then(user => {
+    .then(data => {
+      // Extract user object from response (API returns { success: true, user: {...} })
+      const user = data.user || data;
+      
       // Token is valid, store user info
       localStorage.setItem('user', JSON.stringify(user));
       console.log('Authenticated as:', user.username);
