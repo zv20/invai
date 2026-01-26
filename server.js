@@ -129,7 +129,7 @@ const cache = new CacheManager();
 let activityLogger;
 let csvExporter;
 let dbAdapter; // Database adapter (SQLite or PostgreSQL)
-let db; // Legacy wrapper for backward compatibility
+let db; // Database interface for routes
 
 const DB_TYPE = (process.env.DATABASE_TYPE || 'sqlite').toLowerCase();
 
@@ -215,7 +215,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.BEHIND_PROXY) {
 }
 
 // ===================================
-// ⚠️  TEMPORARY SECURITY REDUCTION - SEE GITHUB ISSUE #1
+// ⚠️  TEMPORARY SECURITY REDUCTION - SEE GITHUB ISSUE #11
 // TODO: Implement nonce-based CSP IMMEDIATELY
 // ===================================
 app.use(helmet({
@@ -242,7 +242,7 @@ app.use(helmet({
 }));
 
 console.log('⚠️  WARNING: CSP using unsafe-inline (TEMPORARY)');
-console.log('   This reduces XSS protection. See GitHub Issue #1');
+console.log('   This reduces XSS protection. See GitHub Issue #11');
 console.log('   Acceptable for internal systems behind HTTPS proxy\n');
 
 // PATCH 4: Fix Wide-Open CORS
@@ -292,7 +292,7 @@ app.get('/health', (req, res) => {
     database: DB_TYPE,
     pwa: process.env.PWA_ENABLED === 'true',
     securityPatches: 12,
-    cspWarning: 'unsafe-inline enabled - see issue #1',
+    cspWarning: 'unsafe-inline enabled - see issue #11',
     timestamp: new Date().toISOString()
   });
 });
@@ -319,8 +319,8 @@ async function initializeApp() {
     dbAdapter = await getDatabase();
     console.log(`✓ Connected to ${dbAdapter.getType().toUpperCase()} database`);
     
-    // Create legacy wrapper for backward compatibility
-    db = new Database(dbAdapter);
+    // dbAdapter already has async methods (get, run, all), use it directly
+    db = dbAdapter;
     
     await initializeDatabase();
     
