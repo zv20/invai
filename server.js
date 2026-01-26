@@ -43,7 +43,7 @@ if (!process.env.JWT_SECRET ||
     process.env.JWT_SECRET === 'your-secret-key-here-change-this-in-production' ||
     process.env.JWT_SECRET.includes('your_jwt_secret_here')) {
   console.error('\n❌ CRITICAL: JWT_SECRET must be at least 64 characters of random data!');
-  console.error('Generate one with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))")\n');
+  console.error('Generate one with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"\n');
   process.exit(1);
 }
 
@@ -215,7 +215,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.BEHIND_PROXY) {
 }
 
 // ===================================
-// ⚠️  TEMPORARY SECURITY REDUCTION - SEE GITHUB ISSUE #11
+// ⚠️  TEMPORARY SECURITY REDUCTION - SEE GITHUB ISSUE #11 & #13
 // TODO: Implement nonce-based CSP IMMEDIATELY
 // ===================================
 app.use(helmet({
@@ -223,7 +223,8 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"], // TEMP: Allow inline styles - REPLACE WITH NONCES
-      scriptSrc: ["'self'", "'unsafe-inline'"], // TEMP: Allow inline scripts - REPLACE WITH NONCES
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"], // TEMP: Allow inline scripts - REPLACE WITH NONCES  
+      scriptSrcAttr: ["'unsafe-inline'"], // FIX #13: Allow onclick handlers temporarily
       imgSrc: ["'self'", 'data:', 'blob:'],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
@@ -242,7 +243,7 @@ app.use(helmet({
 }));
 
 console.log('⚠️  WARNING: CSP using unsafe-inline (TEMPORARY)');
-console.log('   This reduces XSS protection. See GitHub Issue #11');
+console.log('   This reduces XSS protection. See GitHub Issues #11 and #13');
 console.log('   Acceptable for internal systems behind HTTPS proxy\n');
 
 // PATCH 4: Fix Wide-Open CORS
@@ -292,7 +293,7 @@ app.get('/health', (req, res) => {
     database: DB_TYPE,
     pwa: process.env.PWA_ENABLED === 'true',
     securityPatches: 12,
-    cspWarning: 'unsafe-inline enabled - see issue #11',
+    cspWarning: 'unsafe-inline enabled - see issues #11 and #13',
     timestamp: new Date().toISOString()
   });
 });
