@@ -4,282 +4,285 @@
  */
 
 const express = require('express');
-const router = express.Router();
 const DashboardManager = require('../lib/dashboard/dashboardManager');
 const WidgetEngine = require('../lib/dashboard/widgetEngine');
 
-/**
- * GET /api/dashboards
- * Get user's dashboards
- */
-router.get('/', async (req, res) => {
-  try {
-    const manager = new DashboardManager(req.app.locals.db);
-    const dashboards = await manager.getUserDashboards(req.user?.id || 0);
+module.exports = (db) => {
+  const router = express.Router();
 
-    res.json({
-      success: true,
-      data: dashboards
-    });
-  } catch (error) {
-    console.error('Get dashboards error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+  /**
+   * GET /api/dashboards
+   * Get user's dashboards
+   */
+  router.get('/', async (req, res) => {
+    try {
+      const manager = new DashboardManager(db.db || db);
+      const dashboards = await manager.getUserDashboards(req.user?.id || 0);
 
-/**
- * POST /api/dashboards
- * Create a new dashboard
- */
-router.post('/', async (req, res) => {
-  try {
-    const manager = new DashboardManager(req.app.locals.db);
-    const dashboardId = await manager.createDashboard(req.user?.id || 0, req.body);
-
-    res.json({
-      success: true,
-      id: dashboardId
-    });
-  } catch (error) {
-    console.error('Create dashboard error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/dashboards/:id
- * Get a specific dashboard
- */
-router.get('/:id', async (req, res) => {
-  try {
-    const dashboardId = parseInt(req.params.id);
-    const manager = new DashboardManager(req.app.locals.db);
-    const dashboard = await manager.getDashboard(dashboardId, req.user?.id || 0);
-
-    if (!dashboard) {
-      return res.status(404).json({
+      res.json({
+        success: true,
+        data: dashboards
+      });
+    } catch (error) {
+      console.error('Get dashboards error:', error);
+      res.status(500).json({
         success: false,
-        error: 'Dashboard not found'
+        error: error.message
       });
     }
+  });
 
-    res.json({
-      success: true,
-      data: dashboard
-    });
-  } catch (error) {
-    console.error('Get dashboard error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+  /**
+   * POST /api/dashboards
+   * Create a new dashboard
+   */
+  router.post('/', async (req, res) => {
+    try {
+      const manager = new DashboardManager(db.db || db);
+      const dashboardId = await manager.createDashboard(req.user?.id || 0, req.body);
 
-/**
- * PUT /api/dashboards/:id
- * Update a dashboard
- */
-router.put('/:id', async (req, res) => {
-  try {
-    const dashboardId = parseInt(req.params.id);
-    const manager = new DashboardManager(req.app.locals.db);
-    const success = await manager.updateDashboard(dashboardId, req.user?.id || 0, req.body);
+      res.json({
+        success: true,
+        id: dashboardId
+      });
+    } catch (error) {
+      console.error('Create dashboard error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 
-    res.json({ success });
-  } catch (error) {
-    console.error('Update dashboard error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+  /**
+   * GET /api/dashboards/:id
+   * Get a specific dashboard
+   */
+  router.get('/:id', async (req, res) => {
+    try {
+      const dashboardId = parseInt(req.params.id);
+      const manager = new DashboardManager(db.db || db);
+      const dashboard = await manager.getDashboard(dashboardId, req.user?.id || 0);
 
-/**
- * DELETE /api/dashboards/:id
- * Delete a dashboard
- */
-router.delete('/:id', async (req, res) => {
-  try {
-    const dashboardId = parseInt(req.params.id);
-    const manager = new DashboardManager(req.app.locals.db);
-    const success = await manager.deleteDashboard(dashboardId, req.user?.id || 0);
+      if (!dashboard) {
+        return res.status(404).json({
+          success: false,
+          error: 'Dashboard not found'
+        });
+      }
 
-    res.json({ success });
-  } catch (error) {
-    console.error('Delete dashboard error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+      res.json({
+        success: true,
+        data: dashboard
+      });
+    } catch (error) {
+      console.error('Get dashboard error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 
-/**
- * POST /api/dashboards/:id/clone
- * Clone a dashboard
- */
-router.post('/:id/clone', async (req, res) => {
-  try {
-    const dashboardId = parseInt(req.params.id);
-    const { name } = req.body;
-    const manager = new DashboardManager(req.app.locals.db);
-    const newId = await manager.cloneDashboard(dashboardId, req.user?.id || 0, name);
+  /**
+   * PUT /api/dashboards/:id
+   * Update a dashboard
+   */
+  router.put('/:id', async (req, res) => {
+    try {
+      const dashboardId = parseInt(req.params.id);
+      const manager = new DashboardManager(db.db || db);
+      const success = await manager.updateDashboard(dashboardId, req.user?.id || 0, req.body);
 
-    res.json({
-      success: true,
-      id: newId
-    });
-  } catch (error) {
-    console.error('Clone dashboard error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+      res.json({ success });
+    } catch (error) {
+      console.error('Update dashboard error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 
-/**
- * GET /api/dashboards/templates/list
- * Get dashboard templates
- */
-router.get('/templates/list', async (req, res) => {
-  try {
-    const manager = new DashboardManager(req.app.locals.db);
-    const templates = manager.getTemplates();
+  /**
+   * DELETE /api/dashboards/:id
+   * Delete a dashboard
+   */
+  router.delete('/:id', async (req, res) => {
+    try {
+      const dashboardId = parseInt(req.params.id);
+      const manager = new DashboardManager(db.db || db);
+      const success = await manager.deleteDashboard(dashboardId, req.user?.id || 0);
 
-    res.json({
-      success: true,
-      data: templates
-    });
-  } catch (error) {
-    console.error('Get templates error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+      res.json({ success });
+    } catch (error) {
+      console.error('Delete dashboard error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 
-/**
- * POST /api/dashboards/templates/:templateId
- * Create dashboard from template
- */
-router.post('/templates/:templateId', async (req, res) => {
-  try {
-    const { templateId } = req.params;
-    const { name } = req.body;
-    const manager = new DashboardManager(req.app.locals.db);
-    const dashboardId = await manager.createFromTemplate(req.user?.id || 0, templateId, name);
+  /**
+   * POST /api/dashboards/:id/clone
+   * Clone a dashboard
+   */
+  router.post('/:id/clone', async (req, res) => {
+    try {
+      const dashboardId = parseInt(req.params.id);
+      const { name } = req.body;
+      const manager = new DashboardManager(db.db || db);
+      const newId = await manager.cloneDashboard(dashboardId, req.user?.id || 0, name);
 
-    res.json({
-      success: true,
-      id: dashboardId
-    });
-  } catch (error) {
-    console.error('Create from template error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+      res.json({
+        success: true,
+        id: newId
+      });
+    } catch (error) {
+      console.error('Clone dashboard error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 
-/**
- * GET /api/dashboards/:id/export
- * Export dashboard configuration
- */
-router.get('/:id/export', async (req, res) => {
-  try {
-    const dashboardId = parseInt(req.params.id);
-    const manager = new DashboardManager(req.app.locals.db);
-    const config = await manager.exportDashboard(dashboardId, req.user?.id || 0);
+  /**
+   * GET /api/dashboards/templates/list
+   * Get dashboard templates
+   */
+  router.get('/templates/list', async (req, res) => {
+    try {
+      const manager = new DashboardManager(db.db || db);
+      const templates = manager.getTemplates();
 
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename=dashboard-${dashboardId}.json`);
-    res.json(config);
-  } catch (error) {
-    console.error('Export dashboard error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+      res.json({
+        success: true,
+        data: templates
+      });
+    } catch (error) {
+      console.error('Get templates error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 
-/**
- * POST /api/dashboards/import
- * Import dashboard configuration
- */
-router.post('/import', async (req, res) => {
-  try {
-    const manager = new DashboardManager(req.app.locals.db);
-    const dashboardId = await manager.importDashboard(req.user?.id || 0, req.body);
+  /**
+   * POST /api/dashboards/templates/:templateId
+   * Create dashboard from template
+   */
+  router.post('/templates/:templateId', async (req, res) => {
+    try {
+      const { templateId } = req.params;
+      const { name } = req.body;
+      const manager = new DashboardManager(db.db || db);
+      const dashboardId = await manager.createFromTemplate(req.user?.id || 0, templateId, name);
 
-    res.json({
-      success: true,
-      id: dashboardId
-    });
-  } catch (error) {
-    console.error('Import dashboard error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+      res.json({
+        success: true,
+        id: dashboardId
+      });
+    } catch (error) {
+      console.error('Create from template error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 
-/**
- * GET /api/widgets/types
- * Get available widget types
- */
-router.get('/widgets/types', async (req, res) => {
-  try {
-    const engine = new WidgetEngine(req.app.locals.db);
-    const types = engine.getWidgetTypes();
+  /**
+   * GET /api/dashboards/:id/export
+   * Export dashboard configuration
+   */
+  router.get('/:id/export', async (req, res) => {
+    try {
+      const dashboardId = parseInt(req.params.id);
+      const manager = new DashboardManager(db.db || db);
+      const config = await manager.exportDashboard(dashboardId, req.user?.id || 0);
 
-    res.json({
-      success: true,
-      data: types
-    });
-  } catch (error) {
-    console.error('Get widget types error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename=dashboard-${dashboardId}.json`);
+      res.json(config);
+    } catch (error) {
+      console.error('Export dashboard error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 
-/**
- * POST /api/widgets/:type/data
- * Get data for a specific widget type
- */
-router.post('/widgets/:type/data', async (req, res) => {
-  try {
-    const { type } = req.params;
-    const config = req.body;
-    const engine = new WidgetEngine(req.app.locals.db);
-    const data = await engine.getWidgetData(type, config);
+  /**
+   * POST /api/dashboards/import
+   * Import dashboard configuration
+   */
+  router.post('/import', async (req, res) => {
+    try {
+      const manager = new DashboardManager(db.db || db);
+      const dashboardId = await manager.importDashboard(req.user?.id || 0, req.body);
 
-    res.json({
-      success: true,
-      data
-    });
-  } catch (error) {
-    console.error('Get widget data error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+      res.json({
+        success: true,
+        id: dashboardId
+      });
+    } catch (error) {
+      console.error('Import dashboard error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 
-module.exports = router;
+  /**
+   * GET /api/widgets/types
+   * Get available widget types
+   */
+  router.get('/widgets/types', async (req, res) => {
+    try {
+      const engine = new WidgetEngine(db.db || db);
+      const types = engine.getWidgetTypes();
+
+      res.json({
+        success: true,
+        data: types
+      });
+    } catch (error) {
+      console.error('Get widget types error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * POST /api/widgets/:type/data
+   * Get data for a specific widget type
+   */
+  router.post('/widgets/:type/data', async (req, res) => {
+    try {
+      const { type } = req.params;
+      const config = req.body;
+      const engine = new WidgetEngine(db.db || db);
+      const data = await engine.getWidgetData(type, config);
+
+      res.json({
+        success: true,
+        data
+      });
+    } catch (error) {
+      console.error('Get widget data error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  return router;
+};
