@@ -26,21 +26,26 @@ module.exports = {
     // CORE TABLES
     // ============================================
     
-    // Products table
+    // Products table (with all columns expected by productController)
     await db.run(`
       CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         description TEXT,
-        price REAL NOT NULL,
+        inhouse_number TEXT,
+        barcode TEXT,
+        brand TEXT,
+        price REAL NOT NULL DEFAULT 0,
+        cost_per_case REAL DEFAULT 0,
+        items_per_case INTEGER DEFAULT 1,
         stock_quantity INTEGER NOT NULL DEFAULT 0,
         category TEXT,
         supplier TEXT,
-        barcode TEXT,
         category_id INTEGER REFERENCES categories(id),
         supplier_id INTEGER REFERENCES suppliers(id),
         reorder_point INTEGER DEFAULT 0,
         max_stock INTEGER DEFAULT 0,
+        notes TEXT DEFAULT '',
         is_favorite INTEGER DEFAULT 0,
         last_restock_date DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
