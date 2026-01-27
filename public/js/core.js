@@ -135,6 +135,11 @@ function getExpiryStatus(date) {
     return null;
 }
 
+// Helper for update banner
+function viewGitHubUpdate() {
+    window.open('https://github.com/zv20/invai', '_blank');
+}
+
 /* ==========================================================================
    Time and Status Management
    ========================================================================== */
@@ -378,6 +383,7 @@ async function initializeApp() {
     
     console.log('✓ Grocery Inventory App v0.8.4b initialized');
     console.log('✓ CSRF protection active (fresh token on every request)');
+    console.log('✓ CSP-compliant event delegation active (no inline handlers)');
 }
 
 // Initialize when DOM is ready
