@@ -1,7 +1,7 @@
 /* ==========================================================================
-   Settings Management - v0.7.8c
+   Settings Management - v0.10.0
    Version checking, updates, export/import, backup system, and settings
-   FIXED: Added comprehensive safety checks and error handling
+   FIXED: Auto-refresh backup list after create, improved error handling
    ========================================================================== */
 
 /* ==========================================================================
@@ -457,7 +457,7 @@ async function checkVersion() {
 }
 
 /* ==========================================================================
-   Backup System
+   Backup System - FIXED: Auto-refresh list after create
    ========================================================================== */
 
 async function createBackup() {
@@ -474,7 +474,8 @@ async function createBackup() {
         
         if (response.ok) {
             notify(`Backup created: ${data.filename}`, 'success');
-            loadBackups();
+            // FIXED: Auto-refresh backup list
+            await loadBackups();
         } else {
             notify(`Backup failed: ${data.error}`, 'error');
         }
@@ -568,17 +569,20 @@ async function deleteBackup(filename) {
             method: 'DELETE'
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            notify(`Backup deleted: ${filename}`, 'success');
-            loadBackups();
-        } else {
-            notify(`Failed to delete: ${data.error}`, 'error');
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || `HTTP ${response.status}`);
         }
+        
+        const data = await response.json();
+        notify(`Backup deleted: ${filename}`, 'success');
+        
+        // FIXED: Auto-refresh backup list
+        await loadBackups();
+        
     } catch (error) {
         console.error('Delete error:', error);
-        notify('Failed to delete backup', 'error');
+        notify(`Failed to delete backup: ${error.message}`, 'error');
     }
 }
 
