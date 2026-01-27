@@ -1,6 +1,7 @@
 /**
- * Suppliers Manager - v0.7.8f
+ * Suppliers Manager - v0.7.8g
  * Handles supplier CRUD operations
+ * FIXED v0.7.8g: Added better error handling and forced UI refresh
  * FIXED v0.7.8f: Changed showNotification to showToast
  * FIXED v0.7.8e: Updated version number for supplier active status fix
  * FIXED v0.7.8a: Changed contact_phone/contact_email to phone/email to match database schema
@@ -11,23 +12,39 @@ let editingSupplierId = null;
 
 // Load suppliers on page load
 window.loadSuppliers = async function() {
+    console.log('🔄 Loading suppliers...');
     try {
         const response = await authFetch('/api/suppliers');
-        suppliers = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        suppliers = data;
+        
+        console.log(`✅ Loaded ${suppliers.length} suppliers:`, suppliers);
+        
         renderSuppliersList();
         updateSupplierDropdown();
+        
     } catch (error) {
-        console.error('Error loading suppliers:', error);
+        console.error('❌ Error loading suppliers:', error);
         const container = document.getElementById('suppliersList');
         if (container) {
-            container.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 40px;">Failed to load suppliers</p>';
+            container.innerHTML = `<p style="text-align: center; color: #ef4444; padding: 40px;">Failed to load suppliers: ${error.message}</p>`;
         }
     }
 };
 
 function renderSuppliersList() {
     const container = document.getElementById('suppliersList');
-    if (!container) return;
+    if (!container) {
+        console.warn('⚠️  suppliersList container not found');
+        return;
+    }
+    
+    console.log(`🎨 Rendering ${suppliers.length} suppliers...`);
     
     if (suppliers.length === 0) {
         container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No suppliers yet. Click "Add Supplier" to create one.</p>';
@@ -38,13 +55,13 @@ function renderSuppliersList() {
         <div class="supplier-card" style="opacity: ${sup.is_active ? 1 : 0.6}">
             <div class="supplier-info">
                 <h4>
-                    ${sup.name}
+                    ${escapeHtml(sup.name)}
                     ${!sup.is_active ? '<span class="badge-inactive">Inactive</span>' : ''}
                 </h4>
-                ${sup.contact_name ? `<p><strong>Contact:</strong> ${sup.contact_name}</p>` : ''}
-                ${sup.email ? `<p>📧 ${sup.email}</p>` : ''}
-                ${sup.phone ? `<p>📞 ${sup.phone}</p>` : ''}
-                ${sup.notes ? `<p style="font-style: italic; color: #999; margin-top: 8px;">${sup.notes}</p>` : ''}
+                ${sup.contact_name ? `<p><strong>Contact:</strong> ${escapeHtml(sup.contact_name)}</p>` : ''}
+                ${sup.email ? `<p>📧 ${escapeHtml(sup.email)}</p>` : ''}
+                ${sup.phone ? `<p>📞 ${escapeHtml(sup.phone)}</p>` : ''}
+                ${sup.notes ? `<p style="font-style: italic; color: #999; margin-top: 8px;">${escapeHtml(sup.notes)}</p>` : ''}
             </div>
             <div class="supplier-actions">
                 <button 
@@ -58,13 +75,26 @@ function renderSuppliersList() {
             </div>
         </div>
     `).join('');
+    
+    console.log('✅ Suppliers rendered to UI');
+}
+
+// Simple HTML escape function
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function updateSupplierDropdown() {
     const select = document.getElementById('prodSupplier');
     if (select) {
+        const oldValue = select.value; // Preserve selection
         select.innerHTML = '<option value="">Select supplier...</option>' +
-            suppliers.filter(s => s.is_active).map(sup => `<option value="${sup.id}">${sup.name}</option>`).join('');
+            suppliers.filter(s => s.is_active).map(sup => `<option value="${sup.id}">${escapeHtml(sup.name)}</option>`).join('');
+        select.value = oldValue; // Restore selection
+        console.log('✅ Supplier dropdown updated');
     }
 }
 
@@ -93,9 +123,11 @@ window.toggleSupplierStatus = async function(id, newStatus) {
                 `${supplier.name} marked as ${newStatus ? 'active' : 'inactive'}`, 
                 'success'
             );
-            window.loadSuppliers();
+            // Force reload
+            await window.loadSuppliers();
         } else {
-            showToast('Failed to update supplier status', 'error');
+            const error = await response.json();
+            showToast(error.error || 'Failed to update supplier status', 'error');
         }
     } catch (error) {
         console.error('Error updating supplier status:', error);
@@ -154,9 +186,11 @@ window.deleteSupplier = async function(id) {
         const response = await authFetch(`/api/suppliers/${id}`, { method: 'DELETE' });
         if (response.ok) {
             showToast('Supplier deleted', 'success');
-            window.loadSuppliers();
+            // Force reload
+            await window.loadSuppliers();
         } else {
-            showToast('Failed to delete supplier', 'error');
+            const error = await response.json();
+            showToast(error.error || 'Failed to delete supplier', 'error');
         }
     } catch (error) {
         console.error('Error deleting supplier:', error);
@@ -190,11 +224,15 @@ function setupSupplierForm() {
                 is_active: isActiveCheckbox.checked ? 1 : 0
             };
             
+            console.log('💾 Saving supplier:', data);
+            
             try {
                 const url = editingSupplierId 
                     ? `/api/suppliers/${editingSupplierId}` 
                     : '/api/suppliers';
                 const method = editingSupplierId ? 'PUT' : 'POST';
+                
+                console.log(`🚀 ${method} ${url}`);
                 
                 const response = await authFetch(url, {
                     method,
@@ -203,17 +241,28 @@ function setupSupplierForm() {
                 });
                 
                 if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Supplier saved:', result);
+                    
                     showToast(editingSupplierId ? 'Supplier updated' : 'Supplier created', 'success');
                     window.closeSupplierModal();
-                    window.loadSuppliers();
+                    
+                    // Force reload with a small delay to ensure DB write completed
+                    setTimeout(async () => {
+                        console.log('🔄 Reloading suppliers after save...');
+                        await window.loadSuppliers();
+                    }, 100);
                 } else {
                     const error = await response.json();
+                    console.error('❌ Save failed:', error);
                     showToast(error.error || 'Failed to save supplier', 'error');
                 }
             } catch (error) {
-                console.error('Error saving supplier:', error);
-                showToast('Failed to save supplier', 'error');
+                console.error('❌ Error saving supplier:', error);
+                showToast('Failed to save supplier: ' + error.message, 'error');
             }
         });
+    } else {
+        console.warn('⚠️  supplierForm not found - form submission will not work');
     }
 }
