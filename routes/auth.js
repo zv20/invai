@@ -33,10 +33,17 @@ module.exports = (db, logger) => {
    * GET /api/auth/csrf-token
    * Get CSRF token for client-side requests
    * PUBLIC endpoint (no authentication required)
-   * Generates new token and sets cookie
+   * Returns existing token from cookie, or generates new one if missing
    */
-  router.get('/csrf-token', generateCsrfToken, (req, res) => {
-    const token = req.csrfToken || getCsrfToken(req);
+  router.get('/csrf-token', (req, res) => {
+    // Try to get existing token from cookie first
+    let token = req.cookies?.csrf_token;
+    
+    // If no token exists, generate a new one
+    if (!token) {
+      generateCsrfToken(req, res, () => {});
+      token = req.csrfToken || getCsrfToken(req);
+    }
     
     if (!token) {
       return res.status(500).json({
@@ -177,10 +184,11 @@ module.exports = (db, logger) => {
    * POST /api/auth/login
    * Authenticates user and returns JWT token with session
    * Includes account lockout protection and login attempt tracking
+   * Also generates and returns CSRF token
    * PATCH 3: JWT expiration reduced to 2h
    * PATCH 8: Rate limited
    */
-  router.post('/login', authLimiter, asyncHandler(async (req, res) => {
+  router.post('/login', authLimiter, generateCsrfToken, asyncHandler(async (req, res) => {
     const { username, password } = req.body;
     
     if (!username || !password) {
@@ -312,7 +320,7 @@ module.exports = (db, logger) => {
     const response = {
       success: true,
       token,
-      csrfToken: getCsrfToken(req), // Include CSRF token in login response
+      csrfToken: req.csrfToken || getCsrfToken(req), // Include CSRF token in login response
       user: {
         id: user.id,
         username: user.username,
