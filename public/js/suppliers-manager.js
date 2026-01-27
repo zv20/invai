@@ -1,6 +1,7 @@
 /**
- * Suppliers Manager - v0.7.8g
+ * Suppliers Manager - v0.8.5
  * Handles supplier CRUD operations
+ * FIXED v0.8.5: Removed ALL inline styles for CSP compliance
  * FIXED v0.7.8g: Added better error handling and forced UI refresh
  * FIXED v0.7.8f: Changed showNotification to showToast
  * FIXED v0.7.8e: Updated version number for supplier active status fix
@@ -52,7 +53,7 @@ function renderSuppliersList() {
     }
     
     container.innerHTML = suppliers.map(sup => `
-        <div class="supplier-card" style="opacity: ${sup.is_active ? 1 : 0.6}">
+        <div class="supplier-card ${!sup.is_active ? 'inactive' : ''}">
             <div class="supplier-info">
                 <h4>
                     ${escapeHtml(sup.name)}
@@ -61,7 +62,7 @@ function renderSuppliersList() {
                 ${sup.contact_name ? `<p><strong>Contact:</strong> ${escapeHtml(sup.contact_name)}</p>` : ''}
                 ${sup.email ? `<p>📧 ${escapeHtml(sup.email)}</p>` : ''}
                 ${sup.phone ? `<p>📞 ${escapeHtml(sup.phone)}</p>` : ''}
-                ${sup.notes ? `<p style="font-style: italic; color: #999; margin-top: 8px;">${escapeHtml(sup.notes)}</p>` : ''}
+                ${sup.notes ? `<p class="supplier-notes">${escapeHtml(sup.notes)}</p>` : ''}
             </div>
             <div class="supplier-actions">
                 <button 
