@@ -1,6 +1,7 @@
 /**
  * Backup Routes
  * HTTP layer for database backup operations (admin only)
+ * FIXED: Added no-cache headers to list endpoint
  */
 
 const express = require('express');
@@ -38,9 +39,15 @@ module.exports = (createBackup, sqliteDb, Database) => {
     res.json({ message: 'Backup created successfully', ...backup });
   }));
 
-  // List backups
+  // List backups - FIXED: Added no-cache headers
   router.get('/list', asyncHandler(async (req, res) => {
     const backups = controller.listAll();
+    
+    // Prevent browser caching of backup list
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     res.json(backups);
   }));
 
