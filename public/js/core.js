@@ -1,6 +1,7 @@
 /* ==========================================================================
-   Core Application Logic v0.8.4a
+   Core Application Logic v0.8.4b
    Global state, initialization, utilities, and tab management
+   FIXED: CSRF token now refreshed before every state-changing request
    ========================================================================== */
 
 // API Configuration
@@ -34,7 +35,7 @@ function getCsrfTokenFromCookie() {
 
 /**
  * Fetch CSRF token from cookie (not API)
- * Called on app initialization and after login
+ * Called on app initialization and before state-changing requests
  */
 async function fetchCsrfToken() {
     try {
@@ -71,19 +72,17 @@ async function authFetch(url, options = {}) {
         ...options.headers
     };
     
-    // Add CSRF token for state-changing requests
-    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes((options.method || 'GET').toUpperCase())) {
+    // FIXED: Always refresh CSRF token before state-changing requests
+    const method = (options.method || 'GET').toUpperCase();
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+        // Get fresh token from cookie before every state-changing request
+        await fetchCsrfToken();
+        
         if (!csrfToken) {
-            // Try to fetch token if we don't have it
-            const success = await fetchCsrfToken();
-            if (!success) {
-                throw new Error('Failed to obtain CSRF token');
-            }
+            throw new Error('Failed to obtain CSRF token');
         }
         
-        if (csrfToken) {
-            headers['x-csrf-token'] = csrfToken;
-        }
+        headers['X-CSRF-Token'] = csrfToken;
     }
     
     const response = await fetch(url, { ...options, headers });
@@ -96,14 +95,15 @@ async function authFetch(url, options = {}) {
         throw new Error('Authentication failed');
     }
     
-    // Handle 403 Forbidden (CSRF failure)
+    // Handle 403 Forbidden (CSRF failure) - should rarely happen now
     if (response.status === 403) {
-        const data = await response.json();
-        if (data.error && data.error.code === 'CSRF_TOKEN_INVALID') {
-            // Refresh CSRF token from cookie and retry once
-            await fetchCsrfToken();
-            headers['x-csrf-token'] = csrfToken;
-            return fetch(url, { ...options, headers });
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            if (data.error && data.error.includes('CSRF')) {
+                console.error('⚠️ CSRF validation failed even with fresh token');
+                throw new Error('CSRF validation failed');
+            }
         }
     }
     
@@ -316,7 +316,7 @@ if (productSearchEl) {
    ========================================================================== */
 
 async function initializeApp() {
-    console.log('🚀 Starting Grocery Inventory App v0.8.4a...');
+    console.log('🚀 Starting Grocery Inventory App v0.8.4b...');
     
     // Fetch CSRF token on app start - WAIT for it!
     await fetchCsrfToken();
@@ -376,8 +376,8 @@ async function initializeApp() {
         setupUpdateChecker();
     }
     
-    console.log('✓ Grocery Inventory App v0.8.4a initialized');
-    console.log('✓ CSRF protection active');
+    console.log('✓ Grocery Inventory App v0.8.4b initialized');
+    console.log('✓ CSRF protection active (fresh token on every request)');
 }
 
 // Initialize when DOM is ready
