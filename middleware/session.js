@@ -5,7 +5,11 @@
  * Works in conjunction with JWT authentication to provide
  * database-backed session management.
  * 
+ * BACKWARD COMPATIBILITY: Supports legacy JWT tokens without sessionId
+ * (tokens issued before v0.8.1 session system).
+ * 
  * Created: 2026-01-25
+ * Updated: 2026-01-27 - Added backward compatibility for old tokens
  */
 
 const sessionManager = require('../utils/sessionManager');
@@ -15,6 +19,12 @@ const sessionManager = require('../utils/sessionManager');
  * 
  * Checks if the session ID from JWT is still valid in the database.
  * Enforces session expiration and inactivity timeouts.
+ * 
+ * BACKWARD COMPATIBILITY MODE:
+ * - Old tokens (pre-v0.8.1) lack sessionId field
+ * - These tokens are allowed to pass with a console warning
+ * - Users are marked as needing token refresh
+ * - Full session validation applies only to new tokens
  * 
  * Should be used AFTER the authenticate middleware which verifies JWT.
  * 
@@ -27,22 +37,25 @@ async function validateSession(req, res, next) {
         // Extract session ID from JWT payload (set by authenticate middleware)
         const sessionId = req.user?.sessionId;
         
+        // BACKWARD COMPATIBILITY: Allow old tokens without sessionId
+        // This prevents 403 errors for users with JWT tokens issued before session system
         if (!sessionId) {
-            console.warn('No session ID found in request', {
+            console.warn('⚠️  Legacy JWT token detected (missing sessionId):', {
                 path: req.path,
-                userId: req.user?.id
+                userId: req.user?.id,
+                username: req.user?.username,
+                message: 'Token issued before v0.8.1 session system - allowing access'
             });
             
-            return res.status(401).json({
-                success: false,
-                error: {
-                    code: 'NO_SESSION',
-                    message: 'No active session found. Please log in again.'
-                }
-            });
+            // Mark user as needing token refresh for future implementation
+            req.user.needsTokenRefresh = true;
+            req.user.legacyToken = true;
+            
+            // Allow request to continue without session validation
+            return next();
         }
         
-        // Validate session in database
+        // NEW TOKENS: Validate session in database
         const session = await sessionManager.validateSession(sessionId);
         
         if (!session) {
