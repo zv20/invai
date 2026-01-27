@@ -231,7 +231,7 @@ app.use(helmet({
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
+      frameSrc: ["'none']
     }
   },
   hsts: {
@@ -480,6 +480,7 @@ async function initializeDatabase() {
   }
 }
 
+// FIXED: Handle undefined/null prefix properly
 function createBackup(prefix = '') {
   return new Promise((resolve, reject) => {
     // Only SQLite supports file-based backups currently
@@ -489,8 +490,11 @@ function createBackup(prefix = '') {
       return;
     }
     
+    // FIXED: Sanitize prefix - convert undefined/null to empty string
+    const cleanPrefix = (prefix && typeof prefix === 'string' && prefix !== 'undefined') ? prefix : '';
+    
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0];
-    const backupName = prefix ? `backup_${prefix}_${timestamp}.db` : `backup_${timestamp}.db`;
+    const backupName = cleanPrefix ? `backup_${cleanPrefix}_${timestamp}.db` : `backup_${timestamp}.db`;
     const backupPath = path.join(BACKUP_DIR, backupName);
     const dbPath = process.env.DATABASE_FILENAME || path.join(__dirname, 'data/inventory.db');
     
