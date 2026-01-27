@@ -1,6 +1,7 @@
 /**
  * Version API Route
  * Checks current version against latest GitHub release
+ * FIXED: Added cache busting to avoid stale CDN responses
  */
 
 const express = require('express');
@@ -65,11 +66,14 @@ async function getLatestVersion(branch) {
     const latestCommit = data.sha.substring(0, 7);
     
     // Also try to get the version from package.json on GitHub
+    // FIXED: Add cache-busting timestamp to force fresh content
+    const cacheBuster = Date.now();
     const packageResponse = await fetch(
-      `https://raw.githubusercontent.com/zv20/invai/${targetBranch}/package.json`,
+      `https://raw.githubusercontent.com/zv20/invai/${targetBranch}/package.json?cb=${cacheBuster}`,
       {
         headers: {
-          'User-Agent': 'Grocery-Inventory-App'
+          'User-Agent': 'Grocery-Inventory-App',
+          'Cache-Control': 'no-cache'
         }
       }
     );
@@ -97,8 +101,8 @@ async function getLatestVersion(branch) {
 // Compare versions (semantic versioning)
 function compareVersions(current, latest) {
   // Remove '-beta' suffix for comparison
-  const cleanCurrent = current.replace('-beta', '');
-  const cleanLatest = latest.replace('-beta', '');
+  const cleanCurrent = current.replace('-beta', '').replace('-alpha', '');
+  const cleanLatest = latest.replace('-beta', '').replace('-alpha', '');
   
   const currentParts = cleanCurrent.split('.').map(Number);
   const latestParts = cleanLatest.split('.').map(Number);
