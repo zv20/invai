@@ -9,6 +9,18 @@ class BatchController {
     this.activityLogger = activityLogger;
   }
 
+  /**
+   * Generate a unique batch number
+   * Format: BATCH-YYYYMMDD-HHMMSS-XXXX
+   */
+  generateBatchNumber() {
+    const now = new Date();
+    const date = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const time = now.toISOString().slice(11, 19).replace(/:/g, '');
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `BATCH-${date}-${time}-${random}`;
+  }
+
   async getBatchesByProduct(productId) {
     const query = `
       SELECT ib.*, p.name as product_name, p.items_per_case,
@@ -37,17 +49,21 @@ class BatchController {
   async createBatch(batchData, username) {
     const { product_id, case_quantity, total_quantity, expiry_date, location, notes, received_date } = batchData;
     
+    // Auto-generate batch_number if not provided
+    const batch_number = batchData.batch_number || this.generateBatchNumber();
+    
     const result = await this.db.run(
-      `INSERT INTO inventory_batches (product_id, case_quantity, total_quantity, expiry_date, location, notes, received_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [product_id, case_quantity, total_quantity || case_quantity, expiry_date || null, 
-       location || '', notes || '', received_date || new Date().toISOString()]
+      `INSERT INTO inventory_batches (product_id, batch_number, case_quantity, total_quantity, expiry_date, location, notes, received_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [product_id, batch_number, case_quantity, total_quantity || case_quantity, expiry_date || null, 
+       location || '', notes || '', received_date || new Date().toISOString().split('T')[0]]
     );
 
     const product = await this.db.get('SELECT name FROM products WHERE id = ?', [product_id]);
     await this.activityLogger.log('batch', result.lastID, 'created', username, {
       product: product.name,
-      quantity: total_quantity || case_quantity
+      quantity: total_quantity || case_quantity,
+      batch_number
     });
 
     return await this.getBatchById(result.lastID);
