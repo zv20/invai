@@ -21,7 +21,7 @@
  * Use: <input id="prodCostPerCase" data-input-handler="calcCostPerItem">
  * 
  * Created: 2026-01-27
- * Updated: 2026-01-27 - Added input/change/file handlers
+ * Updated: 2026-01-27 - Added product card and batch button handlers
  * Issue: #11, #12, #13, #15
  */
 
@@ -67,6 +67,9 @@ class EventManager {
         
         // File input handlers
         this.initFileHandlers();
+        
+        // Inventory handlers (product cards, batch buttons)
+        this.initInventoryHandlers();
         
         this.initialized = true;
         console.log('✅ EventManager initialized successfully');
@@ -348,6 +351,46 @@ class EventManager {
                 }
             });
         }
+    }
+    
+    /**
+     * Inventory handlers - Product cards and batch buttons
+     */
+    initInventoryHandlers() {
+        document.addEventListener('click', (e) => {
+            // Product card click - open detail view
+            const productCard = e.target.closest('.product-card');
+            if (productCard && !e.target.closest('button')) {
+                const productId = productCard.dataset.productId;
+                if (productId && typeof viewProductDetail === 'function') {
+                    viewProductDetail(parseInt(productId));
+                }
+                return;
+            }
+            
+            // Batch edit button
+            const editBatchBtn = e.target.closest('[data-batch-action="edit"]');
+            if (editBatchBtn) {
+                e.stopPropagation();
+                const batchId = editBatchBtn.dataset.batchId;
+                const productId = editBatchBtn.dataset.productId;
+                if (batchId && productId && typeof editBatch === 'function') {
+                    editBatch(parseInt(batchId), parseInt(productId));
+                }
+                return;
+            }
+            
+            // Batch delete button
+            const deleteBatchBtn = e.target.closest('[data-batch-action="delete"]');
+            if (deleteBatchBtn) {
+                e.stopPropagation();
+                const batchId = deleteBatchBtn.dataset.batchId;
+                if (batchId && typeof deleteBatch === 'function') {
+                    deleteBatch(parseInt(batchId));
+                }
+                return;
+            }
+        });
     }
     
     /**
