@@ -82,7 +82,7 @@ async function authFetch(url, options = {}) {
         }
         
         if (csrfToken) {
-            headers['X-CSRF-Token'] = csrfToken;
+            headers['x-csrf-token'] = csrfToken;
         }
     }
     
@@ -102,7 +102,7 @@ async function authFetch(url, options = {}) {
         if (data.error && data.error.code === 'CSRF_TOKEN_INVALID') {
             // Refresh CSRF token from cookie and retry once
             await fetchCsrfToken();
-            headers['X-CSRF-Token'] = csrfToken;
+            headers['x-csrf-token'] = csrfToken;
             return fetch(url, { ...options, headers });
         }
     }
