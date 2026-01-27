@@ -14,7 +14,7 @@
  * - Core modular routes (products, batches, categories, suppliers, dashboard, settings, auth, users)
  * - Business Intelligence routes (analytics, predictions, search, dashboards)
  * - Mobile & PWA routes (notifications, offline sync)
- * - Supporting routes (reports, inventory-helpers, backups, system, import-export)
+ * - Supporting routes (reports, inventory-helpers, backups, system, import-export, version)
  * - Async/await throughout
  * - JWT authentication and authorization
  * - Security headers (Helmet.js)
@@ -109,6 +109,7 @@ const inventoryHelpersRoutes = require('./routes/inventory-helpers');
 const backupsRoutes = require('./routes/backups');
 const systemRoutes = require('./routes/system');
 const importExportRoutes = require('./routes/import-export');
+const versionRoutes = require('./routes/version'); // ADDED
 
 // Supporting modules
 const MigrationRunner = require('./migrations/migration-runner');
@@ -415,6 +416,9 @@ function registerRoutes() {
   app.use('/api/auth', authRoutes(db, logger));
   app.use('/api/users', userRoutes(db, activityLogger));
   
+  // Version checking (public endpoint)
+  app.use('/api/version', versionRoutes); // ADDED
+  
   // Core Inventory Management
   app.use('/api/products', authenticate, productRoutes(db, activityLogger, cache));
   app.use('/api/batches', authenticate, batchRoutes(db, activityLogger));
@@ -446,7 +450,7 @@ function registerRoutes() {
   console.log('  - Core: products, batches, categories, suppliers, dashboard');
   console.log('  - Sprint 5 BI: analytics, predictions, search, dashboards');
   console.log('  - Sprint 6 Mobile: notifications, PWA');
-  console.log('  - System: auth, users, reports, backups, import/export');
+  console.log('  - System: auth, users, reports, backups, import/export, version');
 }
 
 async function initializeDatabase() {
