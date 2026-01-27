@@ -2,6 +2,7 @@
    Unified Inventory Module - List + Detail Views
    FIXED: Send category_id/supplier_id instead of names
    FIXED: Removed value summary display from inventory
+   FIXED: Removed inline onclick handlers for CSP compliance
    ========================================================================== */
 
 // Module variables (global vars are in core.js)
@@ -75,7 +76,7 @@ async function renderProductList() {
         const locations = locationMap[product.id] || [];
         
         return `
-            <div class="product-card" onclick="viewProductDetail(${product.id})" style="padding: 12px; min-height: auto;">
+            <div class="product-card" data-product-id="${product.id}" style="padding: 12px; min-height: auto; cursor: pointer;">
                 <div class="product-header" style="margin-bottom: 8px;">
                     <div>
                         <div class="product-name" style="font-size: 1.1em; margin-bottom: 5px;">${escapeHtml(product.name)}</div>
@@ -258,8 +259,8 @@ function renderProductBatches(batches) {
                         <strong>${batch.total_quantity} items</strong> (${batch.case_quantity} cases)
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button class="btn-small btn-primary" onclick="editBatch(${batch.id}, ${batch.product_id})">✏️ Edit</button>
-                        <button class="btn-small" style="background: #ef4444; color: white;" onclick="deleteBatch(${batch.id})">🗑️</button>
+                        <button class="btn-small btn-primary" data-batch-action="edit" data-batch-id="${batch.id}" data-product-id="${batch.product_id}">✏️ Edit</button>
+                        <button class="btn-small" data-batch-action="delete" data-batch-id="${batch.id}" style="background: #ef4444; color: white;">🗑️</button>
                     </div>
                 </div>
                 ${expiryStatus ? `<div style="margin-top: 8px; font-weight: 600; color: ${expiryStatus.status === 'expired' ? '#dc2626' : '#d97706'};">⚠️ ${expiryStatus.text}</div>` : ''}
