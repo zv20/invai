@@ -180,7 +180,7 @@ module.exports = (db, logger) => {
    * POST /api/auth/login
    * Authenticates user and returns JWT token with session
    * Includes account lockout protection and login attempt tracking
-   * Also generates and returns CSRF token
+   * Also generates and returns CSRF token via middleware
    * PATCH 3: JWT expiration reduced to 2h
    * PATCH 8: Rate limited
    */
@@ -340,14 +340,7 @@ module.exports = (db, logger) => {
       };
     }
     
-    // Set CSRF cookie (must be before res.json)
-    res.cookie('XSRF-TOKEN', req.csrfToken || getCsrfToken(req), {
-      httpOnly: false,  // MUST be false so frontend can read it
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/'
-    });
-    
+    // Note: csrf_token cookie is already set by generateCsrfToken middleware
     res.json(response);
   }));
   
