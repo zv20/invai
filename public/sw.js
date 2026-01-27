@@ -1,9 +1,11 @@
 /**
  * Service Worker for InvAI PWA
  * Handles caching, offline mode, and background sync
+ * 
+ * FIXED: Added /api/categories and /api/suppliers to network-first routes
  */
 
-const CACHE_VERSION = 'invai-v1';
+const CACHE_VERSION = 'invai-v2'; // Increment to force cache refresh
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const MAX_DYNAMIC_CACHE_SIZE = 50;
@@ -30,15 +32,20 @@ const STATIC_ASSETS = [
   '/offline.html'
 ];
 
-// API routes that should use network-first
+// API routes that should use network-first (NEVER cache these)
 const API_ROUTES = [
   '/api/products',
   '/api/batches',
+  '/api/categories',     // ADDED - categories must fetch fresh data
+  '/api/suppliers',      // ADDED - suppliers must fetch fresh data
   '/api/transactions',
   '/api/analytics',
   '/api/predictions',
   '/api/search',
-  '/api/dashboards'
+  '/api/dashboards',
+  '/api/users',
+  '/api/auth',
+  '/api/settings'
 ];
 
 /**
@@ -100,7 +107,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle API requests (network-first)
+  // Handle API requests (network-first, NO CACHING for freshness)
   if (isApiRequest(url.pathname)) {
     event.respondWith(networkFirstStrategy(request));
     return;
@@ -148,33 +155,25 @@ async function cacheFirstStrategy(request) {
 
 /**
  * Network-First Strategy
- * Try network first, fallback to cache
+ * Try network first, DON'T cache API responses (for data freshness)
  */
 async function networkFirstStrategy(request) {
   try {
-    // Try network first
+    // Always try network first for API calls
     const networkResponse = await fetch(request);
     
-    // Cache successful API responses
-    if (networkResponse.ok) {
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-
+    // DO NOT CACHE API RESPONSES - we want fresh data every time
+    // This ensures categories/suppliers/products always show latest data
+    
     return networkResponse;
   } catch (error) {
-    console.log('[SW] Network failed, trying cache:', request.url);
+    console.log('[SW] Network failed for API call:', request.url);
     
-    // Fallback to cache
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-
-    // Return empty response for failed API calls
+    // Return error response for failed API calls
     return new Response(JSON.stringify({ 
       error: 'Offline', 
-      offline: true 
+      offline: true,
+      message: 'Cannot connect to server. Please check your internet connection.'
     }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' }
