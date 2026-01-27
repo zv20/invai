@@ -1,4 +1,5 @@
-// Dashboard Module v0.8.0
+// Dashboard Module v0.10.0
+// FIXED: Added cache-busting for fresh stats
 
 let dashboardData = null;
 let alertData = null;
@@ -25,11 +26,13 @@ async function initDashboard() {
     console.log('✓ Dashboard initialization complete');
 }
 
-// Load dashboard statistics
+// Load dashboard statistics - FIXED: Added cache-busting
 async function loadDashboardStats() {
     console.log('📊 Loading dashboard stats...');
     try {
-        const response = await authFetch('/api/dashboard/stats');
+        // Add cache-busting timestamp to force fresh data
+        const cacheBuster = Date.now();
+        const response = await authFetch(`/api/dashboard/stats?_t=${cacheBuster}`);
         if (!response.ok) throw new Error('Failed to load stats');
         
         dashboardData = await response.json();
@@ -254,7 +257,7 @@ function formatDate(dateString) {
     }
 }
 
-// Refresh dashboard
+// Refresh dashboard - FIXED: Added cache refresh parameter
 function refreshDashboard() {
     console.log('🔄 Refreshing dashboard...');
     loadDashboardStats();
