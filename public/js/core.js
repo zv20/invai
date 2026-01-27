@@ -18,21 +18,36 @@ let csrfToken = null; // CSRF token for API requests
    ========================================================================== */
 
 /**
- * Fetch CSRF token from server
+ * Get CSRF token from cookie
+ * The cookie is set by the server and should be readable by JavaScript
+ */
+function getCsrfTokenFromCookie() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrf_token') {
+            return value;
+        }
+    }
+    return null;
+}
+
+/**
+ * Fetch CSRF token from cookie (not API)
  * Called on app initialization and after login
  */
 async function fetchCsrfToken() {
     try {
-        const response = await fetch(`${API_URL}/api/auth/csrf-token`);
-        const data = await response.json();
-        
-        if (data.success && data.csrfToken) {
-            csrfToken = data.csrfToken;
-            console.log('✓ CSRF token obtained');
+        const token = getCsrfTokenFromCookie();
+        if (token) {
+            csrfToken = token;
+            console.log('✓ CSRF token obtained from cookie');
             return true;
+        } else {
+            console.warn('⚠️ No CSRF token in cookie - please login');
         }
     } catch (error) {
-        console.error('Failed to fetch CSRF token:', error);
+        console.error('Failed to get CSRF token:', error);
     }
     return false;
 }
@@ -85,7 +100,7 @@ async function authFetch(url, options = {}) {
     if (response.status === 403) {
         const data = await response.json();
         if (data.error && data.error.code === 'CSRF_TOKEN_INVALID') {
-            // Refresh CSRF token and retry once
+            // Refresh CSRF token from cookie and retry once
             await fetchCsrfToken();
             headers['X-CSRF-Token'] = csrfToken;
             return fetch(url, { ...options, headers });
