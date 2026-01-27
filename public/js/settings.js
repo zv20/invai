@@ -2,6 +2,7 @@
    Settings Management - v0.10.0
    Version checking, updates, export/import, backup system, and settings
    FIXED: Auto-refresh backup list after create, improved error handling
+   FIXED: Added cache-busting to prevent stale backup list
    ========================================================================== */
 
 /* ==========================================================================
@@ -457,7 +458,7 @@ async function checkVersion() {
 }
 
 /* ==========================================================================
-   Backup System - FIXED: Auto-refresh list after create
+   Backup System - FIXED: Auto-refresh list after create + cache-busting
    ========================================================================== */
 
 async function createBackup() {
@@ -495,7 +496,9 @@ async function loadBackups() {
     list.innerHTML = '<div style="text-align: center; padding: 20px; color: #9ca3af;">⌛ Loading backups...</div>';
     
     try {
-        const response = await authFetch(`${API_URL}/api/backup/list`);
+        // FIXED: Add cache-busting timestamp to force fresh data
+        const cacheBuster = Date.now();
+        const response = await authFetch(`${API_URL}/api/backup/list?_t=${cacheBuster}`);
         const backups = await response.json();
         
         if (!response.ok) {
