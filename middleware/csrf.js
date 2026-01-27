@@ -35,9 +35,9 @@ function generateCsrfToken(req, res, next) {
   // Generate new token
   const token = generateToken();
   
-  // Set token in cookie (HttpOnly for security)
+  // Set token in cookie (httpOnly: false so frontend can read it)
   res.cookie('csrf_token', token, {
-    httpOnly: true,
+    httpOnly: false, // Must be false so frontend JavaScript can read the token
     secure: process.env.NODE_ENV === 'production', // HTTPS only in production
     sameSite: 'strict',
     maxAge: 8 * 60 * 60 * 1000 // 8 hours (match session timeout)
@@ -116,7 +116,7 @@ function refreshCsrfToken(req, res, next) {
     const token = generateToken();
     
     res.cookie('csrf_token', token, {
-      httpOnly: true,
+      httpOnly: false, // Must be false so frontend JavaScript can read the token
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 8 * 60 * 60 * 1000
