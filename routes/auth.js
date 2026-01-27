@@ -33,29 +33,25 @@ module.exports = (db, logger) => {
    * GET /api/auth/csrf-token
    * Get CSRF token for client-side requests
    * PUBLIC endpoint (no authentication required)
-   * Returns existing token from cookie, or generates new one if missing
+   * IMPORTANT: This endpoint NEVER generates new tokens, only returns existing cookie value
+   * New tokens are only generated on login
    */
   router.get('/csrf-token', (req, res) => {
-    // Try to get existing token from cookie first
-    let token = req.cookies?.csrf_token;
-    
-    // If no token exists, generate a new one
-    if (!token) {
-      generateCsrfToken(req, res, () => {});
-      token = req.csrfToken || getCsrfToken(req);
-    }
+    // Read existing token from cookie - NEVER generate new
+    const token = req.cookies?.csrf_token;
     
     if (!token) {
-      return res.status(500).json({
+      return res.status(401).json({
         success: false,
         error: {
-          message: 'Failed to generate CSRF token',
-          code: 'CSRF_TOKEN_ERROR',
-          statusCode: 500
+          message: 'No CSRF token found. Please log in to obtain a token.',
+          code: 'NO_CSRF_TOKEN',
+          statusCode: 401
         }
       });
     }
     
+    // Return existing token from cookie
     res.json({
       success: true,
       csrfToken: token
