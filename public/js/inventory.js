@@ -1,5 +1,7 @@
 /* ==========================================================================
    Unified Inventory Module - List + Detail Views
+   FIXED: Send category_id/supplier_id instead of names
+   FIXED: Removed value summary display from inventory
    ========================================================================== */
 
 // Module variables (global vars are in core.js)
@@ -17,30 +19,14 @@ async function loadProducts() {
         
         products = await response.json();
         await renderProductList();
-        await loadInventoryValue();
+        // REMOVED: await loadInventoryValue() - stats belong on dashboard only
     } catch (error) {
         console.error('Error loading products:', error);
         showNotification('Failed to load products', 'error');
     }
 }
 
-// Load inventory value summary
-async function loadInventoryValue() {
-    try {
-        const response = await authFetch(`${API_URL}/api/inventory/value`);
-        if (!response.ok) throw new Error('Failed to load inventory value');
-        
-        const data = await response.json();
-        
-        document.getElementById('totalProducts').textContent = data.total_products || 0;
-        document.getElementById('totalItems').textContent = data.total_items || 0;
-        document.getElementById('totalValue').textContent = formatCurrency(data.total_value || 0);
-        
-        document.getElementById('inventoryValueSummary').style.display = 'grid';
-    } catch (error) {
-        console.error('Error loading inventory value:', error);
-    }
-}
+// REMOVED: loadInventoryValue() function - not needed in inventory view
 
 // Render product list with stock counts
 async function renderProductList() {
@@ -95,7 +81,7 @@ async function renderProductList() {
                         <div class="product-name" style="font-size: 1.1em; margin-bottom: 5px;">${escapeHtml(product.name)}</div>
                         <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                             ${product.brand ? `<span class="badge badge-brand" style="font-size: 0.8em;">${escapeHtml(product.brand)}</span>` : ''}
-                            ${product.category ? `<span class="badge badge-category" style="font-size: 0.8em;">${escapeHtml(product.category)}</span>` : ''}
+                            ${product.category_name ? `<span class="badge badge-category" style="font-size: 0.8em;">${escapeHtml(product.category_name)}</span>` : ''}
                         </div>
                     </div>
                     <div class="product-stock ${stockClass}" style="font-size: 0.95em; padding: 6px 12px;">${inv.quantity} items</div>
@@ -106,7 +92,7 @@ async function renderProductList() {
                     ${locations.length > 0 ? `<div style="color: #6b7280;">📍 ${escapeHtml(locations[0])}${locations.length > 1 ? ` +${locations.length - 1}` : ''}</div>` : ''}
                 </div>
                 <div style="margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; font-size: 0.85em;">
-                    ${product.supplier ? `<span class="badge badge-supplier">${escapeHtml(product.supplier)}</span>` : ''}
+                    ${product.supplier_name ? `<span class="badge badge-supplier">${escapeHtml(product.supplier_name)}</span>` : ''}
                     ${inv.batchCount > 0 ? `<span class="badge" style="background: #e0e7ff; color: #3730a3;">${inv.batchCount} batch${inv.batchCount > 1 ? 'es' : ''}</span>` : ''}
                 </div>
             </div>
@@ -150,8 +136,8 @@ function renderProductDetail() {
     // Product meta badges
     const metaBadges = [];
     if (product.brand) metaBadges.push(`<span class="badge badge-brand">${escapeHtml(product.brand)}</span>`);
-    if (product.category) metaBadges.push(`<span class="badge badge-category">${escapeHtml(product.category)}</span>`);
-    if (product.supplier) metaBadges.push(`<span class="badge badge-supplier">${escapeHtml(product.supplier)}</span>`);
+    if (product.category_name) metaBadges.push(`<span class="badge badge-category">${escapeHtml(product.category_name)}</span>`);
+    if (product.supplier_name) metaBadges.push(`<span class="badge badge-supplier">${escapeHtml(product.supplier_name)}</span>`);
     document.getElementById('detailProductMeta').innerHTML = metaBadges.join('');
     
     // Product info grid
@@ -337,29 +323,36 @@ function editProduct(productId) {
     document.getElementById('prodInhouse').value = product.inhouse_number || '';
     document.getElementById('prodBarcode').value = product.barcode || '';
     document.getElementById('prodBrand').value = product.brand || '';
-    document.getElementById('prodSupplier').value = product.supplier || '';
+    
+    // FIXED: Set supplier_id and category_id, not supplier/category names
+    document.getElementById('prodSupplier').value = product.supplier_id || '';
+    document.getElementById('prodCategory').value = product.category_id || '';
+    
     document.getElementById('prodPerCase').value = product.items_per_case || '';
     document.getElementById('prodCostPerCase').value = product.cost_per_case || '';
-    document.getElementById('prodCategory').value = product.category || '';
     document.getElementById('prodNotes').value = product.notes || '';
     
     calcCostPerItem();
     document.getElementById('productModal').classList.add('active');
 }
 
-// Product form submission
+// Product form submission - FIXED: Send IDs not names
 document.getElementById('productForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    // FIXED: Get supplier_id and category_id from select dropdowns (which have ID as value)
+    const supplierValue = document.getElementById('prodSupplier').value;
+    const categoryValue = document.getElementById('prodCategory').value;
     
     const productData = {
         name: document.getElementById('prodName').value,
         inhouse_number: document.getElementById('prodInhouse').value,
         barcode: document.getElementById('prodBarcode').value,
         brand: document.getElementById('prodBrand').value,
-        supplier: document.getElementById('prodSupplier').value,
+        supplier_id: supplierValue ? parseInt(supplierValue) : null,
         items_per_case: parseInt(document.getElementById('prodPerCase').value),
         cost_per_case: parseFloat(document.getElementById('prodCostPerCase').value) || 0,
-        category: document.getElementById('prodCategory').value,
+        category_id: categoryValue ? parseInt(categoryValue) : null,
         notes: document.getElementById('prodNotes').value
     };
     
