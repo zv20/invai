@@ -1,0 +1,368 @@
+/* ==========================================================================
+   Inline Style Overrides - v0.8.4b
+   All inline styles extracted to external CSS for CSP compliance
+   Removes need for 'unsafe-inline' in style-src CSP directive
+   ========================================================================== */
+
+/* Header Layout */
+.header-left-group {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.logout-btn {
+    margin-left: 10px;
+}
+
+/* Update Banner */
+.update-banner-btn {
+    margin-left: 10px;
+    padding: 5px 15px;
+}
+
+/* Dashboard Header */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.dashboard-header h2,
+.section-header h2 {
+    margin: 0;
+}
+
+/* Dashboard Grid Container */
+.dashboard-grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+/* Inventory Header */
+.inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.inventory-header h2 {
+    margin: 0;
+}
+
+/* Value Summary (hidden by default) */
+#inventoryValueSummary {
+    display: none;
+}
+
+/* Filters Panel */
+.filters-panel .clear-filters-btn {
+    display: none;
+}
+
+/* Detail View */
+#inventoryDetailView {
+    display: none;
+}
+
+.detail-back-section {
+    margin-bottom: 20px;
+}
+
+.back-btn {
+    background: #6b7280;
+}
+
+.detail-product-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.detail-product-title {
+    margin: 0;
+    margin-bottom: 10px;
+}
+
+.detail-product-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.detail-product-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.detail-product-section {
+    margin-bottom: 20px;
+}
+
+.detail-product-info {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.detail-batch-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.detail-batch-header h3 {
+    margin: 0;
+}
+
+/* Reports Header */
+.reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.reports-header h2 {
+    margin: 0;
+}
+
+/* Settings Tab */
+.settings-header {
+    margin-bottom: 20px;
+}
+
+/* Settings Sections */
+.settings-section p {
+    margin-bottom: 15px;
+}
+
+.settings-section .categories-list,
+.settings-section .suppliers-list {
+    margin-top: 20px;
+}
+
+.settings-section .help-text {
+    margin-top: 10px;
+}
+
+.settings-section h4 {
+    margin-top: 25px;
+    margin-bottom: 15px;
+}
+
+.backup-list-loading {
+    text-align: center;
+    padding: 20px;
+    color: #9ca3af;
+}
+
+/* About Section */
+.about-intro {
+    margin-top: 10px;
+}
+
+.about-section-title {
+    margin-top: 25px;
+    margin-bottom: 10px;
+}
+
+.about-links p {
+    margin-top: 10px;
+}
+
+.about-link {
+    color: #667eea;
+    text-decoration: underline;
+}
+
+/* Dark mode link colors */
+[data-theme="dark"] .about-link {
+    color: #818cf8;
+}
+
+/* Danger Zone */
+.danger-warning {
+    margin-bottom: 15px;
+    color: #dc2626;
+}
+
+[data-theme="dark"] .danger-warning {
+    color: #fca5a5;
+}
+
+/* Version Status */
+#versionStatus {
+    display: none;
+    margin-top: 15px;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+/* Scanner Modal */
+.scanner-tips {
+    margin: 10px 0 0 20px;
+    line-height: 1.8;
+}
+
+/* Product Form */
+.barcode-input-group {
+    display: flex;
+    gap: 8px;
+}
+
+.barcode-input-group input {
+    flex: 1;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.form-actions button:first-child {
+    flex: 1;
+}
+
+.form-actions .cancel-btn {
+    background: #6b7280;
+    flex: 1;
+}
+
+/* Batch Form */
+.batch-total-readonly {
+    background: #f3f4f6;
+}
+
+[data-theme="dark"] .batch-total-readonly {
+    background: #374151;
+}
+
+/* Full-width form fields */
+.form-field-full {
+    grid-column: 1 / -1;
+}
+
+/* Supplier Form */
+.supplier-active-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.supplier-active-checkbox {
+    width: auto;
+}
+
+/* System Info paragraphs */
+.system-info p {
+    margin-top: 10px;
+}
+
+/* Update Banner - Hidden State */
+#updateBanner {
+    display: none;
+}
+
+/* Utility Classes for Common Patterns */
+.flex-row {
+    display: flex;
+}
+
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.gap-10 {
+    gap: 10px;
+}
+
+.gap-15 {
+    gap: 15px;
+}
+
+.gap-20 {
+    gap: 20px;
+}
+
+.m-0 {
+    margin: 0;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.mt-15 {
+    margin-top: 15px;
+}
+
+.mt-20 {
+    margin-top: 20px;
+}
+
+.mt-25 {
+    margin-top: 25px;
+}
+
+.mb-10 {
+    margin-bottom: 10px;
+}
+
+.mb-15 {
+    margin-bottom: 15px;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+.mb-25 {
+    margin-bottom: 25px;
+}
+
+.flex-wrap {
+    flex-wrap: wrap;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .dashboard-header,
+    .inventory-header,
+    .reports-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .detail-product-header {
+        flex-direction: column;
+    }
+    
+    .detail-product-actions {
+        width: 100%;
+    }
+    
+    .detail-product-actions button {
+        flex: 1;
+    }
+}
