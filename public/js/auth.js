@@ -6,6 +6,8 @@
  * 
  * Usage: Add this script tag to your HTML:
  * <script src="/js/auth.js"></script>
+ * 
+ * @version 0.10.0-beta-csrf-fix
  */
 
 (function() {
@@ -23,6 +25,18 @@
   // If it's a public page, no need to check auth
   if (isPublicPage) {
     return;
+  }
+
+  /**
+   * Get CSRF token from cookie
+   */
+  function getCsrfToken() {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; csrf_token=`);
+    if (parts.length === 2) {
+      return parts.pop().split(';').shift();
+    }
+    return null;
   }
 
   /**
@@ -121,7 +135,11 @@
   };
 
   /**
-   * Make authenticated API request
+   * Make authenticated API request with CSRF protection
+   * 
+   * @param {string} url - API endpoint URL
+   * @param {Object} options - Fetch options
+   * @returns {Promise<Response>} Fetch response
    */
   window.authFetch = function(url, options = {}) {
     const token = getAuthToken();
@@ -130,9 +148,22 @@
       return Promise.reject(new Error('No authentication token'));
     }
     
-    // Add authorization header
+    // Initialize headers
     options.headers = options.headers || {};
+    
+    // Add authorization header
     options.headers['Authorization'] = `Bearer ${token}`;
+    
+    // Add CSRF token header for state-changing requests
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes((options.method || 'GET').toUpperCase())) {
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        options.headers['X-CSRF-Token'] = csrfToken;
+        console.log('✓ CSRF token included in request');
+      } else {
+        console.warn('⚠️  No CSRF token found in cookie');
+      }
+    }
     
     return fetch(url, options)
       .then(response => {
@@ -143,6 +174,14 @@
           window.location.href = '/login.html';
           throw new Error('Unauthorized');
         }
+        
+        // If forbidden (403), log for debugging
+        if (response.status === 403) {
+          console.error('403 Forbidden - Possible CSRF token issue');
+          console.log('CSRF token from cookie:', getCsrfToken());
+          console.log('Request headers:', options.headers);
+        }
+        
         return response;
       });
   };
