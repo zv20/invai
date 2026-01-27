@@ -1,6 +1,7 @@
 /**
- * Suppliers Manager - v0.7.8e
+ * Suppliers Manager - v0.7.8f
  * Handles supplier CRUD operations
+ * FIXED v0.7.8f: Changed showNotification to showToast
  * FIXED v0.7.8e: Updated version number for supplier active status fix
  * FIXED v0.7.8a: Changed contact_phone/contact_email to phone/email to match database schema
  */
@@ -88,17 +89,17 @@ window.toggleSupplierStatus = async function(id, newStatus) {
         });
         
         if (response.ok) {
-            showNotification(
+            showToast(
                 `${supplier.name} marked as ${newStatus ? 'active' : 'inactive'}`, 
                 'success'
             );
             window.loadSuppliers();
         } else {
-            showNotification('Failed to update supplier status', 'error');
+            showToast('Failed to update supplier status', 'error');
         }
     } catch (error) {
         console.error('Error updating supplier status:', error);
-        showNotification('Failed to update supplier status', 'error');
+        showToast('Failed to update supplier status', 'error');
     }
 };
 
@@ -152,14 +153,14 @@ window.deleteSupplier = async function(id) {
     try {
         const response = await authFetch(`/api/suppliers/${id}`, { method: 'DELETE' });
         if (response.ok) {
-            showNotification('Supplier deleted', 'success');
+            showToast('Supplier deleted', 'success');
             window.loadSuppliers();
         } else {
-            showNotification('Failed to delete supplier', 'error');
+            showToast('Failed to delete supplier', 'error');
         }
     } catch (error) {
         console.error('Error deleting supplier:', error);
-        showNotification('Failed to delete supplier', 'error');
+        showToast('Failed to delete supplier', 'error');
     }
 };
 
@@ -202,16 +203,16 @@ function setupSupplierForm() {
                 });
                 
                 if (response.ok) {
-                    showNotification(editingSupplierId ? 'Supplier updated' : 'Supplier created', 'success');
+                    showToast(editingSupplierId ? 'Supplier updated' : 'Supplier created', 'success');
                     window.closeSupplierModal();
                     window.loadSuppliers();
                 } else {
                     const error = await response.json();
-                    showNotification(error.error || 'Failed to save supplier', 'error');
+                    showToast(error.error || 'Failed to save supplier', 'error');
                 }
             } catch (error) {
                 console.error('Error saving supplier:', error);
-                showNotification('Failed to save supplier', 'error');
+                showToast('Failed to save supplier', 'error');
             }
         });
     }
