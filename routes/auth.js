@@ -340,6 +340,14 @@ module.exports = (db, logger) => {
       };
     }
     
+    // Set CSRF cookie (must be before res.json)
+    res.cookie('XSRF-TOKEN', req.csrfToken || getCsrfToken(req), {
+      httpOnly: false,  // MUST be false so frontend can read it
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/'
+    });
+    
     res.json(response);
   }));
   
