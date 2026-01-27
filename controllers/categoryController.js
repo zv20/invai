@@ -1,6 +1,8 @@
 /**
  * Category Controller
  * Business logic for category operations
+ * 
+ * FIXED v0.7.8: Corrected SQL query for getAllCategories to return all categories
  */
 
 class CategoryController {
@@ -10,13 +12,23 @@ class CategoryController {
   }
 
   async getAllCategories() {
+    // FIX: Separate the aggregations to avoid GROUP BY issues
     const query = `
-      SELECT c.*, COUNT(DISTINCT p.id) as product_count,
-             COALESCE(SUM(ib.total_quantity), 0) as total_items
+      SELECT 
+        c.id,
+        c.name,
+        c.description,
+        c.color,
+        c.icon,
+        c.display_order,
+        c.created_at,
+        c.updated_at,
+        COUNT(DISTINCT p.id) as product_count,
+        COALESCE(SUM(ib.total_quantity), 0) as total_items
       FROM categories c
       LEFT JOIN products p ON c.id = p.category_id
       LEFT JOIN inventory_batches ib ON p.id = ib.product_id
-      GROUP BY c.id
+      GROUP BY c.id, c.name, c.description, c.color, c.icon, c.display_order, c.created_at, c.updated_at
       ORDER BY c.name
     `;
     return await this.db.all(query, []);
@@ -24,11 +36,20 @@ class CategoryController {
 
   async getCategoryById(id) {
     const query = `
-      SELECT c.*, COUNT(DISTINCT p.id) as product_count
+      SELECT 
+        c.id,
+        c.name,
+        c.description,
+        c.color,
+        c.icon,
+        c.display_order,
+        c.created_at,
+        c.updated_at,
+        COUNT(DISTINCT p.id) as product_count
       FROM categories c
       LEFT JOIN products p ON c.id = p.category_id
       WHERE c.id = ?
-      GROUP BY c.id
+      GROUP BY c.id, c.name, c.description, c.color, c.icon, c.display_order, c.created_at, c.updated_at
     `;
     return await this.db.get(query, [id]);
   }
