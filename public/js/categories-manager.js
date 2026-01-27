@@ -1,6 +1,7 @@
 /**
- * Categories Manager - v0.7.8a
+ * Categories Manager - v0.7.8b
  * Handles category CRUD operations
+ * FIXED v0.7.8b: Changed showNotification/showToast to use correct function names
  * UPDATED: Removed color picker (temporary removal per user request)
  */
 
