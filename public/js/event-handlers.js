@@ -1,7 +1,7 @@
 /**
  * Centralized Event Handler System
  * 
- * Replaces ALL inline onclick/onchange/onsubmit handlers with event delegation.
+ * Replaces ALL inline onclick/onchange/onsubmit/oninput handlers with event delegation.
  * This enables strict Content Security Policy (CSP) without 'unsafe-inline'.
  * 
  * Benefits:
@@ -17,8 +17,12 @@
  * Instead of: <a onclick="switchTab('dashboard')">Dashboard</a>
  * Use: <a href="#" data-tab="dashboard">Dashboard</a>
  * 
+ * Instead of: <input oninput="calcCostPerItem()">
+ * Use: <input id="prodCostPerCase" data-input-handler="calcCostPerItem">
+ * 
  * Created: 2026-01-27
- * Issue: #11, #15
+ * Updated: 2026-01-27 - Added input/change/file handlers
+ * Issue: #11, #12, #13, #15
  */
 
 class EventManager {
@@ -54,6 +58,15 @@ class EventManager {
         
         // Button handlers
         this.initButtonHandlers();
+        
+        // Input handlers (oninput replacement)
+        this.initInputHandlers();
+        
+        // Change handlers (onchange replacement)
+        this.initChangeHandlers();
+        
+        // File input handlers
+        this.initFileHandlers();
         
         this.initialized = true;
         console.log('✅ EventManager initialized successfully');
@@ -105,17 +118,11 @@ class EventManager {
                 }
             }
             
-            // Legacy: Support .nav-item with onclick for backward compatibility
-            const legacyNav = e.target.closest('.nav-item');
-            if (legacyNav && !legacyNav.dataset.tab) {
-                // Extract tab from onclick attribute if present
-                const onclick = legacyNav.getAttribute('onclick');
-                if (onclick && onclick.includes('switchTab')) {
-                    const match = onclick.match(/switchTab\('([^']+)'\)/);
-                    if (match && typeof switchTab === 'function') {
-                        e.preventDefault();
-                        switchTab(match[1]);
-                    }
+            // Version footer click
+            const versionFooter = e.target.closest('.version-footer');
+            if (versionFooter) {
+                if (typeof checkVersion === 'function') {
+                    checkVersion();
                 }
             }
         });
@@ -133,19 +140,6 @@ class EventManager {
                 const tab = settingsItem.dataset.settingsTab;
                 if (typeof switchSettingsTab === 'function') {
                     switchSettingsTab(tab);
-                }
-            }
-            
-            // Legacy: Support .settings-nav-item with onclick
-            const legacySettings = e.target.closest('.settings-nav-item');
-            if (legacySettings && !legacySettings.dataset.settingsTab) {
-                const onclick = legacySettings.getAttribute('onclick');
-                if (onclick && onclick.includes('switchSettingsTab')) {
-                    const match = onclick.match(/switchSettingsTab\('([^']+)'\)/);
-                    if (match && typeof switchSettingsTab === 'function') {
-                        e.preventDefault();
-                        switchSettingsTab(match[1]);
-                    }
                 }
             }
         });
@@ -232,11 +226,11 @@ class EventManager {
     }
     
     /**
-     * Button click handlers
+     * Button click handlers with data-action
      */
     initButtonHandlers() {
         document.addEventListener('click', (e) => {
-            const button = e.target.closest('button[data-action]');
+            const button = e.target.closest('button[data-action], a[data-action]');
             if (button) {
                 e.preventDefault();
                 const action = button.dataset.action;
@@ -252,6 +246,108 @@ class EventManager {
                 }
             }
         });
+    }
+    
+    /**
+     * Input event handlers (replaces oninput)
+     */
+    initInputHandlers() {
+        // Specific input handlers
+        const prodPerCase = document.getElementById('prodPerCase');
+        const prodCostPerCase = document.getElementById('prodCostPerCase');
+        const batchCases = document.getElementById('batchCases');
+        
+        if (prodPerCase) {
+            prodPerCase.addEventListener('input', () => {
+                if (typeof calcCostPerItem === 'function') {
+                    calcCostPerItem();
+                }
+            });
+        }
+        
+        if (prodCostPerCase) {
+            prodCostPerCase.addEventListener('input', () => {
+                if (typeof calcCostPerItem === 'function') {
+                    calcCostPerItem();
+                }
+            });
+        }
+        
+        if (batchCases) {
+            batchCases.addEventListener('input', () => {
+                if (typeof calcBatchTotal === 'function') {
+                    calcBatchTotal();
+                }
+            });
+        }
+    }
+    
+    /**
+     * Change event handlers (replaces onchange)
+     */
+    initChangeHandlers() {
+        // Filter change handlers
+        const filterCategory = document.getElementById('filterCategory');
+        const filterSupplier = document.getElementById('filterSupplier');
+        const filterStock = document.getElementById('filterStock');
+        const filterExpiry = document.getElementById('filterExpiry');
+        
+        if (filterCategory) {
+            filterCategory.addEventListener('change', () => {
+                if (typeof applyFilters === 'function') {
+                    applyFilters();
+                }
+            });
+        }
+        
+        if (filterSupplier) {
+            filterSupplier.addEventListener('change', () => {
+                if (typeof applyFilters === 'function') {
+                    applyFilters();
+                }
+            });
+        }
+        
+        if (filterStock) {
+            filterStock.addEventListener('change', () => {
+                if (typeof applyFilters === 'function') {
+                    applyFilters();
+                }
+            });
+        }
+        
+        if (filterExpiry) {
+            filterExpiry.addEventListener('change', () => {
+                if (typeof applyFilters === 'function') {
+                    applyFilters();
+                }
+            });
+        }
+    }
+    
+    /**
+     * File input handlers (replaces onchange for file inputs)
+     */
+    initFileHandlers() {
+        // Backup upload restore
+        const backupUploadInput = document.getElementById('backupUploadInput');
+        if (backupUploadInput) {
+            backupUploadInput.addEventListener('change', (event) => {
+                if (typeof handleUploadRestore === 'function') {
+                    handleUploadRestore(event);
+                }
+            });
+        }
+        
+        // CSV file import
+        const csvFileInput = document.getElementById('csvFileInput');
+        if (csvFileInput) {
+            csvFileInput.addEventListener('change', (event) => {
+                if (typeof handleImport === 'function') {
+                    handleImport(event);
+                }
+            });
+        }
     }
     
     /**
