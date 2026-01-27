@@ -19,7 +19,7 @@ const { validateSession } = require('../middleware/session');
 const sessionManager = require('../utils/sessionManager');
 const passwordValidator = require('../utils/passwordValidator');
 const accountLockout = require('../utils/accountLockout');
-const { getCsrfToken } = require('../middleware/csrf');
+const { getCsrfToken, generateCsrfToken } = require('../middleware/csrf');
 
 // PATCH 8: Rate limiting
 const { authLimiter, strictLimiter } = require('../middleware/rateLimitConfig');
@@ -33,9 +33,10 @@ module.exports = (db, logger) => {
    * GET /api/auth/csrf-token
    * Get CSRF token for client-side requests
    * PUBLIC endpoint (no authentication required)
+   * Generates new token and sets cookie
    */
-  router.get('/csrf-token', (req, res) => {
-    const token = getCsrfToken(req);
+  router.get('/csrf-token', generateCsrfToken, (req, res) => {
+    const token = req.csrfToken || getCsrfToken(req);
     
     if (!token) {
       return res.status(500).json({
