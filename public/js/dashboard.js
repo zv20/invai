@@ -1,5 +1,5 @@
-// Dashboard Module v0.10.0
-// FIXED: Added cache-busting for fresh stats
+// Dashboard Module v0.11.0
+// FIXED: Added cache-busting for both stats AND alerts
 
 let dashboardData = null;
 let alertData = null;
@@ -22,7 +22,8 @@ async function initDashboard() {
         console.log('✓ Favorites widget loaded');
     }
     
-    setInterval(loadDashboardStats, 60000); // Refresh every minute
+    setInterval(loadDashboardStats, 60000); // Refresh stats every minute
+    setInterval(loadExpirationAlerts, 60000); // Refresh alerts every minute
     console.log('✓ Dashboard initialization complete');
 }
 
@@ -44,15 +45,20 @@ async function loadDashboardStats() {
     }
 }
 
-// Load expiration alerts
+// Load expiration alerts - FIXED: Added cache-busting
 async function loadExpirationAlerts() {
     console.log('🚨 Loading expiration alerts...');
     try {
-        const response = await authFetch('/api/dashboard/expiration-alerts');
+        // Add cache-busting timestamp to force fresh data
+        const cacheBuster = Date.now();
+        const response = await authFetch(`/api/dashboard/expiration-alerts?_t=${cacheBuster}`);
         if (!response.ok) throw new Error('Failed to load alerts');
         
         alertData = await response.json();
         console.log('🚨 Alert data received:', alertData);
+        console.log(`   - Expired: ${alertData.expired?.length || 0}`);
+        console.log(`   - Urgent (7d): ${alertData.urgent?.length || 0}`);
+        console.log(`   - Soon (30d): ${alertData.soon?.length || 0}`);
         renderExpirationAlerts();
     } catch (error) {
         console.error('❌ Error loading alerts:', error);
@@ -160,6 +166,8 @@ function renderExpirationAlerts() {
     const urgent = alertData.urgent || [];
     const soon = alertData.soon || [];
     
+    console.log(`🚨 Rendering: ${expired.length} expired, ${urgent.length} urgent, ${soon.length} soon`);
+    
     // Update counts
     const expiredCount = document.getElementById('alert-expired-count');
     const urgentCount = document.getElementById('alert-urgent-count');
@@ -213,14 +221,11 @@ async function viewProductFromAlert(productId) {
         switchTab('inventory');
         
         // Wait a moment for tab to load
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
         
-        // Select the product
-        const select = document.getElementById('inventoryProductSelect');
-        if (select) {
-            select.value = productId;
-            // Load batches
-            await loadBatches();
+        // Open product detail view directly
+        if (typeof viewProductDetail === 'function') {
+            await viewProductDetail(productId);
         }
         
         showNotification('Product loaded in Inventory tab', 'success');
@@ -238,7 +243,7 @@ function formatCurrency(value) {
     }).format(value || 0);
 }
 
-// Format date
+// Format date - Shows relative time for expiration dates
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
