@@ -60,7 +60,10 @@ async function authFetch(url, options = {}) {
     if (['POST', 'PUT', 'DELETE', 'PATCH'].includes((options.method || 'GET').toUpperCase())) {
         if (!csrfToken) {
             // Try to fetch token if we don't have it
-            await fetchCsrfToken();
+            const success = await fetchCsrfToken();
+            if (!success) {
+                throw new Error('Failed to obtain CSRF token');
+            }
         }
         
         if (csrfToken) {
@@ -297,11 +300,11 @@ if (productSearchEl) {
    Application Initialization
    ========================================================================== */
 
-function initializeApp() {
+async function initializeApp() {
     console.log('🚀 Starting Grocery Inventory App v0.8.4a...');
     
-    // Fetch CSRF token on app start
-    fetchCsrfToken();
+    // Fetch CSRF token on app start - WAIT for it!
+    await fetchCsrfToken();
     
     // Check if dark mode is loaded (it self-initializes)
     if (typeof DarkMode !== 'undefined') {
