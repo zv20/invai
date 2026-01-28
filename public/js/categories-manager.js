@@ -1,6 +1,7 @@
 /**
- * Categories Manager - v0.10.1
+ * Categories Manager - v0.10.2
  * Handles category CRUD operations
+ * FIXED v0.10.2: Added safety check in deleteCategory to prevent crash
  * FIXED v0.10.1: Removed inline onclick handlers for CSP compliance
  * FIXED v0.7.8c: Added better error handling and forced UI refresh
  * FIXED v0.7.8b: Changed showNotification/showToast to use correct function names
@@ -126,6 +127,13 @@ window.closeCategoryModal = function() {
 
 window.deleteCategory = async function(id) {
     const category = categories.find(c => c.id === id);
+    
+    // FIXED v0.10.2: Added safety check to prevent crash if category not found
+    if (!category) {
+        console.warn('⚠️  Category not found, may have been already deleted');
+        return;
+    }
+    
     if (!confirm(`Delete category "${category.name}"? Products will be moved to "Other".`)) {
         return;
     }
