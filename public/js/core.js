@@ -1,10 +1,11 @@
 /* ==========================================================================
-   Core Application Logic v0.10.2
+   Core Application Logic
    Global state, initialization, utilities, and tab management
    FIXED: CSRF token now refreshed before every state-changing request
    FIXED: Removed ALL inline styles for CSP compliance (PR #21)
    FIXED: v0.10.1: CSP compliance for suppliers manager (PR #27)
    FIXED: v0.10.2: Safety checks in delete functions (PR #28)
+   FIXED: v0.10.6: Dynamic version loading from package.json (no hardcoded versions)
    ========================================================================== */
 
 // API Configuration
@@ -16,6 +17,37 @@ let editingProductId = null;
 let editingBatchId = null;
 let editingBatchProductId = null;
 let csrfToken = null; // CSRF token for API requests
+let appVersion = 'loading...'; // Loaded dynamically
+
+/* ==========================================================================
+   Version Management
+   ========================================================================== */
+
+/**
+ * Fetch current version from API (reads from package.json)
+ */
+async function fetchAppVersion() {
+    try {
+        const response = await fetch(`${API_URL}/api/version`);
+        if (response.ok) {
+            const data = await response.json();
+            appVersion = data.currentVersion || 'unknown';
+            console.log(`✓ Version loaded: v${appVersion}`);
+            
+            // Update version display in UI if element exists
+            const versionEl = document.getElementById('appVersion');
+            if (versionEl) {
+                versionEl.textContent = `v${appVersion}`;
+            }
+            
+            return appVersion;
+        }
+    } catch (error) {
+        console.warn('Could not load version:', error);
+        appVersion = 'unknown';
+    }
+    return appVersion;
+}
 
 /* ==========================================================================
    CSRF Token Management
@@ -245,7 +277,7 @@ function switchTab(tabName) {
 }
 
 /* ==========================================================================
-   Notification System - CSP-COMPLIANT (v0.10.2)
+   Notification System - CSP-COMPLIANT
    ========================================================================== */
 
 function showNotification(message, type = 'info', duration = 3000) {
@@ -294,7 +326,10 @@ if (productSearchEl) {
    ========================================================================== */
 
 async function initializeApp() {
-    console.log('🚀 Starting Grocery Inventory App v0.10.2...');
+    console.log('🚀 Starting Grocery Inventory App...');
+    
+    // Fetch version first
+    await fetchAppVersion();
     
     // Fetch CSRF token on app start - WAIT for it!
     await fetchCsrfToken();
@@ -354,7 +389,7 @@ async function initializeApp() {
         setupUpdateChecker();
     }
     
-    console.log('✓ Grocery Inventory App v0.10.2 initialized');
+    console.log(`✓ Grocery Inventory App v${appVersion} initialized`);
     console.log('✓ CSRF protection active (fresh token on every request)');
     console.log('✓ CSP-compliant event delegation active (no inline handlers)');
     console.log('✅ PR #21: All inline styles removed - FULLY CSP COMPLIANT');
