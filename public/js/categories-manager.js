@@ -1,6 +1,7 @@
 /**
- * Categories Manager - v0.7.8c
+ * Categories Manager - v0.10.1
  * Handles category CRUD operations
+ * FIXED v0.10.1: Removed inline onclick handlers for CSP compliance
  * FIXED v0.7.8c: Added better error handling and forced UI refresh
  * FIXED v0.7.8b: Changed showNotification/showToast to use correct function names
  * UPDATED: Removed color picker (temporary removal per user request)
@@ -50,7 +51,7 @@ function renderCategoriesList() {
         return;
     }
     
-    // Removed color from border-left style
+    // FIXED v0.10.1: Removed inline onclick handlers, using data-action for CSP compliance
     container.innerHTML = categories.map(cat => `
         <div class="category-card">
             <div class="category-icon">${cat.icon || '🏷️'}</div>
@@ -59,8 +60,8 @@ function renderCategoriesList() {
                 <p>${escapeHtml(cat.description || 'No description')}</p>
             </div>
             <div class="category-actions">
-                <button class="btn-icon" onclick="editCategory(${cat.id})" title="Edit">✏️</button>
-                <button class="btn-icon" onclick="deleteCategory(${cat.id})" title="Delete">🗑️</button>
+                <button class="btn-icon" data-action="editCategory" data-category-id="${cat.id}" title="Edit">✏️</button>
+                <button class="btn-icon" data-action="deleteCategory" data-category-id="${cat.id}" title="Delete">🗑️</button>
             </div>
         </div>
     `).join('');
