@@ -1,6 +1,7 @@
 /**
- * Suppliers Manager - v0.8.5
+ * Suppliers Manager - v0.10.1
  * Handles supplier CRUD operations
+ * FIXED v0.10.1: Removed inline onclick handlers for CSP compliance
  * FIXED v0.8.5: Removed ALL inline styles for CSP compliance
  * FIXED v0.7.8g: Added better error handling and forced UI refresh
  * FIXED v0.7.8f: Changed showNotification to showToast
@@ -52,6 +53,7 @@ function renderSuppliersList() {
         return;
     }
     
+    // FIXED v0.10.1: Removed inline onclick handlers, using data-action for CSP compliance
     container.innerHTML = suppliers.map(sup => `
         <div class="supplier-card ${!sup.is_active ? 'inactive' : ''}">
             <div class="supplier-info">
@@ -67,12 +69,14 @@ function renderSuppliersList() {
             <div class="supplier-actions">
                 <button 
                     class="btn-icon" 
-                    onclick="toggleSupplierStatus(${sup.id}, ${sup.is_active ? 0 : 1})" 
+                    data-action="toggleSupplierStatus"
+                    data-supplier-id="${sup.id}"
+                    data-new-status="${sup.is_active ? 0 : 1}"
                     title="${sup.is_active ? 'Mark as Inactive' : 'Mark as Active'}">
                     ${sup.is_active ? '✅' : '❌'}
                 </button>
-                <button class="btn-icon" onclick="editSupplier(${sup.id})" title="Edit">✏️</button>
-                <button class="btn-icon" onclick="deleteSupplier(${sup.id})" title="Delete">🗑️</button>
+                <button class="btn-icon" data-action="editSupplier" data-supplier-id="${sup.id}" title="Edit">✏️</button>
+                <button class="btn-icon" data-action="deleteSupplier" data-supplier-id="${sup.id}" title="Delete">🗑️</button>
             </div>
         </div>
     `).join('');
