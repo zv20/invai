@@ -1,5 +1,6 @@
-// Reports Module
+// Reports Module - v0.10.3
 // Business intelligence and analytics
+// FIXED v0.10.3: Disabled export for overview screen (PR #30)
 
 const Reports = {
   currentReport: 'overview',
@@ -34,6 +35,9 @@ const Reports = {
       item.classList.toggle('active', item.dataset.report === reportType);
     });
 
+    // Update export button state - FIXED v0.10.3
+    this.updateExportButtonState();
+
     // Load report
     switch (reportType) {
       case 'overview':
@@ -51,6 +55,25 @@ const Reports = {
       case 'turnover':
         this.loadTurnover();
         break;
+    }
+  },
+
+  // FIXED v0.10.3: New method to update export button state
+  updateExportButtonState() {
+    const exportBtn = document.getElementById('exportReportBtn');
+    if (!exportBtn) return;
+
+    // Disable export for overview (it's a menu, not a report)
+    if (this.currentReport === 'overview') {
+      exportBtn.disabled = true;
+      exportBtn.title = 'Select a report to export';
+      exportBtn.style.opacity = '0.5';
+      exportBtn.style.cursor = 'not-allowed';
+    } else {
+      exportBtn.disabled = false;
+      exportBtn.title = 'Export current report as CSV';
+      exportBtn.style.opacity = '1';
+      exportBtn.style.cursor = 'pointer';
     }
   },
 
@@ -139,6 +162,7 @@ const Reports = {
       `;
     } catch (error) {
       console.error('Error loading stock value report:', error);
+      showToast('Failed to load stock value report', 'error');
     }
   },
 
@@ -174,6 +198,7 @@ const Reports = {
       `;
     } catch (error) {
       console.error('Error loading expiration report:', error);
+      showToast('Failed to load expiration report', 'error');
     }
   },
 
@@ -249,6 +274,7 @@ const Reports = {
       `;
     } catch (error) {
       console.error('Error loading low stock report:', error);
+      showToast('Failed to load low stock report', 'error');
     }
   },
 
@@ -263,8 +289,27 @@ const Reports = {
   },
 
   async exportCurrentReport() {
+    // FIXED v0.10.3: Prevent export of overview
+    if (this.currentReport === 'overview') {
+      showToast('Please select a report to export', 'warning');
+      return;
+    }
+
+    // FIXED v0.10.3: Prevent export of turnover (not implemented yet)
+    if (this.currentReport === 'turnover') {
+      showToast('Turnover report export coming in v0.9.0', 'info');
+      return;
+    }
+
     try {
       const response = await authFetch(`/api/reports/export/${this.currentReport}`);
+      
+      // FIXED v0.10.3: Better error handling
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Export failed' }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      
       const csv = await response.text();
       
       const blob = new Blob([csv], { type: 'text/csv' });
@@ -275,10 +320,10 @@ const Reports = {
       a.click();
       window.URL.revokeObjectURL(url);
       
-      showNotification('Report exported successfully', 'success');
+      showToast('Report exported successfully', 'success');
     } catch (error) {
       console.error('Error exporting report:', error);
-      showNotification('Failed to export report', 'error');
+      showToast(`Failed to export report: ${error.message}`, 'error');
     }
   }
 };
