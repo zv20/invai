@@ -33,9 +33,9 @@
 
 ### Location
 ```bash
-Server: Port Clinton, Ohio, US
+Server: US
 Path: /opt/invai
-URL: https://beta.z101c.duckdns.org
+URL: 
 Branch: beta (testing channel)
 ```
 
