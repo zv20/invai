@@ -1,15 +1,14 @@
 /**
- * Categories Manager - v0.7.8c
- * Handles category CRUD operations
- * FIXED v0.7.8c: Added better error handling and forced UI refresh
- * FIXED v0.7.8b: Changed showNotification/showToast to use correct function names
- * UPDATED: Removed color picker (temporary removal per user request)
+ * Categories Manager - v0.10.1
+ * Manages product categories
+ * FIXED v0.10.1: Removed inline onclick handlers for CSP compliance
+ * FIXED v0.8.4a: Removed inline styles for CSP compliance
  */
 
 let categories = [];
 let editingCategoryId = null;
 
-// Load categories on page load
+// Load categories from API
 window.loadCategories = async function() {
     console.log('🔄 Loading categories...');
     try {
@@ -31,7 +30,7 @@ window.loadCategories = async function() {
         console.error('❌ Error loading categories:', error);
         const container = document.getElementById('categoriesList');
         if (container) {
-            container.innerHTML = `<p style="text-align: center; color: #ef4444; padding: 40px;">Failed to load categories: ${error.message}</p>`;
+            container.innerHTML = `<p class="error-message">Failed to load categories: ${error.message}</p>`;
         }
     }
 };
@@ -46,21 +45,17 @@ function renderCategoriesList() {
     console.log(`🎨 Rendering ${categories.length} categories...`);
     
     if (categories.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No categories yet. Click "Add Category" to create one.</p>';
+        container.innerHTML = '<p class="empty-state">No categories yet. Click "Add Category" to create one.</p>';
         return;
     }
     
-    // Removed color from border-left style
+    // FIXED v0.10.1: Removed inline onclick handlers, using data-action for CSP compliance
     container.innerHTML = categories.map(cat => `
-        <div class="category-card">
-            <div class="category-icon">${cat.icon || '🏷️'}</div>
-            <div class="category-info">
-                <h4>${escapeHtml(cat.name)}</h4>
-                <p>${escapeHtml(cat.description || 'No description')}</p>
-            </div>
+        <div class="category-item">
+            <span class="category-name">${escapeHtml(cat.name)}</span>
             <div class="category-actions">
-                <button class="btn-icon" onclick="editCategory(${cat.id})" title="Edit">✏️</button>
-                <button class="btn-icon" onclick="deleteCategory(${cat.id})" title="Delete">🗑️</button>
+                <button class="btn-icon" data-action="editCategory" data-category-id="${cat.id}" title="Edit">✏️</button>
+                <button class="btn-icon" data-action="deleteCategory" data-category-id="${cat.id}" title="Delete">🗑️</button>
             </div>
         </div>
     `).join('');
@@ -68,7 +63,6 @@ function renderCategoriesList() {
     console.log('✅ Categories rendered to UI');
 }
 
-// Simple HTML escape function
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -79,15 +73,14 @@ function escapeHtml(text) {
 function updateCategoryDropdown() {
     const select = document.getElementById('prodCategory');
     if (select) {
-        const oldValue = select.value; // Preserve selection
+        const oldValue = select.value;
         select.innerHTML = '<option value="">Select category...</option>' +
-            categories.map(cat => `<option value="${cat.id}">${cat.icon || ''} ${escapeHtml(cat.name)}</option>`).join('');
-        select.value = oldValue; // Restore selection
+            categories.map(cat => `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`).join('');
+        select.value = oldValue;
         console.log('✅ Category dropdown updated');
     }
 }
 
-// Make globally accessible
 window.openAddCategoryModal = function() {
     editingCategoryId = null;
     const modal = document.getElementById('categoryModal');
@@ -113,8 +106,6 @@ window.editCategory = function(id) {
     
     document.getElementById('categoryModalTitle').textContent = 'Edit Category';
     document.getElementById('categoryName').value = category.name;
-    document.getElementById('categoryDescription').value = category.description || '';
-    // Removed color input population
     modal.style.display = 'block';
 };
 
@@ -125,7 +116,7 @@ window.closeCategoryModal = function() {
 
 window.deleteCategory = async function(id) {
     const category = categories.find(c => c.id === id);
-    if (!confirm(`Delete category "${category.name}"? Products will be moved to "Other".`)) {
+    if (!confirm(`Delete category "${category.name}"? Products will be moved to "Uncategorized".`)) {
         return;
     }
     
@@ -133,7 +124,6 @@ window.deleteCategory = async function(id) {
         const response = await authFetch(`/api/categories/${id}`, { method: 'DELETE' });
         if (response.ok) {
             showToast('Category deleted', 'success');
-            // Force reload
             await window.loadCategories();
         } else {
             const error = await response.json();
@@ -145,7 +135,6 @@ window.deleteCategory = async function(id) {
     }
 };
 
-// Form submit handler - attach when DOM loads
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupCategoryForm);
 } else {
@@ -159,9 +148,7 @@ function setupCategoryForm() {
             e.preventDefault();
             
             const data = {
-                name: document.getElementById('categoryName').value,
-                description: document.getElementById('categoryDescription').value,
-                color: '#667eea'  // Default color since picker is removed
+                name: document.getElementById('categoryName').value
             };
             
             console.log('💾 Saving category:', data);
@@ -187,7 +174,6 @@ function setupCategoryForm() {
                     showToast(editingCategoryId ? 'Category updated' : 'Category created', 'success');
                     window.closeCategoryModal();
                     
-                    // Force reload with a small delay to ensure DB write completed
                     setTimeout(async () => {
                         console.log('🔄 Reloading categories after save...');
                         await window.loadCategories();
