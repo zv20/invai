@@ -22,6 +22,7 @@
  * 
  * Created: 2026-01-27
  * Updated: 2026-01-27 - Added product card and batch button handlers
+ * Updated: 2026-01-28 - Added supplier button handlers (PR #26)
  * Issue: #11, #12, #13, #15
  */
 
@@ -70,6 +71,9 @@ class EventManager {
         
         // Inventory handlers (product cards, batch buttons)
         this.initInventoryHandlers();
+        
+        // Supplier handlers (supplier edit/delete/toggle buttons)
+        this.initSupplierHandlers();
         
         this.initialized = true;
         console.log('✅ EventManager initialized successfully');
@@ -387,6 +391,47 @@ class EventManager {
                 const batchId = deleteBatchBtn.dataset.batchId;
                 if (batchId && typeof deleteBatch === 'function') {
                     deleteBatch(parseInt(batchId));
+                }
+                return;
+            }
+        });
+    }
+    
+    /**
+     * Supplier handlers - Edit, delete, and toggle status buttons (NEW for PR #26)
+     */
+    initSupplierHandlers() {
+        document.addEventListener('click', (e) => {
+            // Supplier toggle status button
+            const toggleStatusBtn = e.target.closest('[data-action="toggleSupplierStatus"]');
+            if (toggleStatusBtn) {
+                e.stopPropagation();
+                const supplierId = toggleStatusBtn.dataset.supplierId;
+                const newStatus = toggleStatusBtn.dataset.newStatus;
+                if (supplierId && typeof toggleSupplierStatus === 'function') {
+                    toggleSupplierStatus(parseInt(supplierId), parseInt(newStatus));
+                }
+                return;
+            }
+            
+            // Supplier edit button
+            const editSupplierBtn = e.target.closest('[data-action="editSupplier"]');
+            if (editSupplierBtn) {
+                e.stopPropagation();
+                const supplierId = editSupplierBtn.dataset.supplierId;
+                if (supplierId && typeof editSupplier === 'function') {
+                    editSupplier(parseInt(supplierId));
+                }
+                return;
+            }
+            
+            // Supplier delete button
+            const deleteSupplierBtn = e.target.closest('[data-action="deleteSupplier"]');
+            if (deleteSupplierBtn) {
+                e.stopPropagation();
+                const supplierId = deleteSupplierBtn.dataset.supplierId;
+                if (supplierId && typeof deleteSupplier === 'function') {
+                    deleteSupplier(parseInt(supplierId));
                 }
                 return;
             }
