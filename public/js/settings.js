@@ -1,9 +1,10 @@
 /* ==========================================================================
-   Settings Management - v0.10.1
+   Settings Management - v0.10.5
    Version checking, updates, export/import, backup system, and settings
    FIXED: Auto-refresh backup list after create, improved error handling
    FIXED: Added cache-busting to prevent stale backup list
    FIXED PR #21: Removed all inline styles for CSP compliance
+   FIXED: Removed inline onclick handlers from backup buttons (CSP violation)
    ========================================================================== */
 
 /* ==========================================================================
@@ -453,6 +454,7 @@ async function checkVersion() {
 
 /* ==========================================================================
    Backup System - FIXED: Auto-refresh list after create + cache-busting
+   FIXED: Removed inline onclick handlers (CSP compliance)
    ========================================================================== */
 
 async function createBackup() {
@@ -504,6 +506,7 @@ async function loadBackups() {
             return;
         }
         
+        // FIXED: Use data attributes instead of inline onclick handlers
         list.innerHTML = backups.map(backup => `
             <div class="backup-item">
                 <div class="backup-info">
@@ -515,16 +518,59 @@ async function loadBackups() {
                     </div>
                 </div>
                 <div class="backup-actions">
-                    <button onclick="restoreBackup('${backup.filename}')" class="btn-small btn-primary">♻️ Restore</button>
-                    <button onclick="downloadBackup('${backup.filename}')" class="btn-small btn-primary">⬇️ Download</button>
-                    <button onclick="deleteBackup('${backup.filename}')" class="btn-small btn-danger">🗑️ Delete</button>
+                    <button data-action="restore" data-filename="${backup.filename}" class="btn-small btn-primary">♻️ Restore</button>
+                    <button data-action="download" data-filename="${backup.filename}" class="btn-small btn-primary">⬇️ Download</button>
+                    <button data-action="delete" data-filename="${backup.filename}" class="btn-small btn-danger">🗑️ Delete</button>
                 </div>
             </div>
         `).join('');
+        
+        // FIXED: Setup event delegation for backup action buttons
+        setupBackupActionHandlers();
+        
     } catch (error) {
         console.error('Error loading backups:', error);
         list.innerHTML = '<div class="backup-list-loading" style="color: #ef4444;">✗ Failed to load backups</div>';
     }
+}
+
+// FIXED: Event delegation for backup actions (CSP-compliant)
+function setupBackupActionHandlers() {
+    const backupList = document.getElementById('backupList');
+    if (!backupList) return;
+    
+    // Remove old listener if exists
+    const oldListener = backupList._backupActionListener;
+    if (oldListener) {
+        backupList.removeEventListener('click', oldListener);
+    }
+    
+    // Create new listener
+    const newListener = async function(event) {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        
+        const action = button.dataset.action;
+        const filename = button.dataset.filename;
+        
+        if (!action || !filename) return;
+        
+        switch (action) {
+            case 'restore':
+                await restoreBackup(filename);
+                break;
+            case 'download':
+                downloadBackup(filename);
+                break;
+            case 'delete':
+                await deleteBackup(filename);
+                break;
+        }
+    };
+    
+    // Store reference and attach
+    backupList._backupActionListener = newListener;
+    backupList.addEventListener('click', newListener);
 }
 
 async function restoreBackup(filename) {
