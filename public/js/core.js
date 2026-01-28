@@ -1,7 +1,8 @@
 /* ==========================================================================
-   Core Application Logic v0.8.4b
+   Core Application Logic v0.8.6
    Global state, initialization, utilities, and tab management
    FIXED: CSRF token now refreshed before every state-changing request
+   FIXED PR #21: Removed all inline styles for CSP compliance
    ========================================================================== */
 
 // API Configuration
@@ -242,60 +243,27 @@ function switchTab(tabName) {
 }
 
 /* ==========================================================================
-   Notification System
+   Notification System - FIXED PR #21: Uses CSS classes
    ========================================================================== */
 
 function showNotification(message, type = 'info', duration = 3000) {
     const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 15px 25px;
-        border-radius: 8px;
-        font-weight: 600;
-        z-index: 100000;
-        animation: slideIn 0.3s ease-out;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        max-width: 400px;
-    `;
+    notification.className = `app-notification ${type}`;
     
     if (type === 'success') {
-        notification.style.background = '#10b981';
-        notification.style.color = 'white';
         notification.innerHTML = '✓ ' + message;
     } else if (type === 'error') {
-        notification.style.background = '#ef4444';
-        notification.style.color = 'white';
         notification.innerHTML = '✕ ' + message;
     } else {
-        notification.style.background = '#3b82f6';
-        notification.style.color = 'white';
         notification.innerHTML = 'ℹ️ ' + message;
     }
     
     document.body.appendChild(notification);
     
     setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-in';
+        notification.classList.add('slideout');
         setTimeout(() => notification.remove(), 300);
     }, duration);
-}
-
-if (!document.getElementById('notification-styles')) {
-    const style = document.createElement('style');
-    style.id = 'notification-styles';
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(400px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(400px); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(style);
 }
 
 /* ==========================================================================
@@ -321,7 +289,7 @@ if (productSearchEl) {
    ========================================================================== */
 
 async function initializeApp() {
-    console.log('🚀 Starting Grocery Inventory App v0.8.4b...');
+    console.log('🚀 Starting Grocery Inventory App v0.8.6...');
     
     // Fetch CSRF token on app start - WAIT for it!
     await fetchCsrfToken();
@@ -381,9 +349,10 @@ async function initializeApp() {
         setupUpdateChecker();
     }
     
-    console.log('✓ Grocery Inventory App v0.8.4b initialized');
+    console.log('✓ Grocery Inventory App v0.8.6 initialized');
     console.log('✓ CSRF protection active (fresh token on every request)');
     console.log('✓ CSP-compliant event delegation active (no inline handlers)');
+    console.log('✓ CSP-compliant notifications (no inline styles)');
 }
 
 // Initialize when DOM is ready
