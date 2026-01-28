@@ -1,44 +1,15 @@
 /**
  * Version API Route
+ * Uses git tags as single source of truth for versioning
  * Checks current version against latest GitHub release
+ * 
+ * UPDATED v0.10.6: Uses lib/version.js for git-tag based versioning (PR #33)
  * FIXED: Added cache busting to avoid stale CDN responses
  */
 
 const express = require('express');
 const router = express.Router();
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-
-// Read current version from package.json
-function getCurrentVersion() {
-  try {
-    const packagePath = path.join(__dirname, '..', 'package.json');
-    const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-    return packageJson.version;
-  } catch (error) {
-    console.error('Error reading package.json:', error);
-    return 'unknown';
-  }
-}
-
-// Get current git branch
-function getCurrentBranch() {
-  try {
-    return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
-  } catch (error) {
-    return 'unknown';
-  }
-}
-
-// Get current commit SHA
-function getCurrentCommit() {
-  try {
-    return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim().substring(0, 7);
-  } catch (error) {
-    return 'unknown';
-  }
-}
+const versionLib = require('../lib/version');
 
 // Get latest version from GitHub (for the current branch)
 async function getLatestVersion(branch) {
@@ -65,8 +36,43 @@ async function getLatestVersion(branch) {
     const data = await response.json();
     const latestCommit = data.sha.substring(0, 7);
     
-    // Also try to get the version from package.json on GitHub
-    // FIXED: Add cache-busting timestamp to force fresh content
+    // Try to get the latest version tag from GitHub
+    const tagsResponse = await fetch(
+      `https://api.github.com/repos/zv20/invai/git/refs/tags`,
+      {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'Grocery-Inventory-App'
+        }
+      }
+    );
+    
+    if (tagsResponse.ok) {
+      const tags = await tagsResponse.json();
+      // Get latest tag (assuming tags are sorted)
+      const latestTag = tags
+        .map(t => t.ref.replace('refs/tags/', ''))
+        .filter(t => t.match(/^v\d+\.\d+\.\d+$/))
+        .sort((a, b) => {
+          const aVer = a.replace('v', '').split('.').map(Number);
+          const bVer = b.replace('v', '').split('.').map(Number);
+          for (let i = 0; i < 3; i++) {
+            if (bVer[i] !== aVer[i]) return bVer[i] - aVer[i];
+          }
+          return 0;
+        })[0];
+      
+      if (latestTag) {
+        return {
+          version: latestTag.replace(/^v/, ''),
+          commit: latestCommit,
+          branch: targetBranch,
+          tag: latestTag
+        };
+      }
+    }
+    
+    // Fallback to package.json if tags not available
     const cacheBuster = Date.now();
     const packageResponse = await fetch(
       `https://raw.githubusercontent.com/zv20/invai/${targetBranch}/package.json?cb=${cacheBuster}`,
@@ -100,9 +106,9 @@ async function getLatestVersion(branch) {
 
 // Compare versions (semantic versioning)
 function compareVersions(current, latest) {
-  // Remove '-beta' suffix for comparison
-  const cleanCurrent = current.replace('-beta', '').replace('-alpha', '');
-  const cleanLatest = latest.replace('-beta', '').replace('-alpha', '');
+  // Remove any pre-release identifiers for comparison
+  const cleanCurrent = current.split('-')[0];
+  const cleanLatest = latest.split('-')[0];
   
   const currentParts = cleanCurrent.split('.').map(Number);
   const latestParts = cleanLatest.split('.').map(Number);
@@ -120,9 +126,13 @@ function compareVersions(current, latest) {
 
 router.get('/', async (req, res) => {
   try {
-    const currentVersion = getCurrentVersion();
-    const currentBranch = getCurrentBranch();
-    const currentCommit = getCurrentCommit();
+    // Get version information from git tags (single source of truth)
+    const buildInfo = versionLib.getBuildInfo();
+    const currentVersion = buildInfo.version;
+    const currentBranch = buildInfo.branch;
+    const currentCommit = buildInfo.commit;
+    const fullVersion = buildInfo.fullVersion;
+    const isDev = buildInfo.isDev;
     
     // Get latest version from GitHub
     const latest = await getLatestVersion(currentBranch);
@@ -130,27 +140,34 @@ router.get('/', async (req, res) => {
     if (!latest) {
       return res.json({
         currentVersion,
+        fullVersion,
         currentBranch,
         currentCommit,
+        isDev,
         latestVersion: currentVersion,
         latestCommit: currentCommit,
         updateAvailable: false,
+        buildInfo,
         error: 'Could not check for updates. Using cached version.'
       });
     }
     
     // Compare versions
     const updateAvailable = compareVersions(currentVersion, latest.version) || 
-                           (currentCommit !== latest.commit && currentBranch === latest.branch);
+                           (currentCommit !== latest.commit && currentBranch === latest.branch && !isDev);
     
     res.json({
       currentVersion,
+      fullVersion,
       currentBranch,
       currentCommit,
+      isDev,
       latestVersion: latest.version,
       latestCommit: latest.commit,
       latestBranch: latest.branch,
+      latestTag: latest.tag,
       updateAvailable,
+      buildInfo,
       message: updateAvailable 
         ? `Update available: ${currentVersion} → ${latest.version}` 
         : 'You are running the latest version'
@@ -158,13 +175,15 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Version check error:', error);
     
-    const currentVersion = getCurrentVersion();
-    const currentBranch = getCurrentBranch();
+    const buildInfo = versionLib.getBuildInfo();
     
     res.status(500).json({
-      currentVersion,
-      currentBranch,
-      latestVersion: currentVersion,
+      currentVersion: buildInfo.version,
+      fullVersion: buildInfo.fullVersion,
+      currentBranch: buildInfo.branch,
+      isDev: buildInfo.isDev,
+      buildInfo,
+      latestVersion: buildInfo.version,
       updateAvailable: false,
       error: 'Failed to check for updates: ' + error.message
     });
