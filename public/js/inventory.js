@@ -3,6 +3,7 @@
    FIXED: Send category_id/supplier_id instead of names
    FIXED: Removed value summary display from inventory
    FIXED: Removed inline onclick handlers for CSP compliance
+   FIXED v0.8.5: Removed ALL inline style attributes for CSP compliance
    ========================================================================== */
 
 // Module variables (global vars are in core.js)
@@ -76,25 +77,25 @@ async function renderProductList() {
         const locations = locationMap[product.id] || [];
         
         return `
-            <div class="product-card" data-product-id="${product.id}" style="padding: 12px; min-height: auto; cursor: pointer;">
-                <div class="product-header" style="margin-bottom: 8px;">
+            <div class="product-card" data-product-id="${product.id}">
+                <div class="product-header">
                     <div>
-                        <div class="product-name" style="font-size: 1.1em; margin-bottom: 5px;">${escapeHtml(product.name)}</div>
-                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                            ${product.brand ? `<span class="badge badge-brand" style="font-size: 0.8em;">${escapeHtml(product.brand)}</span>` : ''}
-                            ${product.category_name ? `<span class="badge badge-category" style="font-size: 0.8em;">${escapeHtml(product.category_name)}</span>` : ''}
+                        <div class="product-name">${escapeHtml(product.name)}</div>
+                        <div>
+                            ${product.brand ? `<span class="badge badge-brand">${escapeHtml(product.brand)}</span>` : ''}
+                            ${product.category_name ? `<span class="badge badge-category">${escapeHtml(product.category_name)}</span>` : ''}
                         </div>
                     </div>
-                    <div class="product-stock ${stockClass}" style="font-size: 0.95em; padding: 6px 12px;">${inv.quantity} items</div>
+                    <div class="product-stock ${stockClass}">${inv.quantity} items</div>
                 </div>
-                ${expiryStatus ? `<div class="expiry-warning" style="margin-top: 8px; padding: 6px 10px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 0.85em;">⚠️ ${expiryStatus.text}</div>` : ''}
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 0.9em;">
-                    ${product.barcode ? `<div style="color: #374151; font-weight: 600;">📷 ${escapeHtml(product.barcode)}</div>` : '<div></div>'}
-                    ${locations.length > 0 ? `<div style="color: #6b7280;">📍 ${escapeHtml(locations[0])}${locations.length > 1 ? ` +${locations.length - 1}` : ''}</div>` : ''}
+                ${expiryStatus ? `<div class="expiry-warning">⚠️ ${expiryStatus.text}</div>` : ''}
+                <div class="product-footer">
+                    ${product.barcode ? `<div class="product-barcode">📷 ${escapeHtml(product.barcode)}</div>` : '<div></div>'}
+                    ${locations.length > 0 ? `<div class="product-location">📍 ${escapeHtml(locations[0])}${locations.length > 1 ? ` +${locations.length - 1}` : ''}</div>` : ''}
                 </div>
-                <div style="margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; font-size: 0.85em;">
+                <div class="product-badges">
                     ${product.supplier_name ? `<span class="badge badge-supplier">${escapeHtml(product.supplier_name)}</span>` : ''}
-                    ${inv.batchCount > 0 ? `<span class="badge" style="background: #e0e7ff; color: #3730a3;">${inv.batchCount} batch${inv.batchCount > 1 ? 'es' : ''}</span>` : ''}
+                    ${inv.batchCount > 0 ? `<span class="badge">${inv.batchCount} batch${inv.batchCount > 1 ? 'es' : ''}</span>` : ''}
                 </div>
             </div>
         `;
@@ -144,32 +145,32 @@ function renderProductDetail() {
     // Product info grid
     const costPerItem = product.cost_per_case && product.items_per_case ? (product.cost_per_case / product.items_per_case) : 0;
     const infoHtml = `
-        <div style="background: white; padding: 15px; border-radius: 8px; border: 2px solid #e5e7eb;">
-            <div style="font-size: 0.85em; color: #6b7280; margin-bottom: 5px;">Items Per Case</div>
-            <div style="font-size: 1.3em; font-weight: 700; color: #1f2937;">${product.items_per_case || 'N/A'}</div>
+        <div class="detail-info-card">
+            <div class="detail-info-label">Items Per Case</div>
+            <div class="detail-info-value">${product.items_per_case || 'N/A'}</div>
         </div>
-        <div style="background: white; padding: 15px; border-radius: 8px; border: 2px solid #e5e7eb;">
-            <div style="font-size: 0.85em; color: #6b7280; margin-bottom: 5px;">Cost Per Case</div>
-            <div style="font-size: 1.3em; font-weight: 700; color: #1f2937;">${formatCurrency(product.cost_per_case || 0)}</div>
+        <div class="detail-info-card">
+            <div class="detail-info-label">Cost Per Case</div>
+            <div class="detail-info-value">${formatCurrency(product.cost_per_case || 0)}</div>
         </div>
-        <div style="background: white; padding: 15px; border-radius: 8px; border: 2px solid #e5e7eb;">
-            <div style="font-size: 0.85em; color: #6b7280; margin-bottom: 5px;">Cost Per Item</div>
-            <div style="font-size: 1.3em; font-weight: 700; color: #1f2937;">${formatCurrency(costPerItem)}</div>
+        <div class="detail-info-card">
+            <div class="detail-info-label">Cost Per Item</div>
+            <div class="detail-info-value">${formatCurrency(costPerItem)}</div>
         </div>
         ${product.barcode ? `
-        <div style="background: white; padding: 15px; border-radius: 8px; border: 2px solid #e5e7eb;">
-            <div style="font-size: 0.85em; color: #6b7280; margin-bottom: 5px;">Barcode</div>
-            <div style="font-size: 1.1em; font-weight: 600; color: #1f2937;">📷 ${escapeHtml(product.barcode)}</div>
+        <div class="detail-info-card detail-barcode">
+            <div class="detail-info-label">Barcode</div>
+            <div class="detail-info-value">📷 ${escapeHtml(product.barcode)}</div>
         </div>` : ''}
         ${product.inhouse_number ? `
-        <div style="background: white; padding: 15px; border-radius: 8px; border: 2px solid #e5e7eb;">
-            <div style="font-size: 0.85em; color: #6b7280; margin-bottom: 5px;">In-House #</div>
-            <div style="font-size: 1.1em; font-weight: 600; color: #1f2937;">${escapeHtml(product.inhouse_number)}</div>
+        <div class="detail-info-card">
+            <div class="detail-info-label">In-House #</div>
+            <div class="detail-info-value">${escapeHtml(product.inhouse_number)}</div>
         </div>` : ''}
         ${product.notes ? `
-        <div style="background: white; padding: 15px; border-radius: 8px; border: 2px solid #e5e7eb; grid-column: 1 / -1;">
-            <div style="font-size: 0.85em; color: #6b7280; margin-bottom: 5px;">Notes</div>
-            <div style="font-size: 0.95em; color: #374151;">${escapeHtml(product.notes)}</div>
+        <div class="detail-info-card detail-notes">
+            <div class="detail-info-label">Notes</div>
+            <div class="detail-info-value">${escapeHtml(product.notes)}</div>
         </div>` : ''}
     `;
     document.getElementById('detailProductInfo').innerHTML = infoHtml;
@@ -209,12 +210,12 @@ function renderExpirationAlertBanners(batches) {
     if (expired.length > 0) {
         const totalExpired = expired.reduce((sum, b) => sum + (b.total_quantity || 0), 0);
         bannersHtml += `
-            <div style="background: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; margin-bottom: 15px; border-radius: 8px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 1.5em;">❌</span>
+            <div class="detail-alert-expired">
+                <div class="detail-alert-banner-content">
+                    <span class="detail-alert-icon">❌</span>
                     <div>
-                        <div style="font-weight: 700; color: #dc2626; font-size: 1.1em;">Expired Items</div>
-                        <div style="color: #7f1d1d; margin-top: 3px;">${totalExpired} items in ${expired.length} batch${expired.length > 1 ? 'es' : ''} have expired</div>
+                        <div class="detail-alert-title">Expired Items</div>
+                        <div class="detail-alert-text">${totalExpired} items in ${expired.length} batch${expired.length > 1 ? 'es' : ''} have expired</div>
                     </div>
                 </div>
             </div>
@@ -224,12 +225,12 @@ function renderExpirationAlertBanners(batches) {
     if (urgent.length > 0) {
         const totalUrgent = urgent.reduce((sum, b) => sum + (b.total_quantity || 0), 0);
         bannersHtml += `
-            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin-bottom: 15px; border-radius: 8px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 1.5em;">⚠️</span>
+            <div class="detail-alert-urgent">
+                <div class="detail-alert-banner-content">
+                    <span class="detail-alert-icon">⚠️</span>
                     <div>
-                        <div style="font-weight: 700; color: #d97706; font-size: 1.1em;">Expiring Soon</div>
-                        <div style="color: #92400e; margin-top: 3px;">${totalUrgent} items in ${urgent.length} batch${urgent.length > 1 ? 'es' : ''} expiring within 7 days</div>
+                        <div class="detail-alert-title">Expiring Soon</div>
+                        <div class="detail-alert-text">${totalUrgent} items in ${urgent.length} batch${urgent.length > 1 ? 'es' : ''} expiring within 7 days</div>
                     </div>
                 </div>
             </div>
@@ -258,16 +259,16 @@ function renderProductBatches(batches) {
                     <div>
                         <strong>${batch.total_quantity} items</strong> (${batch.case_quantity} cases)
                     </div>
-                    <div style="display: flex; gap: 8px;">
+                    <div>
                         <button class="btn-small btn-primary" data-batch-action="edit" data-batch-id="${batch.id}" data-product-id="${batch.product_id}">✏️ Edit</button>
                         <button class="btn-small" data-batch-action="delete" data-batch-id="${batch.id}" style="background: #ef4444; color: white;">🗑️</button>
                     </div>
                 </div>
-                ${expiryStatus ? `<div style="margin-top: 8px; font-weight: 600; color: ${expiryStatus.status === 'expired' ? '#dc2626' : '#d97706'};">⚠️ ${expiryStatus.text}</div>` : ''}
-                ${batch.expiry_date && !expiryStatus ? `<div style="margin-top: 8px; color: #6b7280;">Expires: ${formatDate(batch.expiry_date)}</div>` : ''}
-                ${batch.location ? `<div style="margin-top: 8px; color: #6b7280;">📍 ${escapeHtml(batch.location)}</div>` : ''}
-                ${batch.notes ? `<div style="margin-top: 8px; color: #6b7280; font-style: italic;">${escapeHtml(batch.notes)}</div>` : ''}
-                <div style="margin-top: 8px; font-size: 0.85em; color: #9ca3af;">Received: ${formatDate(batch.received_date)}</div>
+                ${expiryStatus ? `<div class="batch-expiry-warning ${expiryStatus.status}">⚠️ ${expiryStatus.text}</div>` : ''}
+                ${batch.expiry_date && !expiryStatus ? `<div class="batch-expiry-date">Expires: ${formatDate(batch.expiry_date)}</div>` : ''}
+                ${batch.location ? `<div class="batch-location">📍 ${escapeHtml(batch.location)}</div>` : ''}
+                ${batch.notes ? `<div class="batch-notes">${escapeHtml(batch.notes)}</div>` : ''}
+                <div class="batch-received">Received: ${formatDate(batch.received_date)}</div>
             </div>
         `;
     }).join('');

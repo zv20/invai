@@ -1,7 +1,8 @@
 /* ==========================================================================
-   Inline Style Overrides - v0.8.4b
+   Inline Style Overrides - v0.8.5
    All inline styles extracted to external CSS for CSP compliance
    Removes need for 'unsafe-inline' in style-src CSP directive
+   UPDATED: Added inventory.js and suppliers-manager.js inline style classes
    ========================================================================== */
 
 /* Header Layout */
@@ -275,6 +276,221 @@
     display: none;
 }
 
+/* NEW: Product Card inline styles (inventory.js renderProductList) */
+.product-card {
+    padding: 12px;
+    min-height: auto;
+    cursor: pointer;
+}
+
+.product-card .product-header {
+    margin-bottom: 8px;
+}
+
+.product-card .product-name {
+    font-size: 1.1em;
+    margin-bottom: 5px;
+}
+
+.product-card .product-header > div:first-child > div:last-child {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.product-card .badge-brand,
+.product-card .badge-category,
+.product-card .badge-supplier {
+    font-size: 0.8em;
+}
+
+.product-card .product-stock {
+    font-size: 0.95em;
+    padding: 6px 12px;
+}
+
+.product-card .expiry-warning {
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: #fef3c7;
+    border-left: 3px solid #f59e0b;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+.product-card .product-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 0.9em;
+}
+
+.product-card .product-barcode {
+    color: #374151;
+    font-weight: 600;
+}
+
+.product-card .product-location {
+    color: #6b7280;
+}
+
+.product-card .product-badges {
+    margin-top: 6px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 0.85em;
+}
+
+/* NEW: Detail Product Info inline styles (inventory.js renderProductDetail) */
+.detail-info-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid #e5e7eb;
+}
+
+.detail-info-card .detail-info-label {
+    font-size: 0.85em;
+    color: #6b7280;
+    margin-bottom: 5px;
+}
+
+.detail-info-card .detail-info-value {
+    font-size: 1.3em;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.detail-info-card.detail-barcode .detail-info-value {
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+.detail-info-card.detail-notes {
+    grid-column: 1 / -1;
+}
+
+.detail-info-card.detail-notes .detail-info-value {
+    font-size: 0.95em;
+    color: #374151;
+}
+
+/* NEW: Detail Alert Banners inline styles (inventory.js renderExpirationAlertBanners) */
+.detail-alert-expired {
+    background: #fee2e2;
+    border-left: 4px solid #ef4444;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+}
+
+.detail-alert-urgent {
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+}
+
+.detail-alert-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.detail-alert-icon {
+    font-size: 1.5em;
+}
+
+.detail-alert-title {
+    font-weight: 700;
+    font-size: 1.1em;
+}
+
+.detail-alert-expired .detail-alert-title {
+    color: #dc2626;
+}
+
+.detail-alert-urgent .detail-alert-title {
+    color: #d97706;
+}
+
+.detail-alert-text {
+    margin-top: 3px;
+}
+
+.detail-alert-expired .detail-alert-text {
+    color: #7f1d1d;
+}
+
+.detail-alert-urgent .detail-alert-text {
+    color: #92400e;
+}
+
+/* NEW: Batch Card inline styles (inventory.js renderProductBatches) */
+.batch-card .batch-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.batch-card .batch-header > div:last-child {
+    display: flex;
+    gap: 8px;
+}
+
+.batch-expiry-warning {
+    margin-top: 8px;
+    font-weight: 600;
+}
+
+.batch-expiry-warning.expired {
+    color: #dc2626;
+}
+
+.batch-expiry-warning.urgent {
+    color: #d97706;
+}
+
+.batch-expiry-date {
+    margin-top: 8px;
+    color: #6b7280;
+}
+
+.batch-location {
+    margin-top: 8px;
+    color: #6b7280;
+}
+
+.batch-notes {
+    margin-top: 8px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.batch-received {
+    margin-top: 8px;
+    font-size: 0.85em;
+    color: #9ca3af;
+}
+
+/* NEW: Supplier Card inline styles (suppliers-manager.js renderSuppliersList) */
+.supplier-card.inactive {
+    opacity: 0.6;
+}
+
+.supplier-card p {
+    margin: 5px 0;
+}
+
+.supplier-card .supplier-notes {
+    font-style: italic;
+    color: #999;
+    margin-top: 8px;
+}
+
 /* Utility Classes for Common Patterns */
 .flex-row {
     display: flex;
@@ -293,6 +509,18 @@
     justify-content: space-between;
 }
 
+.gap-5 {
+    gap: 5px;
+}
+
+.gap-6 {
+    gap: 6px;
+}
+
+.gap-8 {
+    gap: 8px;
+}
+
 .gap-10 {
     gap: 10px;
 }
@@ -307,6 +535,22 @@
 
 .m-0 {
     margin: 0;
+}
+
+.mt-3 {
+    margin-top: 3px;
+}
+
+.mt-5 {
+    margin-top: 5px;
+}
+
+.mt-6 {
+    margin-top: 6px;
+}
+
+.mt-8 {
+    margin-top: 8px;
 }
 
 .mt-10 {
@@ -325,6 +569,14 @@
     margin-top: 25px;
 }
 
+.mb-5 {
+    margin-bottom: 5px;
+}
+
+.mb-8 {
+    margin-bottom: 8px;
+}
+
 .mb-10 {
     margin-bottom: 10px;
 }
@@ -339,6 +591,22 @@
 
 .mb-25 {
     margin-bottom: 25px;
+}
+
+.p-6 {
+    padding: 6px;
+}
+
+.p-10 {
+    padding: 10px;
+}
+
+.p-12 {
+    padding: 12px;
+}
+
+.p-15 {
+    padding: 15px;
 }
 
 .flex-wrap {
