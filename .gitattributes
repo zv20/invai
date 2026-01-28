@@ -1,0 +1,40 @@
+# Git Attributes - Tell Git how to handle different file types
+
+# Images - Always treat as binary (don't modify line endings)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+
+# SVG - Keep as text (allows diffing)
+*.svg text
+
+# Database files - Binary
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# Archives - Binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
+
+# Documents - Binary
+*.pdf binary
+*.doc binary
+*.docx binary
+*.xls binary
+*.xlsx binary
+
+# Source code - Text with LF line endings
+*.js text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

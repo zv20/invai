@@ -1,4 +1,6 @@
-// Dashboard Module v0.8.0
+// Dashboard Module v0.12.0
+// FIXED: Added cache-busting for both stats AND alerts
+// FIXED PR #21: Removed inline onclick for CSP compliance
 
 let dashboardData = null;
 let alertData = null;
@@ -21,15 +23,18 @@ async function initDashboard() {
         console.log('✓ Favorites widget loaded');
     }
     
-    setInterval(loadDashboardStats, 60000); // Refresh every minute
+    setInterval(loadDashboardStats, 60000); // Refresh stats every minute
+    setInterval(loadExpirationAlerts, 60000); // Refresh alerts every minute
     console.log('✓ Dashboard initialization complete');
 }
 
-// Load dashboard statistics
+// Load dashboard statistics - FIXED: Added cache-busting
 async function loadDashboardStats() {
     console.log('📊 Loading dashboard stats...');
     try {
-        const response = await authFetch('/api/dashboard/stats');
+        // Add cache-busting timestamp to force fresh data
+        const cacheBuster = Date.now();
+        const response = await authFetch(`/api/dashboard/stats?_t=${cacheBuster}`);
         if (!response.ok) throw new Error('Failed to load stats');
         
         dashboardData = await response.json();
@@ -41,15 +46,20 @@ async function loadDashboardStats() {
     }
 }
 
-// Load expiration alerts
+// Load expiration alerts - FIXED: Added cache-busting
 async function loadExpirationAlerts() {
     console.log('🚨 Loading expiration alerts...');
     try {
-        const response = await authFetch('/api/dashboard/expiration-alerts');
+        // Add cache-busting timestamp to force fresh data
+        const cacheBuster = Date.now();
+        const response = await authFetch(`/api/dashboard/expiration-alerts?_t=${cacheBuster}`);
         if (!response.ok) throw new Error('Failed to load alerts');
         
         alertData = await response.json();
         console.log('🚨 Alert data received:', alertData);
+        console.log(`   - Expired: ${alertData.expired?.length || 0}`);
+        console.log(`   - Urgent (7d): ${alertData.urgent?.length || 0}`);
+        console.log(`   - Soon (30d): ${alertData.soon?.length || 0}`);
         renderExpirationAlerts();
     } catch (error) {
         console.error('❌ Error loading alerts:', error);
@@ -157,6 +167,8 @@ function renderExpirationAlerts() {
     const urgent = alertData.urgent || [];
     const soon = alertData.soon || [];
     
+    console.log(`🚨 Rendering: ${expired.length} expired, ${urgent.length} urgent, ${soon.length} soon`);
+    
     // Update counts
     const expiredCount = document.getElementById('alert-expired-count');
     const urgentCount = document.getElementById('alert-urgent-count');
@@ -174,7 +186,7 @@ function renderExpirationAlerts() {
     console.log(`✓ Alerts rendered - Expired: ${expired.length}, Urgent: ${urgent.length}, Soon: ${soon.length}`);
 }
 
-// Render individual alert list
+// Render individual alert list - FIXED PR #21: No inline onclick
 function renderAlertList(elementId, items, dateField) {
     const container = document.getElementById(elementId);
     if (!container) {
@@ -188,7 +200,7 @@ function renderAlertList(elementId, items, dateField) {
     }
     
     const html = items.map(item => `
-        <div class="alert-item" onclick="viewProductFromAlert(${item.product_id})">
+        <div class="alert-item" data-product-id="${item.product_id}">
             <div class="alert-item-header">
                 <div class="alert-item-name">${item.product_name}</div>
                 <div class="alert-item-qty">${item.total_quantity} items</div>
@@ -201,6 +213,14 @@ function renderAlertList(elementId, items, dateField) {
     `).join('');
     
     container.innerHTML = html;
+    
+    // FIXED PR #21: Add event delegation instead of inline onclick
+    container.querySelectorAll('.alert-item').forEach(alertItem => {
+        alertItem.addEventListener('click', function() {
+            const productId = parseInt(this.dataset.productId);
+            viewProductFromAlert(productId);
+        });
+    });
 }
 
 // View product from alert
@@ -210,14 +230,11 @@ async function viewProductFromAlert(productId) {
         switchTab('inventory');
         
         // Wait a moment for tab to load
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
         
-        // Select the product
-        const select = document.getElementById('inventoryProductSelect');
-        if (select) {
-            select.value = productId;
-            // Load batches
-            await loadBatches();
+        // Open product detail view directly
+        if (typeof viewProductDetail === 'function') {
+            await viewProductDetail(productId);
         }
         
         showNotification('Product loaded in Inventory tab', 'success');
@@ -235,7 +252,7 @@ function formatCurrency(value) {
     }).format(value || 0);
 }
 
-// Format date
+// Format date - Shows relative time for expiration dates
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -254,7 +271,7 @@ function formatDate(dateString) {
     }
 }
 
-// Refresh dashboard
+// Refresh dashboard - FIXED: Added cache refresh parameter
 function refreshDashboard() {
     console.log('🔄 Refreshing dashboard...');
     loadDashboardStats();
@@ -275,7 +292,7 @@ function refreshDashboard() {
 
 // Initialize when dashboard tab is shown
 if (document.readyState === 'loading') {
-    console.log('⏳ Waiting for DOM to load...');
+    console.log('⌛ Waiting for DOM to load...');
     document.addEventListener('DOMContentLoaded', () => {
         console.log('✓ DOM loaded, checking for dashboard tab...');
         // Check if dashboard tab exists

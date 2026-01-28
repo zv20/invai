@@ -1,4 +1,5 @@
-// Update Settings Management
+// Update Settings Management - v0.10.5
+// FIXED v0.10.5: Use authFetch() for authenticated endpoints to prevent 401 errors (PR #32)
 
 let updateCheckInterval;
 
@@ -12,7 +13,8 @@ async function initUpdateSettings() {
 
 async function loadChannelSettings() {
     try {
-        const response = await fetch('/api/settings/update-channel');
+        // FIXED v0.10.5: Use authFetch() instead of plain fetch() to include authentication
+        const response = await authFetch('/api/settings/update-channel');
         const data = await response.json();
         
         const channelSelect = document.getElementById('updateChannel');
@@ -53,7 +55,8 @@ async function saveChannelPreference() {
     const newChannel = channelSelect.value;
     
     try {
-        const response = await fetch('/api/settings/update-channel', {
+        // FIXED v0.10.5: Use authFetch() with proper headers
+        const response = await authFetch('/api/settings/update-channel', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ channel: newChannel })
@@ -84,7 +87,8 @@ async function switchChannel() {
     switchBtn.textContent = 'Switching...';
     
     try {
-        const response = await fetch('/api/settings/switch-channel', {
+        // FIXED v0.10.5: Use authFetch()
+        const response = await authFetch('/api/settings/switch-channel', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ channel: newChannel })
@@ -115,6 +119,7 @@ async function switchChannel() {
 
 async function checkForUpdates() {
     try {
+        // Version endpoint is public, can use plain fetch
         const response = await fetch('/api/version');
         const data = await response.json();
         
@@ -178,7 +183,8 @@ async function performUpdate() {
     }
     
     try {
-        const response = await fetch('/api/system/update', {
+        // FIXED v0.10.5: Use authFetch() for authenticated system endpoint
+        const response = await authFetch('/api/system/update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });

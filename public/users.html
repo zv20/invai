@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>User Management - InvAI</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InvAI">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
+    <link rel="stylesheet" href="/css/styles.css">
+    
+    <!-- Mobile CSS -->
+    <link rel="stylesheet" href="/css/mobile.css">
+    
+    <style>
+        .user-grid {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .user-card {
+            background: var(--card-bg, #fff);
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 8px;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: box-shadow 0.2s;
+        }
+        
+        .user-card.locked {
+            border-left: 4px solid #ffc107;
+            background: #fff9e6;
+        }
+        
+        .user-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .user-info h3 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-color, #333);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .user-meta {
+            display: flex;
+            gap: 1rem;
+            color: var(--text-muted, #666);
+            font-size: 0.9rem;
+            flex-wrap: wrap;
+        }
+        
+        .user-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .role-owner { background: #ff6b6b; color: white; }
+        .role-admin { background: #ff6b6b; color: white; }
+        .role-manager { background: #4ecdc4; color: white; }
+        .role-staff { background: #45b7d1; color: white; }
+        .role-viewer { background: #95a5a6; color: white; }
+        
+        .status-active { color: #27ae60; font-weight: 500; }
+        .status-inactive { color: #e74c3c; font-weight: 500; }
+        .status-locked { color: #ff9800; font-weight: 500; }
+        
+        .user-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .filters input,
+        .filters select {
+            padding: 0.5rem;
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .filters input {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+            animation: fadeIn 0.2s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            background-color: var(--card-bg, #fff);
+            margin: 5% auto;
+            padding: 2rem;
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            animation: slideDown 0.3s;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-color, #333);
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        
+        .password-strength {
+            margin-top: 0.5rem;
+        }
+        
+        .strength-bar {
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+        
+        .strength-fill {
+            height: 100%;
+            transition: width 0.3s, background-color 0.3s;
+            width: 0;
+        }
+        
+        .strength-fill.weak { background: #f44336; width: 25%; }
+        .strength-fill.fair { background: #ff9800; width: 50%; }
+        .strength-fill.good { background: #ffc107; width: 75%; }
+        .strength-fill.strong { background: #4caf50; width: 100%; }
+        
+        .strength-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .strength-label.weak { color: #f44336; }
+        .strength-label.fair { color: #ff9800; }
+        .strength-label.good { color: #ffc107; }
+        .strength-label.strong { color: #4caf50; }
+        
+        .password-requirements {
+            background: #f5f5f5;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .password-requirements ul {
+            margin: 0.5rem 0 0 0;
+            padding-left: 1.5rem;
+        }
+        
+        .password-requirements li {
+            margin: 0.25rem 0;
+            color: #666;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+        
+        .pagination {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            margin-top: 2rem;
+        }
+        
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #229954;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted, #666);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👥 User Management</h1>
+            <div class="header-actions">
+                <button onclick="showCreateModal()" class="btn btn-primary">+ Add User</button>
+                <a href="/" class="btn btn-secondary">← Dashboard</a>
+            </div>
+        </div>
+
+        <div class="filters">
+            <input type="search" id="searchInput" placeholder="Search by username or email..." onkeyup="filterUsers()">
+            <select id="roleFilter" onchange="filterUsers()">
+                <option value="">All Roles</option>
+                <option value="owner">Owner</option>
+                <option value="manager">Manager</option>
+                <option value="staff">Staff</option>
+                <option value="viewer">Viewer</option>
+            </select>
+            <select id="statusFilter" onchange="filterUsers()">
+                <option value="">All Status</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select>
+        </div>
+
+        <div id="userGrid" class="user-grid">
+            <div class="empty-state">
+                <p>Loading users...</p>
+            </div>
+        </div>
+
+        <div id="pagination" class="pagination"></div>
+    </div>
+
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Add New User</h2>
+            <form id="userForm" onsubmit="saveUser(event)">
+                <input type="hidden" id="userId">
+                
+                <div class="form-group">
+                    <label for="username">Username*</label>
+                    <input type="text" id="username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email*</label>
+                    <input type="email" id="email" required>
+                </div>
+                
+                <div class="form-group" id="passwordGroup">
+                    <label for="password">Password*</label>
+                    <input type="password" id="password" minlength="8">
+                    
+                    <div class="password-strength" id="strengthMeter" style="display: none;">
+                        <div class="strength-bar">
+                            <div class="strength-fill" id="strengthFill"></div>
+                        </div>
+                        <div class="strength-label" id="strengthLabel"></div>
+                    </div>
+                    
+                    <div class="password-requirements">
+                        <strong>Password Requirements:</strong>
+                        <ul>
+                            <li>At least 8 characters</li>
+                            <li>At least one uppercase letter (A-Z)</li>
+                            <li>At least one lowercase letter (a-z)</li>
+                            <li>At least one number (0-9)</li>
+                            <li>At least one special character (!@#$%^&*)</li>
+                            <li>Cannot be a common password</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="role">Role*</label>
+                    <select id="role" required>
+                        <option value="viewer">Viewer (Read-only)</option>
+                        <option value="staff">Staff (Create/Edit products)</option>
+                        <option value="manager">Manager (Reports & Management)</option>
+                        <option value="owner">Owner (Full Access)</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" onclick="closeModal()" class="btn btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/core.js"></script>
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        
+        async function checkPermissions() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.role !== 'owner' && payload.role !== 'admin') {
+                    alert('⚠️ You do not have permission to access this page');
+                    window.location.href = '/';
+                    return;
+                }
+            } catch (e) {
+                console.error('Error checking permissions:', e);
+                window.location.href = '/login.html';
+            }
+        }
+        
+        function calculatePasswordStrength(password) {
+            if (!password) return { score: 0, label: 'weak', color: 'weak' };
+            
+            let score = 0;
+            
+            if (password.length >= 8) score++;
+            if (password.length >= 12) score++;
+            if (password.length >= 16) score++;
+            
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+            if (/[0-9]/.test(password)) score++;
+            if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) score++;
+            
+            const hasLower = /[a-z]/.test(password);
+            const hasUpper = /[A-Z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+            const varietyCount = [hasLower, hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
+            
+            if (varietyCount >= 3) score++;
+            if (varietyCount === 4) score++;
+            
+            score = Math.max(0, Math.min(3, Math.floor(score / 3)));
+            
+            const levels = [
+                { score: 0, label: 'Weak', color: 'weak' },
+                { score: 1, label: 'Fair', color: 'fair' },
+                { score: 2, label: 'Good', color: 'good' },
+                { score: 3, label: 'Strong', color: 'strong' }
+            ];
+            
+            return levels[score];
+        }
+        
+        function updateStrengthMeter() {
+            const password = document.getElementById('password').value;
+            const meter = document.getElementById('strengthMeter');
+            const fill = document.getElementById('strengthFill');
+            const label = document.getElementById('strengthLabel');
+            
+            if (!password) {
+                meter.style.display = 'none';
+                return;
+            }
+            
+            meter.style.display = 'block';
+            const strength = calculatePasswordStrength(password);
+            
+            fill.className = `strength-fill ${strength.color}`;
+            label.className = `strength-label ${strength.color}`;
+            label.textContent = `Password Strength: ${strength.label}`;
+        }
+        
+        async function loadUsers(page = 1) {
+            try {
+                const search = document.getElementById('searchInput').value;
+                const role = document.getElementById('roleFilter').value;
+                const is_active = document.getElementById('statusFilter').value;
+                
+                const params = new URLSearchParams({
+                    page,
+                    limit: 20,
+                    ...(search && { search }),
+                    ...(role && { role }),
+                    ...(is_active && { is_active })
+                });
+                
+                const response = await authFetch(`/api/users?${params}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load users');
+                }
+                
+                const result = await response.json();
+                displayUsers(result.data.users);
+                updatePagination(result.data.pagination);
+                
+                currentPage = result.data.pagination.page;
+                totalPages = result.data.pagination.pages;
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('userGrid').innerHTML = `
+                    <div class="empty-state">
+                        <p>⚠️ Failed to load users</p>
+                        <p style="font-size: 0.9rem; color: #666;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayUsers(users) {
+            const grid = document.getElementById('userGrid');
+            
+            if (users.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><p>No users found</p></div>';
+                return;
+            }
+            
+            grid.innerHTML = users.map(user => {
+                const isLocked = user.account_locked && user.locked_until && new Date(user.locked_until) > new Date();
+                const lockClass = isLocked ? 'locked' : '';
+                
+                return `
+                <div class="user-card ${lockClass}">
+                    <div class="user-info">
+                        <h3>
+                            ${escapeHtml(user.username)}
+                            <span class="user-badge role-${user.role}">${user.role}</span>
+                            ${isLocked ? '<span class="user-badge" style="background: #ffc107; color: #333;">🔒 Locked</span>' : ''}
+                        </h3>
+                        <div class="user-meta">
+                            <span>📧 ${escapeHtml(user.email)}</span>
+                            <span class="status-${user.is_active ? 'active' : 'inactive'}">
+                                ${user.is_active ? '✓ Active' : '✗ Inactive'}
+                            </span>
+                            ${user.last_login ? `<span>Last login: ${new Date(user.last_login).toLocaleDateString()}</span>` : '<span>🆕 Never logged in</span>'}
+                        </div>
+                    </div>
+                    <div class="user-actions">
+                        ${isLocked ? `<button onclick="unlockUser(${user.id}, '${escapeHtml(user.username)}')" class="btn btn-sm btn-warning">🔓 Unlock</button>` : ''}
+                        <button onclick="editUser(${user.id})" class="btn btn-sm btn-secondary">Edit</button>
+                        <button onclick="resetPassword(${user.id}, '${escapeHtml(user.username)}')" class="btn btn-sm btn-secondary">Reset Password</button>
+                        ${user.is_active ? 
+                            `<button onclick="deactivateUser(${user.id}, '${escapeHtml(user.username)}')" class="btn btn-sm btn-danger">Deactivate</button>` :
+                            `<button onclick="activateUser(${user.id}, '${escapeHtml(user.username)}')" class="btn btn-sm btn-success">Activate</button>`
+                        }
+                    </div>
+                </div>
+            `}).join('');
+        }
+        
+        async function unlockUser(userId, username) {
+            if (!confirm(`Unlock account for ${username}?`)) return;
+            
+            try {
+                const response = await authFetch(`/api/auth/unlock/${userId}`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || 'Failed to unlock account');
+                }
+                
+                alert(`✅ Account for ${username} has been unlocked successfully`);
+                loadUsers(currentPage);
+            } catch (error) {
+                console.error('Error unlocking account:', error);
+                alert(`⚠️ Failed to unlock account: ${error.message}`);
+            }
+        }
+        
+        function updatePagination(pagination) {
+            const paginationDiv = document.getElementById('pagination');
+            
+            if (pagination.pages <= 1) {
+                paginationDiv.innerHTML = '';
+                return;
+            }
+            
+            let html = '';
+            
+            if (pagination.page > 1) {
+                html += `<button class="btn btn-secondary" onclick="loadUsers(${pagination.page - 1})">Previous</button>`;
+            }
+            
+            html += `<span>Page ${pagination.page} of ${pagination.pages} (${pagination.total} users)</span>`;
+            
+            if (pagination.page < pagination.pages) {
+                html += `<button class="btn btn-secondary" onclick="loadUsers(${pagination.page + 1})">Next</button>`;
+            }
+            
+            paginationDiv.innerHTML = html;
+        }
+        
+        function filterUsers() {
+            loadUsers(1);
+        }
+        
+        function showCreateModal() {
+            document.getElementById('modalTitle').textContent = 'Add New User';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('passwordGroup').style.display = 'block';
+            document.getElementById('password').required = true;
+            document.getElementById('username').readOnly = false;
+            document.getElementById('strengthMeter').style.display = 'none';
+            document.getElementById('userModal').style.display = 'block';
+            
+            const passwordInput = document.getElementById('password');
+            passwordInput.removeEventListener('input', updateStrengthMeter);
+            passwordInput.addEventListener('input', updateStrengthMeter);
+        }
+        
+        async function editUser(userId) {
+            try {
+                const response = await authFetch(`/api/users/${userId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user');
+                }
+                
+                const result = await response.json();
+                const user = result.data;
+                
+                document.getElementById('modalTitle').textContent = 'Edit User';
+                document.getElementById('userId').value = user.id;
+                document.getElementById('username').value = user.username;
+                document.getElementById('username').readOnly = true;
+                document.getElementById('email').value = user.email;
+                document.getElementById('role').value = user.role;
+                document.getElementById('passwordGroup').style.display = 'none';
+                document.getElementById('password').required = false;
+                document.getElementById('userModal').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading user:', error);
+                alert('⚠️ Failed to load user details');
+            }
+        }
+        
+        async function saveUser(event) {
+            event.preventDefault();
+            
+            const userId = document.getElementById('userId').value;
+            const isEdit = !!userId;
+            
+            const data = {
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
+                role: document.getElementById('role').value
+            };
+            
+            if (!isEdit) {
+                data.password = document.getElementById('password').value;
+            }
+            
+            try {
+                const response = await authFetch(
+                    isEdit ? `/api/users/${userId}` : '/api/users',
+                    {
+                        method: isEdit ? 'PUT' : 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    }
+                );
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || 'Failed to save user');
+                }
+                
+                alert(`✅ User ${isEdit ? 'updated' : 'created'} successfully`);
+                closeModal();
+                loadUsers(currentPage);
+            } catch (error) {
+                console.error('Error saving user:', error);
+                alert(`⚠️ Failed to ${isEdit ? 'update' : 'create'} user: ${error.message}`);
+            }
+        }
+        
+        async function resetPassword(userId, username) {
+            const newPassword = prompt(`Enter new password for ${username}:\n\nRequirements:\n- At least 8 characters\n- Uppercase, lowercase, number, special char`);
+            if (!newPassword) return;
+            
+            if (newPassword.length < 8) {
+                alert('⚠️ Password must be at least 8 characters');
+                return;
+            }
+            
+            try {
+                const response = await authFetch(`/api/users/${userId}/password`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newPassword })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || 'Failed to reset password');
+                }
+                
+                alert(`✅ Password reset successfully for ${username}`);
+            } catch (error) {
+                console.error('Error resetting password:', error);
+                alert(`⚠️ Failed to reset password: ${error.message}`);
+            }
+        }
+        
+        async function deactivateUser(userId, username) {
+            if (!confirm(`Are you sure you want to deactivate ${username}?`)) return;
+            
+            try {
+                const response = await authFetch(`/api/users/${userId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || 'Failed to deactivate user');
+                }
+                
+                alert(`✅ User ${username} deactivated successfully`);
+                loadUsers(currentPage);
+            } catch (error) {
+                console.error('Error deactivating user:', error);
+                alert(`⚠️ Failed to deactivate user: ${error.message}`);
+            }
+        }
+        
+        async function activateUser(userId, username) {
+            try {
+                const response = await authFetch(`/api/users/${userId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: true })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || 'Failed to activate user');
+                }
+                
+                alert(`✅ User ${username} activated successfully`);
+                loadUsers(currentPage);
+            } catch (error) {
+                console.error('Error activating user:', error);
+                alert(`⚠️ Failed to activate user: ${error.message}`);
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+        
+        window.onclick = function(event) {
+            const modal = document.getElementById('userModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        checkPermissions();
+        loadUsers();
+    </script>
+    
+    <!-- PWA Scripts -->
+    <script src="/lib/pwa/offlineStorage.js"></script>
+    <script src="/js/pwa-init.js"></script>
+    <script src="/js/pwa-install.js"></script>
+    
+    <!-- Mobile Scripts -->
+    <script src="/js/touch-gestures.js"></script>
+    <script src="/js/mobile-components.js"></script>
+    <script src="/js/mobile-navigation.js"></script>
+</body>
+</html>

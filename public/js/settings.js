@@ -1,7 +1,10 @@
 /* ==========================================================================
-   Settings Management - v0.7.8c
+   Settings Management - v0.10.5
    Version checking, updates, export/import, backup system, and settings
-   FIXED: Added comprehensive safety checks and error handling
+   FIXED: Auto-refresh backup list after create, improved error handling
+   FIXED: Added cache-busting to prevent stale backup list
+   FIXED PR #21: Removed all inline styles for CSP compliance
+   FIXED: Removed inline onclick handlers from backup buttons (CSP violation)
    ========================================================================== */
 
 /* ==========================================================================
@@ -94,7 +97,7 @@ function switchSettingsTab(tabName) {
 }
 
 /* ==========================================================================
-   Channel Selector Initialization - FIXED with defensive checks
+   Channel Selector Initialization - FIXED PR #21: No inline styles
    ========================================================================== */
 
 async function loadChannelSelector() {
@@ -118,10 +121,10 @@ async function loadChannelSelector() {
             return;
         }
         
-        // Safely populate selector
+        // Safely populate selector (NO INLINE STYLES)
         channelSelectorDiv.innerHTML = `
-            <label for="updateChannelSelect" style="display: block; margin-bottom: 8px; font-weight: 600;">Select Update Channel:</label>
-            <select id="updateChannelSelect" style="padding: 8px; border-radius: 6px; border: 2px solid #e5e7eb; width: 100%; max-width: 300px;">
+            <label for="updateChannelSelect" class="channel-selector-label">Select Update Channel:</label>
+            <select id="updateChannelSelect" class="channel-selector-select">
                 ${data.availableChannels.map(ch => `
                     <option value="${ch.id}" ${ch.id === data.channel ? 'selected' : ''}>
                         ${ch.name} - ${ch.description}
@@ -136,36 +139,35 @@ async function loadChannelSelector() {
         // Setup event listener with cleanup
         const select = document.getElementById('updateChannelSelect');
         if (select && switchBtn) {
-            // Remove old listener to prevent duplicates (using onchange for simplicity)
             select.onchange = function() {
                 const isDifferent = this.value !== data.channel;
                 switchBtn.disabled = !isDifferent;
             };
         }
         
-        // Update status display
+        // Update status display (NO INLINE STYLES)
         const targetBranch = data.channel === 'stable' ? 'main' : 'beta';
-        const statusColor = data.currentBranch === targetBranch ? '#10b981' : '#f59e0b';
+        const statusClass = data.currentBranch === targetBranch ? 'success' : 'warning';
         const statusIcon = data.currentBranch === targetBranch ? '✅' : '⚠️';
         
         currentStatusDiv.innerHTML = `
-            <div style="margin: 15px 0; padding: 12px; background: #f9fafb; border-left: 4px solid ${statusColor}; border-radius: 6px;">
+            <div class="settings-status-box ${statusClass}">
                 <strong>${statusIcon} Current Status:</strong><br>
-                <span style="margin-left: 10px;">Channel: <strong>${data.channel}</strong></span><br>
-                <span style="margin-left: 10px;">Branch: <strong>${data.currentBranch}</strong></span>
+                <span class="settings-status-text">Channel: <strong>${data.channel}</strong></span><br>
+                <span class="settings-status-text">Branch: <strong>${data.currentBranch}</strong></span>
             </div>
         `;
         
     } catch (error) {
         console.error('Error loading channel selector:', error);
         
-        // IMPROVED: Show user-friendly error in UI
+        // IMPROVED: Show user-friendly error in UI (NO INLINE STYLES)
         const currentStatusDiv = document.getElementById('currentStatus');
         if (currentStatusDiv) {
             currentStatusDiv.innerHTML = `
-                <div style="margin: 15px 0; padding: 12px; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 6px;">
+                <div class="settings-status-box error">
                     <strong>⚠️ Failed to Load Channel Settings</strong><br>
-                    <span style="margin-left: 10px; color: #991b1b;">Cannot connect to update server</span>
+                    <span class="settings-status-text">Cannot connect to update server</span>
                 </div>
             `;
         }
@@ -174,7 +176,7 @@ async function loadChannelSelector() {
 }
 
 /* ==========================================================================
-   About Section - Dynamic Loading
+   About Section - Dynamic Loading - FIXED PR #21: Removed inline styles
    ========================================================================== */
 
 async function loadAboutInfo() {
@@ -190,23 +192,23 @@ async function loadAboutInfo() {
         
         let html = `
             <h3>🛍️ Grocery Inventory v${data.currentVersion}</h3>
-            <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
+            <p class="about-intro">Professional inventory management for grocery stores</p>
         `;
         
         if (data.versions && data.versions.length > 0) {
-            html += `<h4 style="margin-top: 25px; margin-bottom: 10px;">Recent Updates</h4><ul class="changelog-list">`;
+            html += `<h4 class="about-section-title">Recent Updates</h4><ul class="changelog-list">`;
             
             data.versions.slice(0, 5).forEach(version => {
-                html += `<li style="margin-bottom: 15px;"><strong>v${version.version}</strong> - ${version.date}<ul style="margin-left: 20px; margin-top: 5px;">`;
+                html += `<li class="mb-15"><strong>v${version.version}</strong> - ${version.date}<ul class="mt-5">`;
                 
                 let lastCategory = null;
                 version.changes.forEach(change => {
                     if (change.type === 'category') {
                         if (lastCategory) html += '</ul>';
-                        html += `<li style="font-weight: 600; color: #667eea; margin-top: 8px;">${change.text}<ul style="margin-left: 15px;">`;
+                        html += `<li class="mt-8" style="font-weight: 600; color: #667eea;">${change.text}<ul>`;
                         lastCategory = change.text;
                     } else if (change.type === 'item') {
-                        html += `<li style="font-weight: normal; color: #374151;">${change.text}</li>`;
+                        html += `<li>${change.text}</li>`;
                     }
                 });
                 
@@ -218,7 +220,7 @@ async function loadAboutInfo() {
         }
         
         html += `
-            <h4 style="margin-top: 25px; margin-bottom: 10px;">Features</h4>
+            <h4 class="about-section-title">Features</h4>
             <ul class="changelog-list">
                 <li>📊 Dashboard with real-time statistics</li>
                 <li>🚨 Expiration alerts (expired, urgent, soon)</li>
@@ -230,11 +232,11 @@ async function loadAboutInfo() {
                 <li>♻️ Backup restore with safety snapshots</li>
                 <li>📊 CSV import/export</li>
             </ul>
-            <h4 style="margin-top: 25px; margin-bottom: 10px;">Links</h4>
-            <p><a href="https://github.com/zv20/invai" target="_blank" style="color: #667eea; text-decoration: underline;">🔗 GitHub Repository</a></p>
-            <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/blob/main/CHANGELOG.md" target="_blank" style="color: #667eea; text-decoration: underline;">📋 Full Changelog</a></p>
-            <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/issues" target="_blank" style="color: #667eea; text-decoration: underline;">📝 Report an Issue</a></p>
-            <h4 style="margin-top: 25px; margin-bottom: 10px;">License</h4>
+            <h4 class="about-section-title">Links</h4>
+            <p><a href="https://github.com/zv20/invai" target="_blank" class="about-link">🔗 GitHub Repository</a></p>
+            <p class="about-links"><a href="https://github.com/zv20/invai/blob/main/CHANGELOG.md" target="_blank" class="about-link">📋 Full Changelog</a></p>
+            <p class="about-links"><a href="https://github.com/zv20/invai/issues" target="_blank" class="about-link">📝 Report an Issue</a></p>
+            <h4 class="about-section-title">License</h4>
             <p>MIT License - Free to use and modify</p>
         `;
         
@@ -423,11 +425,9 @@ async function checkVersion() {
             if (footerText) footerText.textContent = `⚠️ ${data.currentVersion} → ${data.latestVersion}`;
             
             if (statusDiv) {
+                statusDiv.className = 'settings-status-box warning';
                 statusDiv.style.display = 'block';
-                statusDiv.style.background = '#fef3c7';
-                statusDiv.style.border = '2px solid #f59e0b';
-                statusDiv.style.color = '#92400e';
-                statusDiv.innerHTML = `<strong>🎉 Update Available!</strong><br>Current: ${data.currentVersion} → Latest: ${data.latestVersion}<br><a href="https://github.com/zv20/invai" target="_blank" style="color: #92400e; text-decoration: underline;">View on GitHub</a>`;
+                statusDiv.innerHTML = `<strong>🎉 Update Available!</strong><br>Current: ${data.currentVersion} → Latest: ${data.latestVersion}<br><a href="https://github.com/zv20/invai" target="_blank" class="about-link">View on GitHub</a>`;
             }
         } else {
             const updateBanner = document.getElementById('updateBanner');
@@ -436,10 +436,8 @@ async function checkVersion() {
             if (footerText) footerText.textContent = `✓ v${data.currentVersion}`;
             
             if (statusDiv) {
+                statusDiv.className = 'settings-status-box success';
                 statusDiv.style.display = 'block';
-                statusDiv.style.background = '#dcfce7';
-                statusDiv.style.border = '2px solid #10b981';
-                statusDiv.style.color = '#065f46';
                 statusDiv.innerHTML = '<strong>✓ You are running the latest version!</strong>';
             }
         }
@@ -447,17 +445,16 @@ async function checkVersion() {
         console.error('Error checking version:', error);
         const statusDiv = document.getElementById('versionStatus');
         if (statusDiv) {
+            statusDiv.className = 'settings-status-box error';
             statusDiv.style.display = 'block';
-            statusDiv.style.background = '#fee2e2';
-            statusDiv.style.border = '2px solid #ef4444';
-            statusDiv.style.color = '#991b1b';
             statusDiv.innerHTML = '<strong>✕ Failed to check for updates</strong><br>Check your connection.';
         }
     }
 }
 
 /* ==========================================================================
-   Backup System
+   Backup System - FIXED: Auto-refresh list after create + cache-busting
+   FIXED: Removed inline onclick handlers (CSP compliance)
    ========================================================================== */
 
 async function createBackup() {
@@ -474,7 +471,8 @@ async function createBackup() {
         
         if (response.ok) {
             notify(`Backup created: ${data.filename}`, 'success');
-            loadBackups();
+            // FIXED: Auto-refresh backup list
+            await loadBackups();
         } else {
             notify(`Backup failed: ${data.error}`, 'error');
         }
@@ -491,10 +489,12 @@ async function loadBackups() {
     const list = document.getElementById('backupList');
     if (!list) return;
     
-    list.innerHTML = '<div style="text-align: center; padding: 20px; color: #9ca3af;">⌛ Loading backups...</div>';
+    list.innerHTML = '<div class="backup-list-loading">⌛ Loading backups...</div>';
     
     try {
-        const response = await authFetch(`${API_URL}/api/backup/list`);
+        // FIXED: Add cache-busting timestamp to force fresh data
+        const cacheBuster = Date.now();
+        const response = await authFetch(`${API_URL}/api/backup/list?_t=${cacheBuster}`);
         const backups = await response.json();
         
         if (!response.ok) {
@@ -502,10 +502,11 @@ async function loadBackups() {
         }
         
         if (backups.length === 0) {
-            list.innerHTML = '<div style="text-align: center; padding: 20px; color: #9ca3af;">📂 No backups yet</div>';
+            list.innerHTML = '<div class="backup-list-loading">📂 No backups yet</div>';
             return;
         }
         
+        // FIXED: Use data attributes instead of inline onclick handlers
         list.innerHTML = backups.map(backup => `
             <div class="backup-item">
                 <div class="backup-info">
@@ -517,16 +518,59 @@ async function loadBackups() {
                     </div>
                 </div>
                 <div class="backup-actions">
-                    <button onclick="restoreBackup('${backup.filename}')" class="btn-small btn-primary">♻️ Restore</button>
-                    <button onclick="downloadBackup('${backup.filename}')" class="btn-small btn-primary">⬇️ Download</button>
-                    <button onclick="deleteBackup('${backup.filename}')" class="btn-small btn-danger">🗑️ Delete</button>
+                    <button data-action="restore" data-filename="${backup.filename}" class="btn-small btn-primary">♻️ Restore</button>
+                    <button data-action="download" data-filename="${backup.filename}" class="btn-small btn-primary">⬇️ Download</button>
+                    <button data-action="delete" data-filename="${backup.filename}" class="btn-small btn-danger">🗑️ Delete</button>
                 </div>
             </div>
         `).join('');
+        
+        // FIXED: Setup event delegation for backup action buttons
+        setupBackupActionHandlers();
+        
     } catch (error) {
         console.error('Error loading backups:', error);
-        list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">✗ Failed to load backups</div>';
+        list.innerHTML = '<div class="backup-list-loading" style="color: #ef4444;">✗ Failed to load backups</div>';
     }
+}
+
+// FIXED: Event delegation for backup actions (CSP-compliant)
+function setupBackupActionHandlers() {
+    const backupList = document.getElementById('backupList');
+    if (!backupList) return;
+    
+    // Remove old listener if exists
+    const oldListener = backupList._backupActionListener;
+    if (oldListener) {
+        backupList.removeEventListener('click', oldListener);
+    }
+    
+    // Create new listener
+    const newListener = async function(event) {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        
+        const action = button.dataset.action;
+        const filename = button.dataset.filename;
+        
+        if (!action || !filename) return;
+        
+        switch (action) {
+            case 'restore':
+                await restoreBackup(filename);
+                break;
+            case 'download':
+                downloadBackup(filename);
+                break;
+            case 'delete':
+                await deleteBackup(filename);
+                break;
+        }
+    };
+    
+    // Store reference and attach
+    backupList._backupActionListener = newListener;
+    backupList.addEventListener('click', newListener);
 }
 
 async function restoreBackup(filename) {
@@ -568,17 +612,20 @@ async function deleteBackup(filename) {
             method: 'DELETE'
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            notify(`Backup deleted: ${filename}`, 'success');
-            loadBackups();
-        } else {
-            notify(`Failed to delete: ${data.error}`, 'error');
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || `HTTP ${response.status}`);
         }
+        
+        const data = await response.json();
+        notify(`Backup deleted: ${filename}`, 'success');
+        
+        // FIXED: Auto-refresh backup list
+        await loadBackups();
+        
     } catch (error) {
         console.error('Delete error:', error);
-        notify('Failed to delete backup', 'error');
+        notify(`Failed to delete backup: ${error.message}`, 'error');
     }
 }
 
@@ -797,7 +844,7 @@ async function confirmReset() {
 }
 
 /* ==========================================================================
-   Notification Helper - Standardized with icons
+   Notification Helper - FIXED PR #21: Uses CSS classes
    ========================================================================== */
 
 function notify(message, type = 'info') {
@@ -807,29 +854,8 @@ function notify(message, type = 'info') {
 }
 
 function showNotification(message, type = 'info') {
-    const colors = {
-        success: { bg: '#dcfce7', border: '#10b981', text: '#065f46' },
-        error: { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' },
-        warning: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-        info: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' }
-    };
-    
-    const color = colors[type] || colors.info;
     const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${color.bg};
-        border: 2px solid ${color.border};
-        color: ${color.text};
-        padding: 15px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: ${CONFIG.NOTIFICATION_Z_INDEX};
-        font-weight: 600;
-        max-width: 300px;
-    `;
+    notification.className = `settings-notification ${type}`;
     notification.textContent = message;
     document.body.appendChild(notification);
     

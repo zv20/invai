@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Dashboard Builder - InvAI</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InvAI">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
+    <link rel="stylesheet" href="/css/style.css">
+    
+    <!-- Mobile CSS -->
+    <link rel="stylesheet" href="/css/mobile.css">
+    
+    <style>
+        .builder-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+            height: calc(100vh - 40px);
+        }
+
+        .builder-sidebar {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .builder-main {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .builder-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #333;
+        }
+
+        .widget-gallery {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .widget-card {
+            background: #252525;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: move;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .widget-card:hover {
+            border-color: #4CAF50;
+            transform: translateY(-2px);
+        }
+
+        .widget-card h4 {
+            margin: 0 0 5px 0;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .widget-card p {
+            margin: 0;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            min-height: 600px;
+            background: #0a0a0a;
+            padding: 20px;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .dashboard-widget {
+            background: #252525;
+            border-radius: 8px;
+            padding: 15px;
+            position: relative;
+            border: 2px solid #333;
+            transition: all 0.3s;
+        }
+
+        .dashboard-widget:hover {
+            border-color: #4CAF50;
+        }
+
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .widget-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .widget-actions button {
+            padding: 4px 8px;
+            font-size: 11px;
+            background: #333;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .widget-actions button:hover {
+            background: #4CAF50;
+        }
+
+        .widget-content {
+            color: #888;
+            font-size: 13px;
+        }
+
+        .dashboard-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-selector select {
+            flex: 1;
+            padding: 10px;
+            background: #252525;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: white;
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .template-card {
+            background: #252525;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .template-card:hover {
+            border-color: #4CAF50;
+        }
+
+        .template-card h4 {
+            margin: 0 0 5px 0;
+            font-size: 13px;
+        }
+
+        .template-card p {
+            margin: 0;
+            font-size: 11px;
+            color: #888;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #888;
+            font-size: 13px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            background: #252525;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: white;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            color: #888;
+            font-size: 13px;
+        }
+
+        @media (max-width: 1024px) {
+            .builder-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="builder-container">
+        <div class="builder-sidebar">
+            <h3>🎨 Dashboard Builder</h3>
+            
+            <div style="margin-bottom: 30px;">
+                <h4 style="color: #888; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Templates</h4>
+                <div id="template-list" class="template-grid"></div>
+            </div>
+
+            <div>
+                <h4 style="color: #888; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Widget Gallery</h4>
+                <div id="widget-gallery" class="widget-gallery"></div>
+            </div>
+        </div>
+
+        <div class="builder-main">
+            <div class="builder-toolbar">
+                <div>
+                    <h2 style="margin: 0;">Dashboard Editor</h2>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="save-dashboard" class="btn btn-primary">💾 Save Dashboard</button>
+                    <button id="new-dashboard" class="btn btn-secondary">➕ New</button>
+                    <button id="export-dashboard" class="btn btn-secondary">📅 Export</button>
+                    <button id="import-dashboard" class="btn btn-secondary">📤 Import</button>
+                </div>
+            </div>
+
+            <div class="dashboard-selector">
+                <select id="dashboard-select">
+                    <option value="">Select a dashboard...</option>
+                </select>
+                <button id="clone-dashboard" class="btn btn-secondary">📎 Clone</button>
+                <button id="delete-dashboard" class="btn btn-danger">🗑️ Delete</button>
+            </div>
+
+            <div id="dashboard-grid" class="dashboard-grid">
+                <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 40px;">
+                    🎉 Start by adding widgets from the gallery or selecting a template
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="config-modal" class="modal">
+        <div class="modal-content">
+            <h3>Configure Widget</h3>
+            <div id="config-form"></div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button id="save-config" class="btn btn-primary" style="flex: 1;">Save</button>
+                <button id="cancel-config" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="create-modal" class="modal">
+        <div class="modal-content">
+            <h3>Create Dashboard</h3>
+            <div class="form-group">
+                <label>Dashboard Name</label>
+                <input type="text" id="new-dashboard-name" placeholder="My Dashboard">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="new-dashboard-desc" rows="3" placeholder="Optional description"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button id="create-dashboard-btn" class="btn btn-primary" style="flex: 1;">Create</button>
+                <button id="cancel-create" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/dashboard-builder.js"></script>
+    
+    <!-- PWA Scripts -->
+    <script src="/lib/pwa/offlineStorage.js"></script>
+    <script src="/js/pwa-init.js"></script>
+    <script src="/js/pwa-install.js"></script>
+    
+    <!-- Mobile Scripts -->
+    <script src="/js/touch-gestures.js"></script>
+    <script src="/js/mobile-components.js"></script>
+    <script src="/js/mobile-navigation.js"></script>
+</body>
+</html>

@@ -7,6 +7,7 @@
 # - Asks for permission with data loss warning
 # - Creates automatic backup
 # - Safe rollback capability
+# - Dependency verification
 # - Works with both root and non-root users
 
 set -e  # Exit on error
@@ -143,7 +144,8 @@ echo ""
 echo "  1. A backup of your database will be created automatically"
 echo "  2. The application will restart (brief downtime)"
 echo "  3. Database migrations will run if needed"
-echo "  4. You can rollback if issues occur"
+echo "  4. Dependencies will be verified and updated"
+echo "  5. You can rollback if issues occur"
 echo ""
 echo "  Backup location: ./backups/"
 echo ""
@@ -216,10 +218,36 @@ fi
 echo "✅ Code updated"
 echo ""
 
+# Function to verify dependencies
+verify_dependencies() {
+    echo "🔍 Verifying dependencies..."
+    
+    # List of critical dependencies to check
+    local REQUIRED_MODULES=("express" "sqlite3" "jsonwebtoken" "bcryptjs" "helmet" "json2csv" "web-push")
+    local MISSING=()
+    
+    for module in "${REQUIRED_MODULES[@]}"; do
+        if ! node -e "require('$module')" 2>/dev/null; then
+            MISSING+=("$module")
+        fi
+    done
+    
+    if [ ${#MISSING[@]} -gt 0 ]; then
+        echo "❌ Missing required modules:"
+        for module in "${MISSING[@]}"; do
+            echo "   • $module"
+        done
+        return 1
+    fi
+    
+    echo "✓ All required dependencies verified"
+    return 0
+}
+
 # Update dependencies if package.json changed
 if git diff HEAD@{1} HEAD --name-only | grep -q "package.json"; then
-    echo "📦 Installing dependencies..."
-    npm install --production
+    echo "📦 package.json changed - Installing dependencies..."
+    npm install
     
     if [ $? -ne 0 ]; then
         echo "❌ Dependency installation failed"
@@ -229,14 +257,41 @@ if git diff HEAD@{1} HEAD --name-only | grep -q "package.json"; then
         exit 1
     fi
     
-    echo "✅ Dependencies installed"
+    echo "✓ Dependencies installed"
+    echo ""
+    
+    # Verify dependencies
+    verify_dependencies
+    
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "⚠️  Some dependencies are missing. Attempting to fix..."
+        echo "Running: npm install --force"
+        npm install --force
+        
+        echo ""
+        echo "🔍 Verifying again..."
+        verify_dependencies
+        
+        if [ $? -ne 0 ]; then
+            echo ""
+            echo "❌ Dependency verification failed!"
+            echo ""
+            echo "Rollback command:"
+            echo "  git reset --hard $LOCAL"
+            echo "  npm install"
+            exit 1
+        fi
+    fi
+else
+    echo "✓ No dependency updates needed"
     echo ""
 fi
 
 # Create logs directory if needed
 if [ ! -d "logs" ]; then
     mkdir -p logs
-    echo "✅ Created logs directory"
+    echo "✓ Created logs directory"
     echo ""
 fi
 
@@ -250,7 +305,7 @@ for name in invai inventory-app grocery-inventory node-invai inventory; do
         SERVICE_NAME="$name"
         break
     fi
-don
+done
 
 RESTART_SUCCESS=false
 
@@ -332,9 +387,9 @@ if [ -n "$SERVICE_NAME" ]; then
     echo "  • Check logs: journalctl -u $SERVICE_NAME -n 50 -f"
     echo "  • View app: http://localhost:3000"
     if [ -n "$SUDO_CMD" ]; then
-        echo "  • Rollback: git reset --hard $LOCAL && sudo systemctl restart $SERVICE_NAME"
+        echo "  • Rollback: git reset --hard $LOCAL && npm install && sudo systemctl restart $SERVICE_NAME"
     else
-        echo "  • Rollback: git reset --hard $LOCAL && systemctl restart $SERVICE_NAME"
+        echo "  • Rollback: git reset --hard $LOCAL && npm install && systemctl restart $SERVICE_NAME"
     fi
 fi
 echo ""

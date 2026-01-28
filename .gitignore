@@ -27,6 +27,11 @@ backups/
 temp/
 tmp/
 
+# Testing
+coverage/
+*.test.js.snap
+.jest-cache/
+
 # OS files
 .DS_Store
 Thumbs.db

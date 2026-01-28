@@ -2,153 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Login - InvAI</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .login-container {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            width: 100%;
-            max-width: 400px;
-            padding: 40px;
-        }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .login-header h1 {
-            color: #333;
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
-
-        .login-header p {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            color: #333;
-            font-weight: 500;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .login-button {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .login-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .login-button:active {
-            transform: translateY(0);
-        }
-
-        .login-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .alert {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            display: none;
-        }
-
-        .alert-error {
-            background-color: #fee;
-            color: #c33;
-            border: 1px solid #fcc;
-        }
-
-        .alert-success {
-            background-color: #efe;
-            color: #3c3;
-            border: 1px solid #cfc;
-        }
-
-        .alert-warning {
-            background-color: #ffc;
-            color: #993;
-            border: 1px solid #ff9;
-        }
-
-        .version {
-            text-align: center;
-            color: #999;
-            font-size: 12px;
-            margin-top: 20px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 0.6s linear infinite;
-            margin-right: 8px;
-        }
-    </style>
+    
+    <!-- Login Page CSS (CSP compliant - external file) -->
+    <link rel="stylesheet" href="/css/login.css">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InvAI">
+    <meta name="theme-color" content="#667eea">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
+    <!-- Mobile CSS -->
+    <link rel="stylesheet" href="/css/mobile.css">
 </head>
 <body>
     <div class="login-container">
@@ -188,7 +62,7 @@
             </button>
         </form>
 
-        <div class="version" id="version">v0.8.1</div>
+        <div class="version" id="version">v0.8.4a</div>
     </div>
 
     <script>
@@ -197,6 +71,7 @@
         const alertBox = document.getElementById('alert');
         const usernameInput = document.getElementById('username');
         const passwordInput = document.getElementById('password');
+        let countdownInterval = null;
 
         // Check if already logged in
         if (localStorage.getItem('auth_token')) {
@@ -205,7 +80,13 @@
 
         // Show alert message
         function showAlert(message, type = 'error') {
-            alertBox.textContent = message;
+            // Clear any existing countdown
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+
+            alertBox.innerHTML = message;
             alertBox.className = `alert alert-${type}`;
             alertBox.style.display = 'block';
             
@@ -216,8 +97,47 @@
             }
         }
 
+        // Show lockout alert with countdown
+        function showLockoutAlert(remainingSeconds, message) {
+            loginBtn.disabled = true;
+            
+            const updateCountdown = () => {
+                const minutes = Math.floor(remainingSeconds / 60);
+                const seconds = remainingSeconds % 60;
+                const timeStr = minutes > 0 
+                    ? `${minutes}:${seconds.toString().padStart(2, '0')}`
+                    : `${seconds} second${seconds !== 1 ? 's' : ''}`;
+                
+                alertBox.innerHTML = `
+                    <strong>🔒 Account Locked</strong>
+                    ${message || 'Too many failed login attempts.'}
+                    <span class="countdown">Try again in: ${timeStr}</span>
+                `;
+                
+                if (remainingSeconds <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    loginBtn.disabled = false;
+                    alertBox.style.display = 'none';
+                } else {
+                    remainingSeconds--;
+                }
+            };
+
+            alertBox.className = 'alert alert-lockout';
+            alertBox.style.display = 'block';
+            updateCountdown();
+            
+            // Update countdown every second
+            countdownInterval = setInterval(updateCountdown, 1000);
+        }
+
         // Hide alert
         function hideAlert() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
             alertBox.style.display = 'none';
         }
 
@@ -249,23 +169,42 @@
 
                 const data = await response.json();
 
+                // Handle account lockout (423)
+                if (response.status === 423) {
+                    loginBtn.textContent = 'Sign In';
+                    const remainingTime = data.error?.remainingTime || 900; // Default 15 minutes
+                    showLockoutAlert(remainingTime, data.error?.message);
+                    return;
+                }
+
                 if (!response.ok) {
-                    throw new Error(data.error || 'Login failed');
+                    throw new Error(data.error?.message || data.error || 'Login failed');
                 }
 
                 // Store token and user info
                 localStorage.setItem('auth_token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
 
+                // Check for password expiration warning
+                if (data.passwordStatus) {
+                    if (data.passwordStatus.expired) {
+                        showAlert('⚠️ ' + data.passwordStatus.message, 'warning');
+                    } else if (data.passwordStatus.warning) {
+                        showAlert('⚠️ ' + data.passwordStatus.message, 'warning');
+                    }
+                }
+
                 // Show success message
                 showAlert('Login successful! Redirecting...', 'success');
 
                 // Check if using default password
                 if (username === 'admin' && password === 'admin123') {
-                    showAlert('⚠️ You are using the default password! Please change it immediately.', 'warning');
                     setTimeout(() => {
-                        window.location.href = '/settings.html#security';
-                    }, 2000);
+                        showAlert('⚠️ You are using the default password! Please change it immediately.', 'warning');
+                    }, 1000);
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 3000);
                 } else {
                     // Redirect to main app
                     setTimeout(() => {
@@ -293,5 +232,14 @@
                 // Ignore error
             });
     </script>
+    
+    <!-- PWA Scripts -->
+    <script src="/lib/pwa/offlineStorage.js"></script>
+    <script src="/js/pwa-init.js"></script>
+    <script src="/js/pwa-install.js"></script>
+    
+    <!-- Mobile Scripts -->
+    <script src="/js/touch-gestures.js"></script>
+    <script src="/js/mobile-components.js"></script>
 </body>
 </html>

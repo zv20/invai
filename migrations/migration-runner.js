@@ -1,11 +1,15 @@
 /**
- * Migration Runner
- * Handles database schema migrations with version tracking
+ * Migration Runner - Sprint 4 Phase 1: PostgreSQL Support
+ * 
+ * Enhanced to work with database adapters:
+ * - Supports both SQLite and PostgreSQL
+ * - Uses adapter interface for all database operations
+ * - Maintains backward compatibility
  */
 
 class MigrationRunner {
-  constructor(db) {
-    this.db = db;
+  constructor(dbAdapter) {
+    this.adapter = dbAdapter;
     this.migrationsPath = __dirname;
   }
 
@@ -13,84 +17,58 @@ class MigrationRunner {
    * Initialize migration system - create schema_migrations table
    */
   async initialize() {
-    return new Promise((resolve, reject) => {
-      this.db.run(`
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          version INTEGER NOT NULL UNIQUE,
-          name TEXT NOT NULL,
-          applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          status TEXT DEFAULT 'completed'
-        )
-      `, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    const sql = `
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        id ${this.adapter.getSyntax('autoincrement')},
+        version INTEGER NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        applied_at ${this.adapter.getSyntax('timestamp_default')},
+        status TEXT DEFAULT 'completed'
+      )
+    `;
+    
+    await this.adapter.run(sql);
   }
 
   /**
    * Get current schema version
    */
   async getCurrentVersion() {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        'SELECT MAX(version) as version FROM schema_migrations',
-        [],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row?.version || 0);
-        }
-      );
-    });
+    const row = await this.adapter.get(
+      'SELECT MAX(version) as version FROM schema_migrations'
+    );
+    return row?.version || 0;
   }
 
   /**
    * Check if a migration has been applied
    */
   async isMigrationApplied(version) {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        'SELECT version FROM schema_migrations WHERE version = ?',
-        [version],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(!!row);
-        }
-      );
-    });
+    const row = await this.adapter.get(
+      'SELECT version FROM schema_migrations WHERE version = ?',
+      [version]
+    );
+    return !!row;
   }
 
   /**
    * Record a migration as applied
    */
   async recordMigration(version, name) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        'INSERT INTO schema_migrations (version, name) VALUES (?, ?)',
-        [version, name],
-        (err) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
+    await this.adapter.run(
+      'INSERT INTO schema_migrations (version, name) VALUES (?, ?)',
+      [version, name]
+    );
   }
 
   /**
    * Get migration history
    */
   async getHistory() {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        'SELECT * FROM schema_migrations ORDER BY version DESC',
-        [],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows || []);
-        }
-      );
-    });
+    const rows = await this.adapter.all(
+      'SELECT * FROM schema_migrations ORDER BY version DESC'
+    );
+    return rows || [];
   }
 
   /**
@@ -155,16 +133,18 @@ class MigrationRunner {
         if (backupFunction) {
           try {
             const backup = await backupFunction(`pre_migration_${migration.version}`);
-            console.log(`   📦 Backup created: ${backup.filename}`);
+            if (backup.filename !== 'n/a') {
+              console.log(`   📦 Backup created: ${backup.filename}`);
+            }
           } catch (err) {
             console.error(`   ⚠️  Backup failed: ${err.message}`);
             throw new Error(`Migration aborted: Could not create backup`);
           }
         }
 
-        // Run the migration
+        // Run the migration with adapter
         try {
-          await migration.up(this.db);
+          await migration.up(this.adapter);
           await this.recordMigration(migration.version, migration.name);
           console.log(`   ✅ Migration ${migration.version} completed successfully`);
           migrationsRun++;

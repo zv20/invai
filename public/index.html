@@ -2,22 +2,47 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Grocery Inventory</title>
+    
+    <!-- Core CSS -->
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/v0.6.0-features.css">
     <link rel="stylesheet" href="css/filters.css">
     <link rel="stylesheet" href="css/categories.css">
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <link rel="stylesheet" href="css/notifications.css">
+    <link rel="stylesheet" href="css/inline-overrides.css">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InvAI">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="msapplication-navbutton-color" content="#1a1a2e">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192x192.png">
+    
+    <!-- Mobile CSS -->
+    <link rel="stylesheet" href="/css/mobile.css">
+    
+    <!-- REMOVED: QR code library from unpkg (CSP violation) - will load from local if needed -->
     <!-- v0.8.1: Authentication Check - MUST load first -->
     <script src="/js/auth.js"></script>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div style="display: flex; align-items: center; gap: 20px;">
-                <button class="menu-toggle" onclick="toggleMenu()" title="Menu">
+            <div class="header-left-group">
+                <button class="menu-toggle" title="Menu">
                     <span></span>
                     <span></span>
                     <span></span>
@@ -28,34 +53,34 @@
                 <button id="darkModeToggle" class="icon-btn" title="Toggle theme">🌙</button>
                 <div id="status" class="status">Connecting...</div>
                 <div class="current-time" id="currentTime"></div>
-                <button onclick="logout()" class="icon-btn" title="Logout" style="margin-left: 10px;">🚪</button>
+                <button data-action="logout" class="icon-btn logout-btn" title="Logout">🚺</button>
             </div>
         </div>
 
         <div id="updateBanner" class="update-banner">
-            🎉 New version available! <button onclick="window.open('https://github.com/zv20/invai', '_blank')" style="margin-left:10px;padding:5px 15px;">View Update</button>
+            🎉 New version available! <button data-action="viewGitHubUpdate" class="update-banner-btn">View Update</button>
         </div>
 
         <!-- Sidebar Navigation -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h3>Menu</h3>
-                <button class="close-sidebar" onclick="toggleMenu()">✕</button>
+                <button class="close-sidebar">✕</button>
             </div>
             <nav class="nav-menu">
-                <a href="#" class="nav-item active" onclick="switchTab('dashboard')">
+                <a href="#" class="nav-item active" data-tab="dashboard">
                     <span class="nav-icon">📊</span>
                     <span class="nav-text">Dashboard</span>
                 </a>
-                <a href="#" class="nav-item" onclick="switchTab('inventory')">
+                <a href="#" class="nav-item" data-tab="inventory">
                     <span class="nav-icon">📦</span>
                     <span class="nav-text">Inventory</span>
                 </a>
-                <a href="#" class="nav-item" onclick="switchTab('reports')">
+                <a href="#" class="nav-item" data-tab="reports">
                     <span class="nav-icon">📊</span>
                     <span class="nav-text">Reports</span>
                 </a>
-                <a href="#" class="nav-item" onclick="switchTab('settings')">
+                <a href="#" class="nav-item" data-tab="settings">
                     <span class="nav-icon">⚙️</span>
                     <span class="nav-text">Settings</span>
                 </a>
@@ -63,13 +88,13 @@
         </div>
 
         <!-- Overlay for mobile -->
-        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMenu()"></div>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
         <!-- Dashboard Tab -->
         <div id="dashboardTab" class="tab-content active">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <h2 style="margin: 0;">📊 Dashboard</h2>
-                <button class="refresh-button" onclick="refreshDashboard()">🔄 Refresh</button>
+            <div class="dashboard-header">
+                <h2>📊 Dashboard</h2>
+                <button class="refresh-button" data-action="refreshDashboard">🔄 Refresh</button>
             </div>
 
             <!-- Stats Cards -->
@@ -130,7 +155,7 @@
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+            <div class="dashboard-grid-container">
                 <div class="dashboard-section">
                     <h3>📁 Category Breakdown</h3>
                     <div class="category-breakdown" id="categoryBreakdown">
@@ -150,12 +175,12 @@
         <div id="inventoryTab" class="tab-content">
             <!-- Product List View -->
             <div id="inventoryListView">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
-                    <h2 style="margin: 0;">📦 Inventory</h2>
-                    <button onclick="openAddProductModal()">➕ Add Product</button>
+                <div class="inventory-header">
+                    <h2>📦 Inventory</h2>
+                    <button data-action="openAddProductModal">➕ Add Product</button>
                 </div>
 
-                <div id="inventoryValueSummary" class="value-summary" style="display: none;">
+                <div id="inventoryValueSummary" class="value-summary">
                     <div class="value-card">
                         <div class="value-label">Total Products</div>
                         <div class="value-amount" id="totalProducts">0</div>
@@ -172,31 +197,31 @@
 
                 <div class="search-bar-container">
                     <input type="text" id="productSearch" placeholder="🔍 Search products...">
-                    <button class="btn-scan" onclick="openScanner('search')">📷 Scan Barcode</button>
+                    <button class="btn-scan" data-action="openScanner" data-param="search">📷 Scan Barcode</button>
                 </div>
 
                 <!-- Filters Panel (v0.7.4) -->
                 <div id="filtersPanel" class="filters-panel">
                     <div class="filters-header">
                         <h4>🎛️ Filters <span id="activeFilterCount" class="filter-count">0</span></h4>
-                        <button class="clear-filters-btn" onclick="clearAllFilters()" style="display: none;">✕ Clear All</button>
+                        <button class="clear-filters-btn" data-action="clearAllFilters">✕ Clear All</button>
                     </div>
                     <div class="filters-grid">
                         <div class="filter-group">
                             <label>Category</label>
-                            <select id="filterCategory" onchange="applyFilters()">
+                            <select id="filterCategory">
                                 <option value="">All Categories</option>
                             </select>
                         </div>
                         <div class="filter-group">
                             <label>Supplier</label>
-                            <select id="filterSupplier" onchange="applyFilters()">
+                            <select id="filterSupplier">
                                 <option value="">All Suppliers</option>
                             </select>
                         </div>
                         <div class="filter-group">
                             <label>Stock Status</label>
-                            <select id="filterStock" onchange="applyFilters()">
+                            <select id="filterStock">
                                 <option value="">All Stock Levels</option>
                                 <option value="in-stock">In Stock</option>
                                 <option value="low-stock">Low Stock</option>
@@ -205,7 +230,7 @@
                         </div>
                         <div class="filter-group">
                             <label>Expiry Status</label>
-                            <select id="filterExpiry" onchange="applyFilters()">
+                            <select id="filterExpiry">
                                 <option value="">All Expiry Status</option>
                                 <option value="expired">Expired</option>
                                 <option value="urgent">Urgent (7 days)</option>
@@ -225,9 +250,9 @@
             </div>
 
             <!-- Product Detail View -->
-            <div id="inventoryDetailView" style="display: none;">
-                <div style="margin-bottom: 20px;">
-                    <button onclick="backToInventoryList()" style="background: #6b7280;">← Back to Inventory</button>
+            <div id="inventoryDetailView">
+                <div class="detail-back-section">
+                    <button data-action="backToInventoryList" class="back-btn">← Back to Inventory</button>
                 </div>
 
                 <!-- Expiration Alert Banners -->
@@ -237,25 +262,25 @@
                 <div id="batch-suggestion-container" class="batch-suggestion-container"></div>
 
                 <!-- Product Info Card -->
-                <div class="dashboard-section" style="margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 15px;">
+                <div class="dashboard-section detail-product-section">
+                    <div class="detail-product-header">
                         <div>
-                            <h2 style="margin: 0; margin-bottom: 10px;" id="detailProductName">Product Name</h2>
-                            <div id="detailProductMeta" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                            <h2 class="detail-product-title" id="detailProductName">Product Name</h2>
+                            <div id="detailProductMeta" class="detail-product-meta"></div>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button onclick="editProductFromDetail()">✏️ Edit Product</button>
-                            <button onclick="deleteProductFromDetail()" class="btn-danger">🗑️ Delete</button>
+                        <div class="detail-product-actions">
+                            <button data-action="editProductFromDetail">✏️ Edit Product</button>
+                            <button data-action="deleteProductFromDetail" class="btn-danger">🗑️ Delete</button>
                         </div>
                     </div>
-                    <div id="detailProductInfo" style="margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;"></div>
+                    <div id="detailProductInfo" class="detail-product-info"></div>
                 </div>
 
                 <!-- Inventory Batches -->
                 <div class="dashboard-section">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3 style="margin: 0;">📋 Inventory Batches</h3>
-                        <button onclick="openAddBatchModal()">➕ Add Batch</button>
+                    <div class="detail-batch-header">
+                        <h3>📋 Inventory Batches</h3>
+                        <button data-action="openAddBatchModal">➕ Add Batch</button>
                     </div>
                     <div id="detailBatchList" class="batch-list"></div>
                 </div>
@@ -264,8 +289,8 @@
 
         <!-- Reports Tab -->
         <div id="reportsTab" class="tab-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0;">📊 Reports & Analytics</h2>
+            <div class="reports-header">
+                <h2>📊 Reports & Analytics</h2>
                 <button id="exportReportBtn">💾 Export Report</button>
             </div>
 
@@ -284,14 +309,14 @@
 
         <!-- Settings Tab -->
         <div id="settingsTab" class="tab-content">
-            <h2 style="margin-bottom: 20px;">⚙️ Settings</h2>
+            <h2 class="settings-header">⚙️ Settings</h2>
             <div class="settings-nav">
-                <button class="settings-nav-item active" onclick="switchSettingsTab('updates')">🔄 Updates</button>
-                <button class="settings-nav-item" onclick="switchSettingsTab('categories')">🏷️ Categories</button>
-                <button class="settings-nav-item" onclick="switchSettingsTab('suppliers')">📦 Suppliers</button>
-                <button class="settings-nav-item" onclick="switchSettingsTab('backups')">💾 Backups</button>
-                <button class="settings-nav-item" onclick="switchSettingsTab('about')">ℹ️ About</button>
-                <button class="settings-nav-item" onclick="switchSettingsTab('danger')">⚠️ Danger Zone</button>
+                <button class="settings-nav-item active" data-settings-tab="updates">🔄 Updates</button>
+                <button class="settings-nav-item" data-settings-tab="categories">🏷️ Categories</button>
+                <button class="settings-nav-item" data-settings-tab="suppliers">📦 Suppliers</button>
+                <button class="settings-nav-item" data-settings-tab="backups">💾 Backups</button>
+                <button class="settings-nav-item" data-settings-tab="about">ℹ️ About</button>
+                <button class="settings-nav-item" data-settings-tab="danger">⚠️ Danger Zone</button>
             </div>
 
             <!-- Updates Tab -->
@@ -301,17 +326,17 @@
                     <div id="channelSelector"></div>
                     <div id="currentStatus"></div>
                     <div class="btn-group">
-                        <button id="checkUpdatesBtn" onclick="checkForUpdatesNow(event)">🔍 Check for Updates</button>
-                        <button id="switchChannelBtn" onclick="switchChannelAndUpdate(event)" disabled>🔄 Switch Channel & Update</button>
+                        <button id="checkUpdatesBtn" data-action="checkForUpdatesNow">🔍 Check for Updates</button>
+                        <button id="switchChannelBtn" data-action="switchChannelAndUpdate" disabled>🔄 Switch Channel & Update</button>
                     </div>
-                    <div id="versionStatus" style="display: none; margin-top: 15px; padding: 15px; border-radius: 8px;"></div>
+                    <div id="versionStatus"></div>
                 </div>
                 <div class="settings-section">
                     <h3>ℹ️ System Information</h3>
                     <p><strong>Running Version:</strong> <span id="settingsVersion">Checking...</span></p>
-                    <p style="margin-top: 10px;"><strong>Latest Version:</strong> <span id="latestVersion">Checking...</span></p>
-                    <p style="margin-top: 10px;"><strong>Database:</strong> SQLite</p>
-                    <p style="margin-top: 10px;"><strong>Last Check:</strong> <span id="lastCheck">Never</span></p>
+                    <p class="mt-10"><strong>Latest Version:</strong> <span id="latestVersion">Checking...</span></p>
+                    <p class="mt-10"><strong>Database:</strong> SQLite</p>
+                    <p class="mt-10"><strong>Last Check:</strong> <span id="lastCheck">Never</span></p>
                 </div>
             </div>
 
@@ -319,9 +344,9 @@
             <div id="settings-categories" class="settings-subtab">
                 <div class="settings-section">
                     <h3>🏷️ Categories Management</h3>
-                    <p style="margin-bottom: 15px;">Organize your products into categories for better filtering and reporting.</p>
-                    <button onclick="openAddCategoryModal()">➕ Add Category</button>
-                    <div id="categoriesList" class="categories-list" style="margin-top: 20px;">
+                    <p class="mb-15">Organize your products into categories for better filtering and reporting.</p>
+                    <button data-action="openAddCategoryModal">➕ Add Category</button>
+                    <div id="categoriesList" class="categories-list">
                         <div class="loading">Loading categories...</div>
                     </div>
                 </div>
@@ -331,9 +356,9 @@
             <div id="settings-suppliers" class="settings-subtab">
                 <div class="settings-section">
                     <h3>📦 Suppliers Management</h3>
-                    <p style="margin-bottom: 15px;">Manage your supplier contacts and track products by supplier.</p>
-                    <button onclick="openAddSupplierModal()">➕ Add Supplier</button>
-                    <div id="suppliersList" class="suppliers-list" style="margin-top: 20px;">
+                    <p class="mb-15">Manage your supplier contacts and track products by supplier.</p>
+                    <button data-action="openAddSupplierModal">➕ Add Supplier</button>
+                    <div id="suppliersList" class="suppliers-list">
                         <div class="loading">Loading suppliers...</div>
                     </div>
                 </div>
@@ -343,36 +368,38 @@
             <div id="settings-backups" class="settings-subtab">
                 <div class="settings-section">
                     <h3>💾 Database Backups</h3>
-                    <p style="margin-bottom: 15px;">Create and manage database backups. System automatically keeps the last 10 backups.</p>
+                    <p class="mb-15">Create and manage database backups. System automatically keeps the last 10 backups.</p>
                     <div class="btn-group">
-                        <button onclick="createBackup()">💾 Create Backup Now</button>
-                        <button class="btn-import" onclick="triggerUploadRestore()">📤 Upload & Restore</button>
+                        <button data-action="createBackup">💾 Create Backup Now</button>
+                        <button class="btn-import" data-action="triggerUploadRestore">📤 Upload & Restore</button>
                     </div>
-                    <input type="file" id="backupUploadInput" accept=".db" onchange="handleUploadRestore(event)" style="display: none;">
-                    <div class="help-text" style="margin-top: 10px;">Create new backups or upload an existing backup file to restore</div>
-                    <h4 style="margin-top: 25px; margin-bottom: 15px;">Backup History</h4>
+                    <input type="file" id="backupUploadInput" accept=".db" class="file-input-hidden">
+                    <div class="help-text mt-10">Create new backups or upload an existing backup file to restore</div>
+                    <h4 class="mt-25 mb-15">Backup History</h4>
                     <div id="backupList" class="backup-list">
-                        <div style="text-align: center; padding: 20px; color: #9ca3af;">📂 Loading backups...</div>
+                        <div class="backup-list-loading">📂 Loading backups...</div>
                     </div>
                 </div>
                 <div class="settings-section">
                     <h3>📊 Data Management</h3>
                     <div class="btn-group">
-                        <button class="btn-export" onclick="exportCSV()">💾 Export to CSV</button>
-                        <button class="btn-import" onclick="triggerImport()">📂 Import from CSV</button>
+                        <button class="btn-export" data-action="exportCSV">💾 Export to CSV</button>
+                        <button class="btn-import" data-action="triggerImport">📂 Import from CSV</button>
                     </div>
-                    <input type="file" id="csvFileInput" accept=".csv" onchange="handleImport(event)" style="display: none;">
-                    <div class="help-text" style="margin-top: 10px;">Export your inventory data or import from a backup CSV file</div>
+                    <input type="file" id="csvFileInput" accept=".csv" class="file-input-hidden">
+                    <div class="help-text mt-10">Export your inventory data or import from a backup CSV file</div>
                 </div>
             </div>
 
             <!-- About Tab -->
             <div id="settings-about" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>🛍️ Grocery Inventory v0.8.1</h3>
-                    <p style="margin-top: 10px;">Professional inventory management for grocery stores</p>
-                    <h4 style="margin-top: 25px; margin-bottom: 10px;">Latest Changes</h4>
+                    <h3>🛍️ Grocery Inventory v0.8.7</h3>
+                    <p class="about-intro">Professional inventory management for grocery stores</p>
+                    <h4 class="about-section-title">Latest Changes</h4>
                     <ul class="changelog-list">
+                        <li>✅ <strong>v0.8.7</strong> - 100% CSP Compliance (zero inline styles or handlers)</li>
+                        <li>🔒 <strong>v0.8.6</strong> - Complete CSP Compliance (all inline styles and handlers removed)</li>
                         <li>🔐 <strong>v0.8.1</strong> - Authentication & Authorization, User Management, Login System</li>
                         <li>🎨 <strong>v0.8.0</strong> - Dark Mode, Keyboard Shortcuts, Command Palette, Reports & Activity Log</li>
                         <li>🏷️ <strong>v0.7.4</strong> - Categories & Suppliers Foundation with Filtering</li>
@@ -381,8 +408,10 @@
                         <li>🔄 <strong>v0.4.0</strong> - Unified Inventory with click-through detail view</li>
                         <li>📊 <strong>v0.3.0</strong> - Dashboard with statistics and expiration alerts</li>
                     </ul>
-                    <h4 style="margin-top: 25px; margin-bottom: 10px;">Features</h4>
+                    <h4 class="about-section-title">Features</h4>
                     <ul class="changelog-list">
+                        <li>✅ 100% CSP compliance (zero violations)</li>
+                        <li>🔒 Strict CSP compliance (no inline styles or handlers)</li>
                         <li>🔐 JWT-based authentication & authorization</li>
                         <li>👥 User management with role-based access</li>
                         <li>📊 Dashboard with real-time statistics</li>
@@ -403,11 +432,11 @@
                         <li>💾 Automated backups with retention</li>
                         <li>📊 CSV import/export</li>
                     </ul>
-                    <h4 style="margin-top: 25px; margin-bottom: 10px;">Links</h4>
-                    <p><a href="https://github.com/zv20/invai" target="_blank" style="color: #667eea; text-decoration: underline;">🔗 GitHub Repository</a></p>
-                    <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/blob/beta/CHANGELOG.md" target="_blank" style="color: #667eea; text-decoration: underline;">📋 Full Changelog</a></p>
-                    <p style="margin-top: 10px;"><a href="https://github.com/zv20/invai/issues" target="_blank" style="color: #667eea; text-decoration: underline;">📝 Report an Issue</a></p>
-                    <h4 style="margin-top: 25px; margin-bottom: 10px;">License</h4>
+                    <h4 class="about-section-title">Links</h4>
+                    <p><a href="https://github.com/zv20/invai" target="_blank" class="about-link">🔗 GitHub Repository</a></p>
+                    <p class="mt-10"><a href="https://github.com/zv20/invai/blob/beta/CHANGELOG.md" target="_blank" class="about-link">📋 Full Changelog</a></p>
+                    <p class="mt-10"><a href="https://github.com/zv20/invai/issues" target="_blank" class="about-link">📝 Report an Issue</a></p>
+                    <h4 class="about-section-title">License</h4>
                     <p>MIT License - Free to use and modify</p>
                 </div>
             </div>
@@ -416,8 +445,8 @@
             <div id="settings-danger" class="settings-subtab">
                 <div class="settings-section">
                     <h3>⚠️ Danger Zone</h3>
-                    <p style="margin-bottom: 15px; color: #dc2626;"><strong>Warning:</strong> Actions in this section are permanent and cannot be undone. Please create a backup before proceeding.</p>
-                    <button class="btn-danger" onclick="confirmReset()">🗑️ Reset All Data</button>
+                    <p class="danger-warning"><strong>Warning:</strong> Actions in this section are permanent and cannot be undone. Please create a backup before proceeding.</p>
+                    <button class="btn-danger" data-action="confirmReset">🗑️ Reset All Data</button>
                 </div>
             </div>
         </div>
@@ -431,8 +460,8 @@
         </div>
     </div>
 
-    <div id="versionFooter" class="version-footer" onclick="checkVersion()" title="Click to check for updates">
-        <span id="footerVersionText">v0.8.1</span>
+    <div id="versionFooter" class="version-footer" title="Click to check for updates">
+        <span id="footerVersionText">v0.8.7</span>
     </div>
 
     <!-- Scanner Modal -->
@@ -440,12 +469,12 @@
         <div class="modal-content scanner-content">
             <div class="modal-header">
                 <h2>📷 Barcode Scanner</h2>
-                <button class="close-modal" onclick="closeScanner()">✕ Close</button>
+                <button class="close-modal" data-action="closeScanner">✕ Close</button>
             </div>
             <div id="reader"></div>
             <div class="scanner-info">
                 <strong>💡 Tips:</strong>
-                <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+                <ul class="scanner-tips">
                     <li>Allow camera access when prompted</li>
                     <li>Hold barcode steady in camera view</li>
                     <li>Works with UPC, EAN, QR codes</li>
@@ -462,7 +491,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="productModalTitle">Add Product</h2>
-                <button class="close-modal" onclick="closeProductModal()">✕ Close</button>
+                <button class="close-modal" data-action="closeProductModal">✕ Close</button>
             </div>
             <form id="productForm">
                 <div class="form-row">
@@ -492,9 +521,9 @@
                 <div class="form-row">
                     <div>
                         <label>Barcode / UPC</label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="text" id="prodBarcode" placeholder="Scan or enter" style="flex: 1;">
-                            <button type="button" class="btn-scan-inline" onclick="openScanner('product-form')" title="Scan barcode">
+                        <div class="barcode-input-group">
+                            <input type="text" id="prodBarcode" placeholder="Scan or enter">
+                            <button type="button" class="btn-scan-inline" data-action="openScanner" data-param="product-form" title="Scan barcode">
                                 📷
                             </button>
                         </div>
@@ -507,24 +536,24 @@
                 <div class="form-row">
                     <div>
                         <label>Items Per Case *</label>
-                        <input type="number" id="prodPerCase" required min="1" placeholder="e.g., 12" oninput="calcCostPerItem()">
+                        <input type="number" id="prodPerCase" required min="1" placeholder="e.g., 12">
                         <div class="help-text">How many items in each case</div>
                     </div>
                     <div>
                         <label>Cost Per Case</label>
-                        <input type="number" id="prodCostPerCase" step="0.01" min="0" placeholder="e.g., 24.00" oninput="calcCostPerItem()">
+                        <input type="number" id="prodCostPerCase" step="0.01" min="0" placeholder="e.g., 24.00">
                         <div class="help-text" id="costPerItemDisplay">Cost per item: $0.00</div>
                     </div>
                 </div>
                 <div class="form-row">
-                    <div style="grid-column: 1 / -1;">
+                    <div class="form-field-full">
                         <label>Notes</label>
                         <textarea id="prodNotes" rows="2" placeholder="Product notes..."></textarea>
                     </div>
                 </div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="submit" style="flex: 1;">Save Product</button>
-                    <button type="button" onclick="closeProductModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                <div class="form-actions">
+                    <button type="submit">Save Product</button>
+                    <button type="button" data-action="closeProductModal" class="cancel-btn">Cancel</button>
                 </div>
             </form>
         </div>
@@ -535,17 +564,17 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="batchModalTitle">Add Inventory Batch</h2>
-                <button class="close-modal" onclick="closeBatchModal()">✕ Close</button>
+                <button class="close-modal" data-action="closeBatchModal">✕ Close</button>
             </div>
             <form id="batchForm">
                 <div class="form-row">
                     <div>
                         <label>Number of Cases *</label>
-                        <input type="number" id="batchCases" required min="1" placeholder="e.g., 5" oninput="calcBatchTotal()">
+                        <input type="number" id="batchCases" required min="1" placeholder="e.g., 5">
                     </div>
                     <div>
                         <label>Total Items</label>
-                        <input type="number" id="batchTotal" readonly style="background: #f3f4f6;">
+                        <input type="number" id="batchTotal" readonly class="batch-total-readonly">
                         <div class="help-text" id="batchCalc">Auto-calculated</div>
                     </div>
                 </div>
@@ -560,14 +589,14 @@
                     </div>
                 </div>
                 <div class="form-row">
-                    <div style="grid-column: 1 / -1;">
+                    <div class="form-field-full">
                         <label>Batch Notes</label>
                         <textarea id="batchNotes" rows="2" placeholder="Delivery notes..."></textarea>
                     </div>
                 </div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="submit" style="flex: 1;">Save Batch</button>
-                    <button type="button" onclick="closeBatchModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                <div class="form-actions">
+                    <button type="submit">Save Batch</button>
+                    <button type="button" data-action="closeBatchModal" class="cancel-btn">Cancel</button>
                 </div>
             </form>
         </div>
@@ -578,7 +607,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="categoryModalTitle">Add Category</h2>
-                <button class="close-modal" onclick="closeCategoryModal()">✕ Close</button>
+                <button class="close-modal" data-action="closeCategoryModal">✕ Close</button>
             </div>
             <form id="categoryForm">
                 <div class="form-row">
@@ -592,14 +621,14 @@
                     </div>
                 </div>
                 <div class="form-row">
-                    <div style="grid-column: 1 / -1;">
+                    <div class="form-field-full">
                         <label>Description</label>
                         <textarea id="categoryDescription" rows="2" placeholder="Category description..."></textarea>
                     </div>
                 </div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="submit" style="flex: 1;">Save Category</button>
-                    <button type="button" onclick="closeCategoryModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                <div class="form-actions">
+                    <button type="submit">Save Category</button>
+                    <button type="button" data-action="closeCategoryModal" class="cancel-btn">Cancel</button>
                 </div>
             </form>
         </div>
@@ -610,11 +639,11 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="supplierModalTitle">Add Supplier</h2>
-                <button class="close-modal" onclick="closeSupplierModal()">✕ Close</button>
+                <button class="close-modal" data-action="closeSupplierModal">✕ Close</button>
             </div>
             <form id="supplierForm">
                 <div class="form-row">
-                    <div style="grid-column: 1 / -1;">
+                    <div class="form-field-full">
                         <label>Supplier Name *</label>
                         <input type="text" id="supplierName" required placeholder="e.g., Sysco Foods">
                     </div>
@@ -630,46 +659,48 @@
                     </div>
                 </div>
                 <div class="form-row">
-                    <div style="grid-column: 1 / -1;">
+                    <div class="form-field-full">
                         <label>Contact Email</label>
                         <input type="email" id="supplierContactEmail" placeholder="e.g., sales@sysco.com">
                     </div>
                 </div>
                 <div class="form-row">
-                    <div style="grid-column: 1 / -1;">
+                    <div class="form-field-full">
                         <label>Address</label>
                         <textarea id="supplierAddress" rows="2" placeholder="Supplier address..."></textarea>
                     </div>
                 </div>
                 <div class="form-row">
-                    <div style="grid-column: 1 / -1;">
+                    <div class="form-field-full">
                         <label>Notes</label>
                         <textarea id="supplierNotes" rows="2" placeholder="Supplier notes..."></textarea>
                     </div>
                 </div>
                 <div class="form-row">
-                    <div style="grid-column: 1 / -1;">
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                            <input type="checkbox" id="supplierIsActive" checked style="width: auto;">
+                    <div class="form-field-full">
+                        <label class="supplier-active-label">
+                            <input type="checkbox" id="supplierIsActive" checked class="supplier-active-checkbox">
                             <span>Active (uncheck to mark as inactive)</span>
                         </label>
                         <div class="help-text">Inactive suppliers won't appear in product dropdowns</div>
                     </div>
                 </div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="submit" style="flex: 1;">Save Supplier</button>
-                    <button type="button" onclick="closeSupplierModal()" style="background: #6b7280; flex: 1;">Cancel</button>
+                <div class="form-actions">
+                    <button type="submit">Save Supplier</button>
+                    <button type="button" data-action="closeSupplierModal" class="cancel-btn">Cancel</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Load JavaScript modules -->
     <!-- Load JavaScript modules in CORRECT ORDER -->
-    <!-- CRITICAL: v0.8.0 modules MUST load BEFORE core.js -->
+    <!-- CRITICAL: Event handlers MUST load BEFORE other modules -->
     <script src="js/utils.js"></script>
     
-    <!-- v0.8.0 modules - Load these FIRST -->
+    <!-- CSP-compliant event handler system (MUST load early) -->
+    <script src="js/event-handlers.js"></script>
+    
+    <!-- v0.8.0 modules - Load these BEFORE core.js -->
     <script src="js/dark-mode.js"></script>
     <script src="js/activity-log.js"></script>
     <script src="js/favorites.js"></script>
@@ -692,5 +723,19 @@
     <script src="js/filters.js"></script>
     <script src="js/categories-manager.js"></script>
     <script src="js/suppliers-manager.js"></script>
+    
+    <!-- PWA Scripts -->
+    <script src="/lib/pwa/offlineStorage.js"></script>
+    <script src="/js/pwa-init.js"></script>
+    <script src="/js/pwa-install.js"></script>
+    
+    <!-- Mobile Scripts -->
+    <script src="/js/touch-gestures.js"></script>
+    <script src="/js/mobile-components.js"></script>
+    <script src="/js/mobile-navigation.js"></script>
+    
+    <!-- Mobile Features -->
+    <script src="/js/barcode-scanner.js"></script>
+    <script src="/js/camera-capture.js"></script>
 </body>
 </html>

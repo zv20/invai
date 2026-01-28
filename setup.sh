@@ -98,6 +98,32 @@ fi
 
 echo ""
 
+# Function to verify dependencies
+verify_dependencies() {
+    echo "🔍 Verifying dependencies..."
+    
+    # List of critical dependencies to check
+    local REQUIRED_MODULES=("express" "sqlite3" "jsonwebtoken" "bcryptjs" "helmet" "json2csv" "web-push")
+    local MISSING=()
+    
+    for module in "${REQUIRED_MODULES[@]}"; do
+        if ! node -e "require('$module')" 2>/dev/null; then
+            MISSING+=("$module")
+        fi
+    done
+    
+    if [ ${#MISSING[@]} -gt 0 ]; then
+        echo "❌ Missing required modules:"
+        for module in "${MISSING[@]}"; do
+            echo "   • $module"
+        done
+        return 1
+    fi
+    
+    echo "✓ All required dependencies verified"
+    return 0
+}
+
 # Install application dependencies
 echo "📦 Installing application dependencies..."
 
@@ -110,10 +136,44 @@ npm install
 
 if [ $? -ne 0 ]; then
     echo "❌ Failed to install application dependencies"
-    exit 1
+    echo ""
+    echo "Trying to fix common npm issues..."
+    
+    # Clean npm cache and retry
+    npm cache clean --force
+    rm -rf node_modules package-lock.json
+    npm install
+    
+    if [ $? -ne 0 ]; then
+        echo "❌ Still failing. Please check npm logs above."
+        exit 1
+    fi
 fi
 
 echo "✓ Application dependencies installed"
+echo ""
+
+# Verify dependencies
+verify_dependencies
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "⚠️  Some dependencies are missing. Attempting to fix..."
+    echo "Running: npm install --force"
+    npm install --force
+    
+    echo ""
+    echo "🔍 Verifying again..."
+    verify_dependencies
+    
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "❌ Dependency verification failed. Installation may be incomplete."
+        echo "Please report this issue with the error messages above."
+        exit 1
+    fi
+fi
+
 echo ""
 
 # Create data directory
@@ -177,6 +237,7 @@ echo "  • Node.js: $(node --version)"
 echo "  • npm: $(npm --version)"
 echo "  • Location: $CURRENT_DIR"
 echo "  • Service: inventory-app"
+echo "  • Dependencies: Verified ✓"
 echo ""
 echo "🎯 Next Steps:"
 echo ""

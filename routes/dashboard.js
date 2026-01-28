@@ -1,6 +1,7 @@
 /**
  * Dashboard Routes
  * Phase 2: Modular route structure
+ * FIXED: Reduced cache time and added no-cache headers
  */
 
 const express = require('express');
@@ -11,8 +12,23 @@ module.exports = (db, cache) => {
   // Dashboard stats
   router.get('/stats', asyncHandler(async (req, res) => {
     const cacheKey = 'dashboard:stats';
-    const cached = cache.get(cacheKey);
-    if (cached) return res.json(cached);
+    
+    // Check for cache-busting parameter
+    const skipCache = req.query._t || req.query.refresh;
+    
+    if (!skipCache) {
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        // Still add no-cache headers even for cached data
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        return res.json(cached);
+      }
+    } else {
+      // Clear cache if refresh requested
+      cache.delete(cacheKey);
+    }
 
     const stats = {};
 
@@ -68,7 +84,14 @@ module.exports = (db, cache) => {
 
     stats.recentProducts = recentProducts || [];
 
-    cache.set(cacheKey, stats, 30000); // 30s cache
+    // FIXED: Reduced cache from 30s to 5s for fresher data
+    cache.set(cacheKey, stats, 5000); // 5s cache
+    
+    // Add no-cache headers to prevent browser caching
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     res.json(stats);
   }));
 
