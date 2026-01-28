@@ -1,6 +1,10 @@
 /**
  * Rate Limiting Configuration
  * Provides multiple rate limiters for different security levels
+ * 
+ * v0.10.5: Increased limits to support normal user browsing patterns
+ * - Read operations: 1000 requests per 15 min (allows dashboard refreshes)
+ * - Write operations: 200 requests per 15 min (reasonable for data changes)
  */
 
 const rateLimit = require('express-rate-limit');
@@ -23,7 +27,6 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in RateLimit-* headers
   legacyHeaders: false, // Disable X-RateLimit-* headers
-  // Trust proxy - required when behind reverse proxy
   validate: {trustProxy: false}, // Disable validation since we're behind a reverse proxy
   handler: (req, res) => {
     res.status(429).json({
@@ -39,30 +42,70 @@ const authLimiter = rateLimit({
 });
 
 /**
- * Standard API limiter
- * - 100 requests per 15 minutes
- * - Prevents API abuse
+ * Read-only API limiter (GET requests)
+ * - 1000 requests per 15 minutes (~66 requests/minute)
+ * - Allows normal browsing, dashboard refreshes, and tab switching
+ * - v0.10.5: Increased from 100 to 1000 to fix "too many requests" errors
  */
-const apiLimiter = rateLimit({
+const readApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per 15 min
+  max: 1000, // 1000 GET requests per 15 min
   message: { 
     success: false, 
     error: { 
-      message: 'Too many requests from this IP, please slow down',
+      message: 'Too many read requests, please slow down',
       code: 'RATE_LIMIT_EXCEEDED',
       statusCode: 429
     }
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Trust proxy - required when behind reverse proxy
-  validate: {trustProxy: false}, // Disable validation since we're behind a reverse proxy
+  validate: {trustProxy: false},
   skip: (req) => {
-    // Skip rate limiting for health checks
-    return req.path === '/health';
+    // Only apply to GET requests
+    return req.method !== 'GET' || req.path === '/health';
   }
 });
+
+/**
+ * Write API limiter (POST/PUT/DELETE/PATCH)
+ * - 200 requests per 15 minutes
+ * - Stricter for data modifications
+ * - v0.10.5: New limiter to separate read/write operations
+ */
+const writeApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // 200 write requests per 15 min
+  message: { 
+    success: false, 
+    error: { 
+      message: 'Too many write operations, please slow down',
+      code: 'RATE_LIMIT_EXCEEDED',
+      statusCode: 429
+    }
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: {trustProxy: false},
+  skip: (req) => {
+    // Only apply to write operations
+    return !['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method) || req.path === '/health';
+  }
+});
+
+/**
+ * Combined API limiter (applies both read and write limits)
+ * - Use this as the main /api limiter in server.js
+ * - v0.10.5: Replaces the old single apiLimiter
+ */
+const apiLimiter = (req, res, next) => {
+  // Apply read limiter first
+  readApiLimiter(req, res, (err) => {
+    if (err) return next(err);
+    // Then apply write limiter
+    writeApiLimiter(req, res, next);
+  });
+};
 
 /**
  * Strict limiter for sensitive operations
@@ -82,8 +125,7 @@ const strictLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Trust proxy - required when behind reverse proxy
-  validate: {trustProxy: false}, // Disable validation since we're behind a reverse proxy
+  validate: {trustProxy: false},
   handler: (req, res) => {
     res.status(429).json({
       success: false,
@@ -115,13 +157,14 @@ const userManagementLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Trust proxy - required when behind reverse proxy
-  validate: {trustProxy: false} // Disable validation since we're behind a reverse proxy
+  validate: {trustProxy: false}
 });
 
 module.exports = { 
   authLimiter, 
-  apiLimiter, 
+  apiLimiter,
+  readApiLimiter,
+  writeApiLimiter,
   strictLimiter,
   userManagementLimiter
 };
