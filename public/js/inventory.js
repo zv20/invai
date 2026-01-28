@@ -4,6 +4,7 @@
    FIXED: Removed value summary display from inventory
    FIXED: Removed inline onclick handlers for CSP compliance
    FIXED v0.8.5: Removed ALL inline style attributes for CSP compliance
+   FIXED v0.8.7: Removed inline style from batch delete button
    ========================================================================== */
 
 // Module variables (global vars are in core.js)
@@ -261,7 +262,7 @@ function renderProductBatches(batches) {
                     </div>
                     <div>
                         <button class="btn-small btn-primary" data-batch-action="edit" data-batch-id="${batch.id}" data-product-id="${batch.product_id}">✏️ Edit</button>
-                        <button class="btn-small" data-batch-action="delete" data-batch-id="${batch.id}" style="background: #ef4444; color: white;">🗑️</button>
+                        <button class="btn-small btn-danger-inline" data-batch-action="delete" data-batch-id="${batch.id}">🗑️</button>
                     </div>
                 </div>
                 ${expiryStatus ? `<div class="batch-expiry-warning ${expiryStatus.status}">⚠️ ${expiryStatus.text}</div>` : ''}
