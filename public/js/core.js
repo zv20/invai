@@ -2,7 +2,7 @@
    Core Application Logic v0.8.6
    Global state, initialization, utilities, and tab management
    FIXED: CSRF token now refreshed before every state-changing request
-   FIXED PR #21: Removed all inline styles for CSP compliance
+   FIXED: Removed ALL inline styles for CSP compliance (PR #21)
    ========================================================================== */
 
 // API Configuration
@@ -243,25 +243,28 @@ function switchTab(tabName) {
 }
 
 /* ==========================================================================
-   Notification System - FIXED PR #21: Uses CSS classes
+   Notification System - CSP-COMPLIANT (v0.8.6)
    ========================================================================== */
 
 function showNotification(message, type = 'info', duration = 3000) {
     const notification = document.createElement('div');
-    notification.className = `app-notification ${type}`;
+    notification.className = `notification ${type}`;
     
-    if (type === 'success') {
-        notification.innerHTML = '✓ ' + message;
-    } else if (type === 'error') {
-        notification.innerHTML = '✕ ' + message;
-    } else {
-        notification.innerHTML = 'ℹ️ ' + message;
-    }
+    // Add icon based on type
+    const icons = {
+        success: '✓',
+        error: '✕',
+        info: 'ℹ️',
+        warning: '⚠️'
+    };
+    
+    const icon = icons[type] || icons.info;
+    notification.textContent = `${icon} ${message}`;
     
     document.body.appendChild(notification);
     
     setTimeout(() => {
-        notification.classList.add('slideout');
+        notification.classList.add('removing');
         setTimeout(() => notification.remove(), 300);
     }, duration);
 }
@@ -352,7 +355,7 @@ async function initializeApp() {
     console.log('✓ Grocery Inventory App v0.8.6 initialized');
     console.log('✓ CSRF protection active (fresh token on every request)');
     console.log('✓ CSP-compliant event delegation active (no inline handlers)');
-    console.log('✓ CSP-compliant notifications (no inline styles)');
+    console.log('✅ PR #21: All inline styles removed - FULLY CSP COMPLIANT');
 }
 
 // Initialize when DOM is ready

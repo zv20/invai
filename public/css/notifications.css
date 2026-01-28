@@ -1,0 +1,201 @@
+/* ==========================================================================
+   Notifications & Alerts CSS - v0.8.6
+   CSP-compliant external styles for notifications and alerts
+   Extracted from inline styles in core.js and settings.js
+   ========================================================================== */
+
+/* Notification Base Styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 8px;
+    font-weight: 600;
+    z-index: 100000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-width: 400px;
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Notification removing animation */
+.notification.removing {
+    animation: slideOut 0.3s ease-in;
+}
+
+/* Success notification */
+.notification.success {
+    background: #10b981;
+    color: white;
+}
+
+/* Error notification */
+.notification.error {
+    background: #ef4444;
+    color: white;
+}
+
+/* Info notification */
+.notification.info {
+    background: #3b82f6;
+    color: white;
+}
+
+/* Warning notification */
+.notification.warning {
+    background: #f59e0b;
+    color: white;
+}
+
+/* Settings notification (alternative style) */
+.notification.settings-success {
+    background: #dcfce7;
+    border: 2px solid #10b981;
+    color: #065f46;
+}
+
+.notification.settings-error {
+    background: #fee2e2;
+    border: 2px solid #ef4444;
+    color: #991b1b;
+}
+
+.notification.settings-warning {
+    background: #fef3c7;
+    border: 2px solid #f59e0b;
+    color: #92400e;
+}
+
+.notification.settings-info {
+    background: #dbeafe;
+    border: 2px solid #3b82f6;
+    color: #1e40af;
+}
+
+/* Slide animations */
+@keyframes slideIn {
+    from { 
+        transform: translateX(400px); 
+        opacity: 0; 
+    }
+    to { 
+        transform: translateX(0); 
+        opacity: 1; 
+    }
+}
+
+@keyframes slideOut {
+    from { 
+        transform: translateX(0); 
+        opacity: 1; 
+    }
+    to { 
+        transform: translateX(400px); 
+        opacity: 0; 
+    }
+}
+
+/* Settings status boxes */
+.settings-status {
+    display: block;
+    margin: 15px 0;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 4px solid;
+}
+
+.settings-status.success {
+    background: #dcfce7;
+    border-color: #10b981;
+    color: #065f46;
+}
+
+.settings-status.error {
+    background: #fee2e2;
+    border-color: #ef4444;
+    color: #991b1b;
+}
+
+.settings-status.warning {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+}
+
+.settings-status.info {
+    background: #f9fafb;
+    border-color: currentColor;
+}
+
+/* Channel selector styles */
+.channel-selector-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.channel-selector-select {
+    padding: 8px;
+    border-radius: 6px;
+    border: 2px solid #e5e7eb;
+    width: 100%;
+    max-width: 300px;
+}
+
+/* Version status boxes */
+.version-status {
+    display: block;
+    padding: 12px;
+    border-radius: 6px;
+    border: 2px solid;
+    margin: 15px 0;
+}
+
+.version-status.update-available {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+}
+
+.version-status.up-to-date {
+    background: #dcfce7;
+    border-color: #10b981;
+    color: #065f46;
+}
+
+.version-status.error {
+    background: #fee2e2;
+    border-color: #ef4444;
+    color: #991b1b;
+}
+
+/* Alert item clickable */
+.alert-item {
+    cursor: pointer;
+}
+
+.alert-item:hover {
+    background: #f9fafb;
+    transform: translateX(2px);
+    transition: all 0.2s ease;
+}
+
+/* Dark mode support */
+body.dark-mode .notification {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .settings-status.info {
+    background: #1f2937;
+    color: #e5e7eb;
+}
+
+body.dark-mode .channel-selector-select {
+    background: #1f2937;
+    border-color: #374151;
+    color: #e5e7eb;
+}
+
+body.dark-mode .alert-item:hover {
+    background: #1f2937;
+}
