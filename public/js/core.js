@@ -1,8 +1,10 @@
 /* ==========================================================================
-   Core Application Logic v0.8.6
+   Core Application Logic v0.10.2
    Global state, initialization, utilities, and tab management
    FIXED: CSRF token now refreshed before every state-changing request
    FIXED: Removed ALL inline styles for CSP compliance (PR #21)
+   FIXED: v0.10.1: CSP compliance for suppliers manager (PR #27)
+   FIXED: v0.10.2: Safety checks in delete functions (PR #28)
    ========================================================================== */
 
 // API Configuration
@@ -243,7 +245,7 @@ function switchTab(tabName) {
 }
 
 /* ==========================================================================
-   Notification System - CSP-COMPLIANT (v0.8.6)
+   Notification System - CSP-COMPLIANT (v0.10.2)
    ========================================================================== */
 
 function showNotification(message, type = 'info', duration = 3000) {
@@ -292,7 +294,7 @@ if (productSearchEl) {
    ========================================================================== */
 
 async function initializeApp() {
-    console.log('🚀 Starting Grocery Inventory App v0.8.6...');
+    console.log('🚀 Starting Grocery Inventory App v0.10.2...');
     
     // Fetch CSRF token on app start - WAIT for it!
     await fetchCsrfToken();
@@ -352,7 +354,7 @@ async function initializeApp() {
         setupUpdateChecker();
     }
     
-    console.log('✓ Grocery Inventory App v0.8.6 initialized');
+    console.log('✓ Grocery Inventory App v0.10.2 initialized');
     console.log('✓ CSRF protection active (fresh token on every request)');
     console.log('✓ CSP-compliant event delegation active (no inline handlers)');
     console.log('✅ PR #21: All inline styles removed - FULLY CSP COMPLIANT');
