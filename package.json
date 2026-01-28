@@ -1,6 +1,6 @@
 {
   "name": "grocery-inventory",
-  "version": "0.10.5",
+  "version": "0.10.6",
   "description": "Professional inventory management system with intelligence and analytics",
   "main": "server.js",
   "scripts": {
@@ -18,7 +18,12 @@
     "backup:list": "node scripts/restore-backup.js --list",
     "jwt:status": "node scripts/jwt-status.js",
     "jwt:rotate": "node scripts/rotate-jwt.js",
-    "jwt:generate": "node scripts/generate-jwt.js"
+    "jwt:generate": "node scripts/generate-jwt.js",
+    "version:current": "node scripts/bump-version.js",
+    "version:bump": "node scripts/bump-version.js",
+    "version:patch": "node scripts/bump-version.js patch",
+    "version:minor": "node scripts/bump-version.js minor",
+    "version:major": "node scripts/bump-version.js major"
   },
   "keywords": ["inventory", "grocery", "management", "analytics", "reports", "security", "testing", "backup", "charts"],
   "author": "zv20",
