@@ -1,6 +1,7 @@
 /**
- * Suppliers Manager - v0.10.1
+ * Suppliers Manager - v0.10.2
  * Handles supplier CRUD operations
+ * FIXED v0.10.2: Added safety check in deleteSupplier to prevent crash
  * FIXED v0.10.1: Removed inline onclick handlers for CSP compliance
  * FIXED v0.8.5: Removed ALL inline styles for CSP compliance
  * FIXED v0.7.8g: Added better error handling and forced UI refresh
@@ -183,6 +184,13 @@ window.closeSupplierModal = function() {
 
 window.deleteSupplier = async function(id) {
     const supplier = suppliers.find(s => s.id === id);
+    
+    // FIXED v0.10.2: Added safety check to prevent crash if supplier not found
+    if (!supplier) {
+        console.warn('⚠️  Supplier not found, may have been already deleted');
+        return;
+    }
+    
     if (!confirm(`Delete supplier "${supplier.name}"? Products will be moved to "Unknown".`)) {
         return;
     }
