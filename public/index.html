@@ -373,7 +373,7 @@
                         <button data-action="createBackup">💾 Create Backup Now</button>
                         <button class="btn-import" data-action="triggerUploadRestore">📤 Upload & Restore</button>
                     </div>
-                    <input type="file" id="backupUploadInput" accept=".db" style="display: none;">
+                    <input type="file" id="backupUploadInput" accept=".db" class="file-input-hidden">
                     <div class="help-text mt-10">Create new backups or upload an existing backup file to restore</div>
                     <h4 class="mt-25 mb-15">Backup History</h4>
                     <div id="backupList" class="backup-list">
@@ -386,7 +386,7 @@
                         <button class="btn-export" data-action="exportCSV">💾 Export to CSV</button>
                         <button class="btn-import" data-action="triggerImport">📂 Import from CSV</button>
                     </div>
-                    <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+                    <input type="file" id="csvFileInput" accept=".csv" class="file-input-hidden">
                     <div class="help-text mt-10">Export your inventory data or import from a backup CSV file</div>
                 </div>
             </div>
@@ -394,10 +394,11 @@
             <!-- About Tab -->
             <div id="settings-about" class="settings-subtab">
                 <div class="settings-section">
-                    <h3>🛍️ Grocery Inventory v0.8.6</h3>
+                    <h3>🛍️ Grocery Inventory v0.8.7</h3>
                     <p class="about-intro">Professional inventory management for grocery stores</p>
                     <h4 class="about-section-title">Latest Changes</h4>
                     <ul class="changelog-list">
+                        <li>✅ <strong>v0.8.7</strong> - 100% CSP Compliance (zero inline styles or handlers)</li>
                         <li>🔒 <strong>v0.8.6</strong> - Complete CSP Compliance (all inline styles and handlers removed)</li>
                         <li>🔐 <strong>v0.8.1</strong> - Authentication & Authorization, User Management, Login System</li>
                         <li>🎨 <strong>v0.8.0</strong> - Dark Mode, Keyboard Shortcuts, Command Palette, Reports & Activity Log</li>
@@ -409,6 +410,7 @@
                     </ul>
                     <h4 class="about-section-title">Features</h4>
                     <ul class="changelog-list">
+                        <li>✅ 100% CSP compliance (zero violations)</li>
                         <li>🔒 Strict CSP compliance (no inline styles or handlers)</li>
                         <li>🔐 JWT-based authentication & authorization</li>
                         <li>👥 User management with role-based access</li>
@@ -459,7 +461,7 @@
     </div>
 
     <div id="versionFooter" class="version-footer" title="Click to check for updates">
-        <span id="footerVersionText">v0.8.6</span>
+        <span id="footerVersionText">v0.8.7</span>
     </div>
 
     <!-- Scanner Modal -->

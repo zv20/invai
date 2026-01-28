@@ -1,8 +1,9 @@
 /* ==========================================================================
-   Inline Style Overrides - v0.8.6
+   Inline Style Overrides - v0.8.7
    All inline styles extracted to external CSS for CSP compliance
    Removes need for 'unsafe-inline' in style-src CSP directive
    UPDATED: Added notification and settings inline styles (PR #21)
+   UPDATED: Added file input and danger button styles (PR #24)
    ========================================================================== */
 
 /* Header Layout */
@@ -274,6 +275,21 @@
 /* Update Banner - Hidden State */
 #updateBanner {
     display: none;
+}
+
+/* NEW PR #24: File Input Hidden (CSP Compliance) */
+.file-input-hidden {
+    display: none;
+}
+
+/* NEW PR #24: Inline Danger Button (CSP Compliance) */
+.btn-danger-inline {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-danger-inline:hover {
+    background: #dc2626;
 }
 
 /* NEW: Product Card inline styles (inventory.js renderProductList) */
