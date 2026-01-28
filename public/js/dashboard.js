@@ -1,5 +1,6 @@
-// Dashboard Module v0.11.0
+// Dashboard Module v0.12.0
 // FIXED: Added cache-busting for both stats AND alerts
+// FIXED PR #21: Removed inline onclick for CSP compliance
 
 let dashboardData = null;
 let alertData = null;
@@ -185,7 +186,7 @@ function renderExpirationAlerts() {
     console.log(`✓ Alerts rendered - Expired: ${expired.length}, Urgent: ${urgent.length}, Soon: ${soon.length}`);
 }
 
-// Render individual alert list
+// Render individual alert list - FIXED PR #21: No inline onclick
 function renderAlertList(elementId, items, dateField) {
     const container = document.getElementById(elementId);
     if (!container) {
@@ -199,7 +200,7 @@ function renderAlertList(elementId, items, dateField) {
     }
     
     const html = items.map(item => `
-        <div class="alert-item" onclick="viewProductFromAlert(${item.product_id})">
+        <div class="alert-item" data-product-id="${item.product_id}">
             <div class="alert-item-header">
                 <div class="alert-item-name">${item.product_name}</div>
                 <div class="alert-item-qty">${item.total_quantity} items</div>
@@ -212,6 +213,14 @@ function renderAlertList(elementId, items, dateField) {
     `).join('');
     
     container.innerHTML = html;
+    
+    // FIXED PR #21: Add event delegation instead of inline onclick
+    container.querySelectorAll('.alert-item').forEach(alertItem => {
+        alertItem.addEventListener('click', function() {
+            const productId = parseInt(this.dataset.productId);
+            viewProductFromAlert(productId);
+        });
+    });
 }
 
 // View product from alert
@@ -283,7 +292,7 @@ function refreshDashboard() {
 
 // Initialize when dashboard tab is shown
 if (document.readyState === 'loading') {
-    console.log('⏳ Waiting for DOM to load...');
+    console.log('⌛ Waiting for DOM to load...');
     document.addEventListener('DOMContentLoaded', () => {
         console.log('✓ DOM loaded, checking for dashboard tab...');
         // Check if dashboard tab exists

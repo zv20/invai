@@ -3,32 +3,25 @@
  * Handles caching, offline mode, and background sync
  * 
  * FIXED: Added /api/categories and /api/suppliers to network-first routes
+ * FIXED PR #21: Updated cache list to match actual files (no phantom SPAs)
  */
 
-const CACHE_VERSION = 'invai-v2'; // Increment to force cache refresh
+const CACHE_VERSION = 'invai-v3'; // Increment to force cache refresh
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const MAX_DYNAMIC_CACHE_SIZE = 50;
 
-// Assets to cache immediately
+// Assets to cache immediately - FIXED PR #21: Removed non-existent files
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/dashboard.html',
-  '/products.html',
-  '/batches.html',
-  '/transactions.html',
-  '/analytics.html',
-  '/predictions.html',
-  '/advanced-search.html',
-  '/dashboard-builder.html',
-  '/css/style.css',
-  '/css/charts.css',
-  '/js/app.js',
-  '/js/charts.js',
-  '/js/predictions.js',
-  '/js/advanced-search.js',
-  '/js/dashboard-builder.js',
+  '/login.html',
+  '/css/styles.css',
+  '/css/inline-overrides.css',
+  '/js/core.js',
+  '/js/auth.js',
+  '/js/dark-mode.js',
+  '/js/pwa-init.js',
   '/offline.html'
 ];
 
@@ -45,7 +38,12 @@ const API_ROUTES = [
   '/api/dashboards',
   '/api/users',
   '/api/auth',
-  '/api/settings'
+  '/api/settings',
+  '/api/backup',
+  '/api/version',
+  '/api/changelog',
+  '/api/export',
+  '/api/import'
 ];
 
 /**
@@ -247,8 +245,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'InvAI Notification';
   const options = {
     body: data.body || 'You have a new notification',
-    icon: '/icon-192x192.png',
-    badge: '/icon-96x96.png',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-96x96.png',
     data: data.url || '/',
     actions: [
       { action: 'open', title: 'Open' },
