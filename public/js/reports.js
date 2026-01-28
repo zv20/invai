@@ -1,5 +1,6 @@
-// Reports Module - v0.10.3
+// Reports Module - v0.10.4
 // Business intelligence and analytics
+// FIXED v0.10.4: Removed inline styles for CSP compliance (PR #31)
 // FIXED v0.10.3: Disabled export for overview screen (PR #30)
 
 const Reports = {
@@ -58,7 +59,7 @@ const Reports = {
     }
   },
 
-  // FIXED v0.10.3: New method to update export button state
+  // FIXED v0.10.4: Removed inline styles, using CSS classes (CSP compliant)
   updateExportButtonState() {
     const exportBtn = document.getElementById('exportReportBtn');
     if (!exportBtn) return;
@@ -67,13 +68,11 @@ const Reports = {
     if (this.currentReport === 'overview') {
       exportBtn.disabled = true;
       exportBtn.title = 'Select a report to export';
-      exportBtn.style.opacity = '0.5';
-      exportBtn.style.cursor = 'not-allowed';
+      exportBtn.classList.add('export-btn-disabled');
     } else {
       exportBtn.disabled = false;
       exportBtn.title = 'Export current report as CSV';
-      exportBtn.style.opacity = '1';
-      exportBtn.style.cursor = 'pointer';
+      exportBtn.classList.remove('export-btn-disabled');
     }
   },
 

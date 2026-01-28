@@ -1,11 +1,18 @@
 /* ==========================================================================
-   Inline Style Overrides - v0.10.3
+   Inline Style Overrides - v0.10.4
    All inline styles extracted to external CSS for CSP compliance
    Removes need for 'unsafe-inline' in style-src CSP directive
+   UPDATED v0.10.4: Added export button disabled state (PR #31)
    UPDATED v0.10.3: Added empty-state and error-state utility classes (PR #29)
    UPDATED: Added notification and settings inline styles (PR #21)
    UPDATED: Added file input and danger button styles (PR #24)
    ========================================================================== */
+
+/* NEW PR #31: Export Button Disabled State (CSP Compliance) */
+.export-btn-disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+}
 
 /* NEW PR #29: Empty State and Error State Utility Classes */
 .empty-state {
