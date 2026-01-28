@@ -519,4 +519,4 @@ npm test
 
 ---
 
-**Good luck! The app is solid and the user is great to work with.** 👍
+
