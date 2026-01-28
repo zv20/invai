@@ -1,6 +1,7 @@
 /**
- * Suppliers Manager - v0.10.2
+ * Suppliers Manager - v0.10.3
  * Handles supplier CRUD operations
+ * FIXED v0.10.3: Removed inline styles for 100% CSP compliance (PR #29)
  * FIXED v0.10.2: Added safety check in deleteSupplier to prevent crash
  * FIXED v0.10.1: Removed inline onclick handlers for CSP compliance
  * FIXED v0.8.5: Removed ALL inline styles for CSP compliance
@@ -35,7 +36,7 @@ window.loadSuppliers = async function() {
         console.error('❌ Error loading suppliers:', error);
         const container = document.getElementById('suppliersList');
         if (container) {
-            container.innerHTML = `<p style="text-align: center; color: #ef4444; padding: 40px;">Failed to load suppliers: ${error.message}</p>`;
+            container.innerHTML = `<p class="error-state">Failed to load suppliers: ${error.message}</p>`;
         }
     }
 };
@@ -50,7 +51,7 @@ function renderSuppliersList() {
     console.log(`🎨 Rendering ${suppliers.length} suppliers...`);
     
     if (suppliers.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No suppliers yet. Click "Add Supplier" to create one.</p>';
+        container.innerHTML = '<p class="empty-state">No suppliers yet. Click "Add Supplier" to create one.</p>';
         return;
     }
     

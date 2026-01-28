@@ -1,10 +1,32 @@
 /* ==========================================================================
-   Inline Style Overrides - v0.8.7
+   Inline Style Overrides - v0.10.3
    All inline styles extracted to external CSS for CSP compliance
    Removes need for 'unsafe-inline' in style-src CSP directive
+   UPDATED v0.10.3: Added empty-state and error-state utility classes (PR #29)
    UPDATED: Added notification and settings inline styles (PR #21)
    UPDATED: Added file input and danger button styles (PR #24)
    ========================================================================== */
+
+/* NEW PR #29: Empty State and Error State Utility Classes */
+.empty-state {
+    text-align: center;
+    color: #9ca3af;
+    padding: 40px;
+}
+
+.error-state {
+    text-align: center;
+    color: #ef4444;
+    padding: 40px;
+}
+
+[data-theme="dark"] .empty-state {
+    color: #6b7280;
+}
+
+[data-theme="dark"] .error-state {
+    color: #fca5a5;
+}
 
 /* Header Layout */
 .header-left-group {

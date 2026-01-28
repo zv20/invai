@@ -1,6 +1,7 @@
 /**
- * Categories Manager - v0.10.2
+ * Categories Manager - v0.10.3
  * Handles category CRUD operations
+ * FIXED v0.10.3: Removed inline styles for 100% CSP compliance (PR #29)
  * FIXED v0.10.2: Added safety check in deleteCategory to prevent crash
  * FIXED v0.10.1: Removed inline onclick handlers for CSP compliance
  * FIXED v0.7.8c: Added better error handling and forced UI refresh
@@ -33,7 +34,7 @@ window.loadCategories = async function() {
         console.error('❌ Error loading categories:', error);
         const container = document.getElementById('categoriesList');
         if (container) {
-            container.innerHTML = `<p style="text-align: center; color: #ef4444; padding: 40px;">Failed to load categories: ${error.message}</p>`;
+            container.innerHTML = `<p class="error-state">Failed to load categories: ${error.message}</p>`;
         }
     }
 };
@@ -48,7 +49,7 @@ function renderCategoriesList() {
     console.log(`🎨 Rendering ${categories.length} categories...`);
     
     if (categories.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No categories yet. Click "Add Category" to create one.</p>';
+        container.innerHTML = '<p class="empty-state">No categories yet. Click "Add Category" to create one.</p>';
         return;
     }
     
