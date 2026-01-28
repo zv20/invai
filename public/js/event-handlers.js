@@ -22,6 +22,7 @@
  * 
  * Created: 2026-01-27
  * Updated: 2026-01-27 - Added product card and batch button handlers
+ * Updated: 2026-01-28 - Added category button handlers (PR #25)
  * Updated: 2026-01-28 - Added supplier button handlers (PR #26)
  * Issue: #11, #12, #13, #15
  */
@@ -72,7 +73,10 @@ class EventManager {
         // Inventory handlers (product cards, batch buttons)
         this.initInventoryHandlers();
         
-        // Supplier handlers (supplier edit/delete/toggle buttons)
+        // Category handlers (category edit/delete buttons) - PR #25
+        this.initCategoryHandlers();
+        
+        // Supplier handlers (supplier edit/delete/toggle buttons) - PR #26
         this.initSupplierHandlers();
         
         this.initialized = true;
@@ -398,7 +402,36 @@ class EventManager {
     }
     
     /**
-     * Supplier handlers - Edit, delete, and toggle status buttons (NEW for PR #26)
+     * Category handlers - Edit and delete buttons (PR #25)
+     */
+    initCategoryHandlers() {
+        document.addEventListener('click', (e) => {
+            // Category edit button
+            const editCategoryBtn = e.target.closest('[data-action="editCategory"]');
+            if (editCategoryBtn) {
+                e.stopPropagation();
+                const categoryId = editCategoryBtn.dataset.categoryId;
+                if (categoryId && typeof editCategory === 'function') {
+                    editCategory(parseInt(categoryId));
+                }
+                return;
+            }
+            
+            // Category delete button
+            const deleteCategoryBtn = e.target.closest('[data-action="deleteCategory"]');
+            if (deleteCategoryBtn) {
+                e.stopPropagation();
+                const categoryId = deleteCategoryBtn.dataset.categoryId;
+                if (categoryId && typeof deleteCategory === 'function') {
+                    deleteCategory(parseInt(categoryId));
+                }
+                return;
+            }
+        });
+    }
+    
+    /**
+     * Supplier handlers - Edit, delete, and toggle status buttons (PR #26)
      */
     initSupplierHandlers() {
         document.addEventListener('click', (e) => {
