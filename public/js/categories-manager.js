@@ -1,20 +1,54 @@
 /**
- * Categories Manager - v0.10.3
+ * Categories Manager - v0.10.5
  * Handles category CRUD operations
+ * ADDED v0.10.5: Client-side caching to reduce API calls and prevent rate limiting (PR #32)
  * FIXED v0.10.3: Removed inline styles for 100% CSP compliance (PR #29)
  * FIXED v0.10.2: Added safety check in deleteCategory to prevent crash
  * FIXED v0.10.1: Removed inline onclick handlers for CSP compliance
- * FIXED v0.7.8c: Added better error handling and forced UI refresh
- * FIXED v0.7.8b: Changed showNotification/showToast to use correct function names
- * UPDATED: Removed color picker (temporary removal per user request)
  */
 
 let categories = [];
 let editingCategoryId = null;
 
-// Load categories on page load
-window.loadCategories = async function() {
-    console.log('🔄 Loading categories...');
+// Cache management
+const categoriesCache = {
+    data: null,
+    timestamp: 0,
+    ttl: 5 * 60 * 1000, // 5 minutes cache
+    
+    isValid() {
+        return this.data && (Date.now() - this.timestamp) < this.ttl;
+    },
+    
+    set(data) {
+        this.data = data;
+        this.timestamp = Date.now();
+        console.log('💾 Categories cached for 5 minutes');
+    },
+    
+    get() {
+        return this.data;
+    },
+    
+    invalidate() {
+        this.data = null;
+        this.timestamp = 0;
+        console.log('🗑️  Categories cache invalidated');
+    }
+};
+
+// Load categories with caching
+window.loadCategories = async function(forceRefresh = false) {
+    // Use cache if valid and not forcing refresh
+    if (!forceRefresh && categoriesCache.isValid()) {
+        console.log('✅ Using cached categories');
+        categories = categoriesCache.get();
+        renderCategoriesList();
+        updateCategoryDropdown();
+        return;
+    }
+    
+    console.log('🔄 Loading categories from API...');
     try {
         const response = await authFetch('/api/categories');
         
@@ -24,6 +58,7 @@ window.loadCategories = async function() {
         
         const data = await response.json();
         categories = data;
+        categoriesCache.set(data);
         
         console.log(`✅ Loaded ${categories.length} categories:`, categories);
         
@@ -53,7 +88,6 @@ function renderCategoriesList() {
         return;
     }
     
-    // FIXED v0.10.1: Removed inline onclick handlers, using data-action for CSP compliance
     container.innerHTML = categories.map(cat => `
         <div class="category-card">
             <div class="category-icon">${cat.icon || '🏷️'}</div>
@@ -82,10 +116,10 @@ function escapeHtml(text) {
 function updateCategoryDropdown() {
     const select = document.getElementById('prodCategory');
     if (select) {
-        const oldValue = select.value; // Preserve selection
+        const oldValue = select.value;
         select.innerHTML = '<option value="">Select category...</option>' +
             categories.map(cat => `<option value="${cat.id}">${cat.icon || ''} ${escapeHtml(cat.name)}</option>`).join('');
-        select.value = oldValue; // Restore selection
+        select.value = oldValue;
         console.log('✅ Category dropdown updated');
     }
 }
@@ -117,7 +151,6 @@ window.editCategory = function(id) {
     document.getElementById('categoryModalTitle').textContent = 'Edit Category';
     document.getElementById('categoryName').value = category.name;
     document.getElementById('categoryDescription').value = category.description || '';
-    // Removed color input population
     modal.style.display = 'block';
 };
 
@@ -129,7 +162,6 @@ window.closeCategoryModal = function() {
 window.deleteCategory = async function(id) {
     const category = categories.find(c => c.id === id);
     
-    // FIXED v0.10.2: Added safety check to prevent crash if category not found
     if (!category) {
         console.warn('⚠️  Category not found, may have been already deleted');
         return;
@@ -143,8 +175,9 @@ window.deleteCategory = async function(id) {
         const response = await authFetch(`/api/categories/${id}`, { method: 'DELETE' });
         if (response.ok) {
             showToast('Category deleted', 'success');
-            // Force reload
-            await window.loadCategories();
+            // Invalidate cache and force reload
+            categoriesCache.invalidate();
+            await window.loadCategories(true);
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to delete category', 'error');
@@ -155,7 +188,7 @@ window.deleteCategory = async function(id) {
     }
 };
 
-// Form submit handler - attach when DOM loads
+// Form submit handler
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupCategoryForm);
 } else {
@@ -171,7 +204,7 @@ function setupCategoryForm() {
             const data = {
                 name: document.getElementById('categoryName').value,
                 description: document.getElementById('categoryDescription').value,
-                color: '#667eea'  // Default color since picker is removed
+                color: '#667eea'
             };
             
             console.log('💾 Saving category:', data);
@@ -197,10 +230,11 @@ function setupCategoryForm() {
                     showToast(editingCategoryId ? 'Category updated' : 'Category created', 'success');
                     window.closeCategoryModal();
                     
-                    // Force reload with a small delay to ensure DB write completed
+                    // Invalidate cache and force reload
+                    categoriesCache.invalidate();
                     setTimeout(async () => {
                         console.log('🔄 Reloading categories after save...');
-                        await window.loadCategories();
+                        await window.loadCategories(true);
                     }, 100);
                 } else {
                     const error = await response.json();
