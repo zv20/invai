@@ -22,6 +22,7 @@
  * 
  * Created: 2026-01-27
  * Updated: 2026-01-27 - Added product card and batch button handlers
+ * Updated: 2026-01-28 - Added category button handlers (PR #25)
  * Issue: #11, #12, #13, #15
  */
 
@@ -70,6 +71,9 @@ class EventManager {
         
         // Inventory handlers (product cards, batch buttons)
         this.initInventoryHandlers();
+        
+        // Category handlers (category edit/delete buttons)
+        this.initCategoryHandlers();
         
         this.initialized = true;
         console.log('✅ EventManager initialized successfully');
@@ -387,6 +391,35 @@ class EventManager {
                 const batchId = deleteBatchBtn.dataset.batchId;
                 if (batchId && typeof deleteBatch === 'function') {
                     deleteBatch(parseInt(batchId));
+                }
+                return;
+            }
+        });
+    }
+    
+    /**
+     * Category handlers - Edit and delete buttons (NEW for PR #25)
+     */
+    initCategoryHandlers() {
+        document.addEventListener('click', (e) => {
+            // Category edit button
+            const editCategoryBtn = e.target.closest('[data-action="editCategory"]');
+            if (editCategoryBtn) {
+                e.stopPropagation();
+                const categoryId = editCategoryBtn.dataset.categoryId;
+                if (categoryId && typeof editCategory === 'function') {
+                    editCategory(parseInt(categoryId));
+                }
+                return;
+            }
+            
+            // Category delete button
+            const deleteCategoryBtn = e.target.closest('[data-action="deleteCategory"]');
+            if (deleteCategoryBtn) {
+                e.stopPropagation();
+                const categoryId = deleteCategoryBtn.dataset.categoryId;
+                if (categoryId && typeof deleteCategory === 'function') {
+                    deleteCategory(parseInt(categoryId));
                 }
                 return;
             }
