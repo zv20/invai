@@ -1,0 +1,95 @@
+<!-- Shared Navigation Component -->
+<!-- Include this in all pages -->
+
+<div class="header">
+    <div class="header-left-group">
+        <button class="menu-toggle" title="Menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <h1>🛍️ Grocery Inventory</h1>
+    </div>
+    <div class="header-right">
+        <button id="darkModeToggle" class="icon-btn" title="Toggle theme">🌙</button>
+        <div id="status" class="status">Connecting...</div>
+        <div class="current-time" id="currentTime"></div>
+        <button data-action="logout" class="icon-btn logout-btn" title="Logout">🚪</button>
+    </div>
+</div>
+
+<div id="updateBanner" class="update-banner">
+    🎉 New version available! <button data-action="viewGitHubUpdate" class="update-banner-btn">View Update</button>
+</div>
+
+<!-- Sidebar Navigation -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h3>Menu</h3>
+        <button class="close-sidebar">✕</button>
+    </div>
+    <nav class="nav-menu">
+        <a href="/dashboard.html" class="nav-item" data-page="dashboard">
+            <span class="nav-icon">📊</span>
+            <span class="nav-text">Dashboard</span>
+        </a>
+        <a href="/inventory.html" class="nav-item" data-page="inventory">
+            <span class="nav-icon">📦</span>
+            <span class="nav-text">Inventory</span>
+        </a>
+        <a href="/reports.html" class="nav-item" data-page="reports">
+            <span class="nav-icon">📈</span>
+            <span class="nav-text">Reports</span>
+        </a>
+        <a href="/users.html" class="nav-item" data-page="users">
+            <span class="nav-icon">👥</span>
+            <span class="nav-text">Users</span>
+        </a>
+        <a href="/predictions.html" class="nav-item" data-page="predictions">
+            <span class="nav-icon">🔮</span>
+            <span class="nav-text">Predictions</span>
+        </a>
+        <a href="/advanced-search.html" class="nav-item" data-page="search">
+            <span class="nav-icon">🔍</span>
+            <span class="nav-text">Advanced Search</span>
+        </a>
+        <a href="/dashboard-builder.html" class="nav-item" data-page="builder">
+            <span class="nav-icon">🎨</span>
+            <span class="nav-text">Dashboard Builder</span>
+        </a>
+        <a href="/settings.html" class="nav-item" data-page="settings">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-text">Settings</span>
+        </a>
+    </nav>
+</div>
+
+<!-- Overlay for mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Version Footer -->
+<div id="versionFooter" class="version-footer" title="Click to check for updates">
+    <span id="footerVersionText">v0.10.7</span>
+</div>
+
+<!-- Command Palette -->
+<div id="commandPalette" class="command-palette">
+    <div class="command-palette-content">
+        <input type="text" id="commandInput" placeholder="Type a command..." autocomplete="off">
+        <div id="commandResults" class="command-results"></div>
+    </div>
+</div>
+
+<script>
+// Auto-highlight active page in navigation
+document.addEventListener('DOMContentLoaded', function() {
+    const currentPage = window.location.pathname.split('/').pop().replace('.html', '') || 'dashboard';
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        const page = item.getAttribute('data-page');
+        if (page === currentPage) {
+            item.classList.add('active');
+        }
+    });
+});
+</script>
