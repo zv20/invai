@@ -1,50 +1,89 @@
 /**
- * Predictions Dashboard JavaScript
+ * Predictions Dashboard JavaScript - CSP Compliant
+ * Fixed for standalone page structure (no tabs)
  */
 
 const API_BASE = '/api/predictions';
 let productsCache = [];
+let currentReport = 'demand';
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    initializeTabs();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPredictions);
+} else {
+    initPredictions();
+}
+
+function initPredictions() {
+    // Check if we're on the predictions page
+    if (!document.getElementById('forecast-results')) {
+        console.log('Not on predictions page, skipping init');
+        return;
+    }
+    
+    console.log('🔮 Initializing Predictions page...');
+    
+    // Setup report navigation
+    initializeReportNav();
+    
+    // Load initial data
     loadProducts();
     loadReorderRecommendations();
     loadOptimizationReport();
+    
+    // Setup search
+    const searchInput = document.getElementById('product-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(handleProductSearch, 300));
+    }
+    
+    console.log('✓ Predictions initialized');
+}
 
-    // Event listeners
-    document.getElementById('product-search').addEventListener('input', debounce(handleProductSearch, 300));
-    document.getElementById('refresh-reorder').addEventListener('click', loadReorderRecommendations);
-});
-
-// Tab Management
-function initializeTabs() {
-    const tabs = document.querySelectorAll('.tab');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const tabName = tab.dataset.tab;
-            switchTab(tabName);
+// Report Navigation (replaces tabs)
+function initializeReportNav() {
+    const navButtons = document.querySelectorAll('[data-report]');
+    navButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const report = this.dataset.report;
+            switchReport(report);
         });
     });
 }
 
-function switchTab(tabName) {
-    // Update tab buttons
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-
-    // Update tab content
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.getElementById(`${tabName}-tab`).classList.add('active');
+function switchReport(reportName) {
+    currentReport = reportName;
+    
+    // Update nav buttons
+    document.querySelectorAll('[data-report]').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.report === reportName) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Update content visibility
+    document.querySelectorAll('.report-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    const activeContent = document.getElementById(`${reportName}-content`);
+    if (activeContent) {
+        activeContent.classList.add('active');
+    }
 }
 
 // Load Products for Search
 async function loadProducts() {
     try {
-        const response = await fetch('/api/products');
+        const response = await authFetch('/api/products');
+        if (!response.ok) {
+            console.error('Failed to load products:', response.status);
+            return;
+        }
         const data = await response.json();
-        if (data.success) {
-            productsCache = data.data;
+        if (data.success || data.data) {
+            productsCache = data.data || data.products || [];
         }
     } catch (error) {
         console.error('Error loading products:', error);
@@ -54,8 +93,12 @@ async function loadProducts() {
 // Product Search Handler
 function handleProductSearch(e) {
     const searchTerm = e.target.value.toLowerCase();
+    const resultsDiv = document.getElementById('forecast-results');
+    
+    if (!resultsDiv) return;
+    
     if (searchTerm.length < 2) {
-        document.getElementById('forecast-results').innerHTML = '';
+        resultsDiv.innerHTML = '';
         return;
     }
 
@@ -65,7 +108,7 @@ function handleProductSearch(e) {
     ).slice(0, 5);
 
     if (matches.length === 0) {
-        document.getElementById('forecast-results').innerHTML = '<p>No products found</p>';
+        resultsDiv.innerHTML = '<p>No products found</p>';
         return;
     }
 
@@ -74,10 +117,9 @@ function handleProductSearch(e) {
 
 function displayProductOptions(products) {
     const html = products.map(p => `
-        <div class="product-option" style="padding: 10px; cursor: pointer; border-bottom: 1px solid #333;" 
-             onclick="loadProductForecast(${p.id}, '${p.name}')">
-            <strong>${p.name}</strong>
-            <span style="color: #888; margin-left: 10px;">${p.sku || ''}</span>
+        <div class="product-option" data-action="loadProductForecast" data-product-id="${p.id}" data-product-name="${escapeHtml(p.name)}">
+            <strong>${escapeHtml(p.name)}</strong>
+            <span class="product-sku">${escapeHtml(p.sku || '')}</span>
         </div>
     `).join('');
 
@@ -87,24 +129,31 @@ function displayProductOptions(products) {
 // Load Product Forecast
 async function loadProductForecast(productId, productName) {
     const resultsDiv = document.getElementById('forecast-results');
+    if (!resultsDiv) return;
+    
     resultsDiv.innerHTML = '<div class="loading">Analyzing demand patterns...</div>';
 
     try {
-        const response = await fetch(`${API_BASE}/demand/${productId}`, {
+        const response = await authFetch(`${API_BASE}/demand/${productId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ horizon: 30, lookback: 90 })
         });
+        
+        if (!response.ok) {
+            throw new Error(`API returned ${response.status}`);
+        }
+        
         const data = await response.json();
 
-        if (data.success) {
+        if (data.success && data.data) {
             displayForecast(data.data, productName);
         } else {
-            resultsDiv.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+            resultsDiv.innerHTML = `<p class="error">Error: ${data.error || 'Unknown error'}</p>`;
         }
     } catch (error) {
         console.error('Error loading forecast:', error);
-        resultsDiv.innerHTML = '<p class="error">Failed to load forecast</p>';
+        resultsDiv.innerHTML = '<p class="error">Failed to load forecast. Please try again.</p>';
     }
 }
 
@@ -113,9 +162,9 @@ function displayForecast(forecast, productName) {
                            forecast.confidence >= 40 ? 'medium' : 'low';
 
     const html = `
-        <div style="margin-top: 20px;">
+        <div class="forecast-card">
             <div class="prediction-header">
-                <h4>${productName}</h4>
+                <h4>${escapeHtml(productName)}</h4>
                 <span class="confidence-badge confidence-${confidenceClass}">
                     ${forecast.confidence}% Confidence
                 </span>
@@ -125,50 +174,48 @@ function displayForecast(forecast, productName) {
                 <div class="forecast-metric">
                     <label>30-Day Forecast</label>
                     <div class="value">${forecast.forecast}</div>
-                    <small style="color: #888;">units</small>
+                    <small>units</small>
                 </div>
 
                 <div class="forecast-metric">
                     <label>Daily Average</label>
                     <div class="value">${forecast.dailyAverage}</div>
-                    <small style="color: #888;">units/day</small>
+                    <small>units/day</small>
                 </div>
 
                 <div class="forecast-metric">
                     <label>Trend</label>
-                    <div class="value" style="font-size: 18px;">
+                    <div class="value">
                         ${getTrendEmoji(forecast.trend)} ${forecast.trend}
                     </div>
                 </div>
 
                 <div class="forecast-metric">
                     <label>Forecast Range</label>
-                    <div class="value" style="font-size: 16px;">
+                    <div class="value">
                         ${forecast.confidenceInterval.lower} - ${forecast.confidenceInterval.upper}
                     </div>
                 </div>
             </div>
 
-            ${forecast.seasonality.detected ? `
-                <div style="background: #252525; padding: 15px; border-radius: 6px; margin-top: 15px;">
+            ${forecast.seasonality?.detected ? `
+                <div class="seasonality-notice">
                     <strong>🔄 Seasonality Detected</strong>
-                    <p style="color: #888; margin: 5px 0;">
-                        ${forecast.seasonality.period}-day cycle with ${forecast.seasonality.strength}% strength
-                    </p>
+                    <p>${forecast.seasonality.period}-day cycle with ${forecast.seasonality.strength}% strength</p>
                 </div>
             ` : ''}
 
-            ${forecast.recommendations.length > 0 ? `
-                <div style="margin-top: 15px;">
+            ${forecast.recommendations?.length > 0 ? `
+                <div class="recommendations">
                     <strong>💡 Recommendations:</strong>
-                    <ul style="margin: 10px 0; padding-left: 20px;">
-                        ${forecast.recommendations.map(r => `<li>${r}</li>`).join('')}
+                    <ul>
+                        ${forecast.recommendations.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
                     </ul>
                 </div>
             ` : ''}
 
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #333; color: #888; font-size: 12px;">
-                Method: ${forecast.method.replace(/_/g, ' ')} | Historical Average: ${forecast.historicalAverage} units
+            <div class="forecast-meta">
+                Method: ${forecast.method?.replace(/_/g, ' ') || 'Unknown'} | Historical Average: ${forecast.historicalAverage || 0} units
             </div>
         </div>
     `;
@@ -179,28 +226,35 @@ function displayForecast(forecast, productName) {
 // Load Reorder Recommendations
 async function loadReorderRecommendations() {
     const resultsDiv = document.getElementById('reorder-results');
+    if (!resultsDiv) return;
+    
     resultsDiv.innerHTML = '<div class="loading">Calculating reorder points...</div>';
 
     try {
-        const response = await fetch(`${API_BASE}/reorder-points`);
+        const response = await authFetch(`${API_BASE}/reorder-points`);
+        if (!response.ok) {
+            throw new Error(`API returned ${response.status}`);
+        }
+        
         const data = await response.json();
 
-        if (data.success) {
+        if (data.success && data.data) {
             displayReorderRecommendations(data.data);
         } else {
-            resultsDiv.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+            resultsDiv.innerHTML = `<p class="error">Error loading recommendations</p>`;
         }
     } catch (error) {
         console.error('Error loading reorder recommendations:', error);
-        resultsDiv.innerHTML = '<p class="error">Failed to load recommendations</p>';
+        resultsDiv.innerHTML = '<p class="error">Failed to load recommendations. Please try again.</p>';
     }
 }
 
 function displayReorderRecommendations(recommendations) {
     const resultsDiv = document.getElementById('reorder-results');
+    if (!resultsDiv) return;
 
-    if (recommendations.length === 0) {
-        resultsDiv.innerHTML = '<p>✅ No products need reordering at this time</p>';
+    if (!recommendations || recommendations.length === 0) {
+        resultsDiv.innerHTML = '<div class="empty-state">✅ No products need reordering at this time</div>';
         return;
     }
 
@@ -221,7 +275,7 @@ function displayReorderRecommendations(recommendations) {
             <tbody>
                 ${recommendations.map(r => `
                     <tr>
-                        <td><strong>${r.productName}</strong></td>
+                        <td><strong>${escapeHtml(r.productName)}</strong></td>
                         <td>${r.currentStock}</td>
                         <td>${r.reorderPoint}</td>
                         <td>${r.optimalOrderQuantity}</td>
@@ -240,79 +294,86 @@ function displayReorderRecommendations(recommendations) {
 // Load Optimization Report
 async function loadOptimizationReport() {
     const resultsDiv = document.getElementById('optimization-results');
+    if (!resultsDiv) return;
 
     try {
-        const response = await fetch(`${API_BASE}/optimization/report`);
+        const response = await authFetch(`${API_BASE}/optimization/report`);
+        if (!response.ok) {
+            throw new Error(`API returned ${response.status}`);
+        }
+        
         const data = await response.json();
 
-        if (data.success) {
+        if (data.success && data.data) {
             displayOptimizationReport(data.data);
         } else {
-            resultsDiv.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+            resultsDiv.innerHTML = `<p class="error">Error loading report</p>`;
         }
     } catch (error) {
         console.error('Error loading optimization report:', error);
-        resultsDiv.innerHTML = '<p class="error">Failed to load report</p>';
+        resultsDiv.innerHTML = '<p class="error">Failed to load report. Please try again.</p>';
     }
 }
 
 function displayOptimizationReport(report) {
     const html = `
-        <div class="forecast-grid" style="margin-bottom: 30px;">
+        <div class="forecast-grid">
             <div class="forecast-metric">
                 <label>Total Inventory Value</label>
-                <div class="value">$${report.summary.totalInventoryValue.toFixed(2)}</div>
+                <div class="value">$${(report.summary?.totalInventoryValue || 0).toFixed(2)}</div>
             </div>
             <div class="forecast-metric">
                 <label>Slow-Moving Items</label>
-                <div class="value">${report.summary.slowMovingItems}</div>
+                <div class="value">${report.summary?.slowMovingItems || 0}</div>
             </div>
             <div class="forecast-metric">
                 <label>Excess Inventory</label>
-                <div class="value">$${report.summary.excessInventoryValue.toFixed(2)}</div>
+                <div class="value">$${(report.summary?.excessInventoryValue || 0).toFixed(2)}</div>
             </div>
             <div class="forecast-metric">
                 <label>Potential Savings</label>
-                <div class="value" style="color: #4CAF50;">$${report.summary.potentialAnnualSavings.toFixed(2)}</div>
-                <small style="color: #888;">per year</small>
+                <div class="value">$${(report.summary?.potentialAnnualSavings || 0).toFixed(2)}</div>
+                <small>per year</small>
             </div>
         </div>
 
-        ${report.topRecommendations.length > 0 ? `
+        ${report.topRecommendations?.length > 0 ? `
             <h4>🎯 Top Recommendations</h4>
             ${report.topRecommendations.map(rec => `
                 <div class="optimization-alert priority-${rec.priority}">
-                    <strong>${rec.action}</strong>
-                    <p style="margin: 5px 0; color: #888;">${rec.impact}</p>
-                    <p style="margin: 5px 0; color: #4CAF50;"><strong>${rec.savings}</strong></p>
+                    <strong>${escapeHtml(rec.action)}</strong>
+                    <p>${escapeHtml(rec.impact)}</p>
+                    <p class="savings"><strong>${escapeHtml(rec.savings)}</strong></p>
                 </div>
             `).join('')}
         ` : ''}
 
-        <h4 style="margin-top: 30px;">📈 ABC Classification</h4>
-        <div class="abc-grid">
-            <div class="abc-card class-a">
-                <h3>A</h3>
-                <p><strong>${report.abc.classifications.A.count}</strong> products</p>
-                <p style="color: #888;">Value: $${report.abc.classifications.A.value.toFixed(2)}</p>
-                <small>High-value items requiring tight control</small>
+        ${report.abc ? `
+            <h4>📈 ABC Classification</h4>
+            <div class="abc-grid">
+                <div class="abc-card class-a">
+                    <h3>A</h3>
+                    <p><strong>${report.abc.classifications?.A?.count || 0}</strong> products</p>
+                    <p>Value: $${(report.abc.classifications?.A?.value || 0).toFixed(2)}</p>
+                    <small>High-value items requiring tight control</small>
+                </div>
+                <div class="abc-card class-b">
+                    <h3>B</h3>
+                    <p><strong>${report.abc.classifications?.B?.count || 0}</strong> products</p>
+                    <p>Value: $${(report.abc.classifications?.B?.value || 0).toFixed(2)}</p>
+                    <small>Moderate control and monitoring</small>
+                </div>
+                <div class="abc-card class-c">
+                    <h3>C</h3>
+                    <p><strong>${report.abc.classifications?.C?.count || 0}</strong> products</p>
+                    <p>Value: $${(report.abc.classifications?.C?.value || 0).toFixed(2)}</p>
+                    <small>Simple reorder systems sufficient</small>
+                </div>
             </div>
-            <div class="abc-card class-b">
-                <h3>B</h3>
-                <p><strong>${report.abc.classifications.B.count}</strong> products</p>
-                <p style="color: #888;">Value: $${report.abc.classifications.B.value.toFixed(2)}</p>
-                <small>Moderate control and monitoring</small>
-            </div>
-            <div class="abc-card class-c">
-                <h3>C</h3>
-                <p><strong>${report.abc.classifications.C.count}</strong> products</p>
-                <p style="color: #888;">Value: $${report.abc.classifications.C.value.toFixed(2)}</p>
-                <small>Simple reorder systems sufficient</small>
-            </div>
-        </div>
+        ` : ''}
 
-        ${report.slowMoving.length > 0 ? `
-            <h4 style="margin-top: 30px;">🐌 Slow-Moving Inventory (Top 10)</h4>
+        ${report.slowMoving?.length > 0 ? `
+            <h4>🐌 Slow-Moving Inventory (Top 10)</h4>
             <table class="reorder-table">
                 <thead>
                     <tr>
@@ -326,11 +387,11 @@ function displayOptimizationReport(report) {
                 <tbody>
                     ${report.slowMoving.slice(0, 10).map(item => `
                         <tr>
-                            <td><strong>${item.name}</strong></td>
+                            <td><strong>${escapeHtml(item.name)}</strong></td>
                             <td>${item.stock_quantity}</td>
-                            <td>$${item.inventory_value.toFixed(2)}</td>
-                            <td>${item.daysWithoutMovement}</td>
-                            <td style="font-size: 12px; color: #888;">${item.recommendation}</td>
+                            <td>$${(item.inventory_value || 0).toFixed(2)}</td>
+                            <td>${item.daysWithoutMovement || 0}</td>
+                            <td>${escapeHtml(item.recommendation || 'N/A')}</td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -350,6 +411,13 @@ function getTrendEmoji(trend) {
         unknown: '❓'
     };
     return emojis[trend] || '➡️';
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function debounce(func, wait) {
