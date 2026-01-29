@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Inventory - Grocery Inventory</title>
+    
+    <!-- Core CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/v0.6.0-features.css">
+    <link rel="stylesheet" href="css/filters.css">
+    <link rel="stylesheet" href="css/categories.css">
+    <link rel="stylesheet" href="css/notifications.css">
+    <link rel="stylesheet" href="css/inline-overrides.css">
+    <link rel="stylesheet" href="/css/mobile.css">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <!-- Authentication -->
+    <script src="/js/auth.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation (same as other pages) -->
+        <div class="header">
+            <div class="header-left-group">
+                <button class="menu-toggle" title="Menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <h1>🛍️ Grocery Inventory</h1>
+            </div>
+            <div class="header-right">
+                <button id="darkModeToggle" class="icon-btn" title="Toggle theme">🌙</button>
+                <div id="status" class="status">Connecting...</div>
+                <div class="current-time" id="currentTime"></div>
+                <button data-action="logout" class="icon-btn logout-btn" title="Logout">🚪</button>
+            </div>
+        </div>
+
+        <div id="updateBanner" class="update-banner">
+            🎉 New version available! <button data-action="viewGitHubUpdate" class="update-banner-btn">View Update</button>
+        </div>
+
+        <!-- Sidebar Navigation -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>Menu</h3>
+                <button class="close-sidebar">✕</button>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard.html" class="nav-item" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/inventory.html" class="nav-item active" data-page="inventory">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Inventory</span>
+                </a>
+                <a href="/reports.html" class="nav-item" data-page="reports">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Reports</span>
+                </a>
+                <a href="/users.html" class="nav-item" data-page="users">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
+                </a>
+                <a href="/predictions.html" class="nav-item" data-page="predictions">
+                    <span class="nav-icon">🔮</span>
+                    <span class="nav-text">Predictions</span>
+                </a>
+                <a href="/advanced-search.html" class="nav-item" data-page="search">
+                    <span class="nav-icon">🔍</span>
+                    <span class="nav-text">Advanced Search</span>
+                </a>
+                <a href="/dashboard-builder.html" class="nav-item" data-page="builder">
+                    <span class="nav-icon">🎨</span>
+                    <span class="nav-text">Dashboard Builder</span>
+                </a>
+                <a href="/settings.html" class="nav-item" data-page="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Settings</span>
+                </a>
+            </nav>
+        </div>
+
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- Product List View -->
+        <div id="inventoryListView">
+            <div class="inventory-header">
+                <h2>📦 Inventory</h2>
+                <button data-action="openAddProductModal">➕ Add Product</button>
+            </div>
+
+            <div id="inventoryValueSummary" class="value-summary">
+                <div class="value-card">
+                    <div class="value-label">Total Products</div>
+                    <div class="value-amount" id="totalProducts">0</div>
+                </div>
+                <div class="value-card">
+                    <div class="value-label">Total Items</div>
+                    <div class="value-amount" id="totalItems">0</div>
+                </div>
+                <div class="value-card value-highlight">
+                    <div class="value-label">💰 Total Inventory Value</div>
+                    <div class="value-amount" id="totalValue">$0.00</div>
+                </div>
+            </div>
+
+            <div class="search-bar-container">
+                <input type="text" id="productSearch" placeholder="🔍 Search products...">
+                <button class="btn-scan" data-action="openScanner" data-param="search">📷 Scan Barcode</button>
+            </div>
+
+            <!-- Filters Panel -->
+            <div id="filtersPanel" class="filters-panel">
+                <div class="filters-header">
+                    <h4>🏛️ Filters <span id="activeFilterCount" class="filter-count">0</span></h4>
+                    <button class="clear-filters-btn" data-action="clearAllFilters">✕ Clear All</button>
+                </div>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>Category</label>
+                        <select id="filterCategory">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Supplier</label>
+                        <select id="filterSupplier">
+                            <option value="">All Suppliers</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Stock Status</label>
+                        <select id="filterStock">
+                            <option value="">All Stock Levels</option>
+                            <option value="in-stock">In Stock</option>
+                            <option value="low-stock">Low Stock</option>
+                            <option value="out-of-stock">Out of Stock</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Expiry Status</label>
+                        <select id="filterExpiry">
+                            <option value="">All Expiry Status</option>
+                            <option value="expired">Expired</option>
+                            <option value="urgent">Urgent (7 days)</option>
+                            <option value="soon">Soon (30 days)</option>
+                            <option value="normal">Normal</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="productList" class="product-list">
+                <div class="empty-state">
+                    <h3>No products yet</h3>
+                    <p>Add your first product to get started</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Detail View -->
+        <div id="inventoryDetailView" style="display:none;">
+            <div class="detail-back-section">
+                <button data-action="backToInventoryList" class="back-btn">← Back to Inventory</button>
+            </div>
+
+            <div id="detailAlertBanners"></div>
+            <div id="batch-suggestion-container" class="batch-suggestion-container"></div>
+
+            <!-- Product Info Card -->
+            <div class="dashboard-section detail-product-section">
+                <div class="detail-product-header">
+                    <div>
+                        <h2 class="detail-product-title" id="detailProductName">Product Name</h2>
+                        <div id="detailProductMeta" class="detail-product-meta"></div>
+                    </div>
+                    <div class="detail-product-actions">
+                        <button data-action="editProductFromDetail">✏️ Edit Product</button>
+                        <button data-action="deleteProductFromDetail" class="btn-danger">🗑️ Delete</button>
+                    </div>
+                </div>
+                <div id="detailProductInfo" class="detail-product-info"></div>
+            </div>
+
+            <!-- Inventory Batches -->
+            <div class="dashboard-section">
+                <div class="detail-batch-header">
+                    <h3>📋 Inventory Batches</h3>
+                    <button data-action="openAddBatchModal">➕ Add Batch</button>
+                </div>
+                <div id="detailBatchList" class="batch-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanner Modal -->
+    <div id="scannerModal" class="modal">
+        <div class="modal-content scanner-content">
+            <div class="modal-header">
+                <h2>📷 Barcode Scanner</h2>
+                <button class="close-modal" data-action="closeScanner">✕ Close</button>
+            </div>
+            <div id="reader"></div>
+            <div class="scanner-info">
+                <strong>💡 Tips:</strong>
+                <ul class="scanner-tips">
+                    <li>Allow camera access when prompted</li>
+                    <li>Hold barcode steady in camera view</li>
+                    <li>Works with UPC, EAN, QR codes</li>
+                </ul>
+            </div>
+            <div id="scannerResult" class="scanner-result">
+                <strong>✓ Scanned:</strong> <span id="scannedCode"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="productModalTitle">Add Product</h2>
+                <button class="close-modal" data-action="closeProductModal">✕ Close</button>
+            </div>
+            <form id="productForm">
+                <div class="form-row">
+                    <div>
+                        <label>Product Name *</label>
+                        <input type="text" id="prodName" required placeholder="e.g., Coca Cola 2L">
+                    </div>
+                    <div>
+                        <label>Brand</label>
+                        <input type="text" id="prodBrand" placeholder="e.g., Coca-Cola">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Supplier</label>
+                        <select id="prodSupplier">
+                            <option value="">Select supplier...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Category</label>
+                        <select id="prodCategory">
+                            <option value="">Select category...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Barcode / UPC</label>
+                        <div class="barcode-input-group">
+                            <input type="text" id="prodBarcode" placeholder="Scan or enter">
+                            <button type="button" class="btn-scan-inline" data-action="openScanner" data-param="product-form" title="Scan barcode">
+                                📷
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label>In-House Number</label>
+                        <input type="text" id="prodInhouse" placeholder="Internal SKU">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Items Per Case *</label>
+                        <input type="number" id="prodPerCase" required min="1" placeholder="e.g., 12">
+                        <div class="help-text">How many items in each case</div>
+                    </div>
+                    <div>
+                        <label>Cost Per Case</label>
+                        <input type="number" id="prodCostPerCase" step="0.01" min="0" placeholder="e.g., 24.00">
+                        <div class="help-text" id="costPerItemDisplay">Cost per item: $0.00</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-field-full">
+                        <label>Notes</label>
+                        <textarea id="prodNotes" rows="2" placeholder="Product notes..."></textarea>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit">Save Product</button>
+                    <button type="button" data-action="closeProductModal" class="cancel-btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Batch Modal -->
+    <div id="batchModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="batchModalTitle">Add Inventory Batch</h2>
+                <button class="close-modal" data-action="closeBatchModal">✕ Close</button>
+            </div>
+            <form id="batchForm">
+                <div class="form-row">
+                    <div>
+                        <label>Number of Cases *</label>
+                        <input type="number" id="batchCases" required min="1" placeholder="e.g., 5">
+                    </div>
+                    <div>
+                        <label>Total Items</label>
+                        <input type="number" id="batchTotal" readonly class="batch-total-readonly">
+                        <div class="help-text" id="batchCalc">Auto-calculated</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Expiration Date</label>
+                        <input type="date" id="batchExpiry">
+                    </div>
+                    <div>
+                        <label>Location</label>
+                        <input type="text" id="batchLocation" placeholder="e.g., Aisle 3">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-field-full">
+                        <label>Batch Notes</label>
+                        <textarea id="batchNotes" rows="2" placeholder="Delivery notes..."></textarea>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit">Save Batch</button>
+                    <button type="button" data-action="closeBatchModal" class="cancel-btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Command Palette -->
+    <div id="commandPalette" class="command-palette">
+        <div class="command-palette-content">
+            <input type="text" id="commandInput" placeholder="Type a command..." autocomplete="off">
+            <div id="commandResults" class="command-results"></div>
+        </div>
+    </div>
+
+    <div id="versionFooter" class="version-footer" title="Click to check for updates">
+        <span id="footerVersionText">v0.11.0</span>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/utils.js"></script>
+    <script src="js/event-handlers.js"></script>
+    <script src="js/shared-nav.js"></script>
+    <script src="js/dark-mode.js"></script>
+    <script src="js/activity-log.js"></script>
+    <script src="js/favorites.js"></script>
+    <script src="js/keyboard-shortcuts.js"></script>
+    <script src="js/command-palette.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/scanner.js"></script>
+    <script src="js/batch-suggestions.js"></script>
+    <script src="js/quick-actions.js"></script>
+    <script src="js/filters.js"></script>
+    <script src="/lib/pwa/offlineStorage.js"></script>
+    <script src="/js/pwa-init.js"></script>
+    <script src="/js/touch-gestures.js"></script>
+    <script src="/js/mobile-components.js"></script>
+    <script src="/js/barcode-scanner.js"></script>
+</body>
+</html>
