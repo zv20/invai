@@ -1,342 +1,210 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>Advanced Search - InvAI</title>
+    <title>Advanced Search - Grocery Inventory</title>
+    
+    <!-- Core CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/inline-overrides.css">
+    <link rel="stylesheet" href="/css/mobile.css">
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
-    
-    <!-- Mobile Optimizations -->
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="InvAI">
     <meta name="theme-color" content="#1a1a2e">
     
-    <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
-    
-    <link rel="stylesheet" href="/css/style.css">
-    
-    <!-- Mobile CSS -->
-    <link rel="stylesheet" href="/css/mobile.css">
-    
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    
-    <style>
-        .search-container {
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 20px;
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .search-sidebar {
-            background: #1a1a1a;
-            padding: 20px;
-            border-radius: 8px;
-            height: fit-content;
-            position: sticky;
-            top: 20px;
-        }
-
-        .search-main {
-            background: #1a1a1a;
-            padding: 20px;
-            border-radius: 8px;
-        }
-
-        .search-box {
-            width: 100%;
-            padding: 15px;
-            background: #252525;
-            border: 2px solid #333;
-            border-radius: 8px;
-            color: white;
-            font-size: 16px;
-            margin-bottom: 20px;
-        }
-
-        .search-box:focus {
-            border-color: #4CAF50;
-            outline: none;
-        }
-
-        .autocomplete-results {
-            background: #252525;
-            border-radius: 8px;
-            margin-top: -15px;
-            margin-bottom: 15px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .autocomplete-item {
-            padding: 12px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid #333;
-        }
-
-        .autocomplete-item:hover {
-            background: #2a2a2a;
-        }
-
-        .filter-section {
-            margin-bottom: 25px;
-        }
-
-        .filter-section h4 {
-            margin: 0 0 10px 0;
-            color: #888;
-            font-size: 12px;
-            text-transform: uppercase;
-        }
-
-        .filter-group {
-            margin-bottom: 10px;
-        }
-
-        .filter-checkbox {
-            display: flex;
-            align-items: center;
-            padding: 8px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-
-        .filter-checkbox:hover {
-            background: #252525;
-        }
-
-        .filter-checkbox input {
-            margin-right: 8px;
-        }
-
-        .quick-searches {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .quick-search-btn {
-            padding: 8px 16px;
-            background: #252525;
-            border: 1px solid #333;
-            border-radius: 20px;
-            color: white;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.3s;
-        }
-
-        .quick-search-btn:hover {
-            background: #4CAF50;
-            border-color: #4CAF50;
-        }
-
-        .results-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #333;
-        }
-
-        .results-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .results-table th,
-        .results-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #333;
-        }
-
-        .results-table th {
-            background: #252525;
-            font-weight: 600;
-            color: #888;
-            position: sticky;
-            top: 0;
-        }
-
-        .results-table tr:hover {
-            background: #252525;
-        }
-
-        .results-table input[type="checkbox"] {
-            cursor: pointer;
-        }
-
-        .bulk-actions {
-            background: #252525;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .bulk-actions.active {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .saved-searches-list {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .saved-search-item {
-            padding: 10px;
-            background: #252525;
-            border-radius: 6px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .saved-search-item:hover {
-            background: #2a2a2a;
-        }
-
-        .badge {
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-        .badge-low { background: #f44336; }
-        .badge-ok { background: #4CAF50; }
-        .badge-excess { background: #FF9800; }
-
-        @media (max-width: 1024px) {
-            .search-container {
-                grid-template-columns: 1fr;
-            }
-            
-            .search-sidebar {
-                position: static;
-            }
-        }
-    </style>
+    <!-- Authentication -->
+    <script src="/js/auth.js"></script>
 </head>
 <body>
-    <div class="search-container">
-        <div class="search-sidebar">
-            <h3>🔍 Filters</h3>
-            
-            <div class="filter-section">
-                <h4>Quick Searches</h4>
-                <div id="quick-searches" class="quick-searches"></div>
+    <div class="container">
+        <!-- Navigation -->
+        <div class="header">
+            <div class="header-left-group">
+                <button class="menu-toggle" title="Menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <h1>🛍️ Grocery Inventory</h1>
+            </div>
+            <div class="header-right">
+                <button id="darkModeToggle" class="icon-btn" title="Toggle theme">🌙</button>
+                <div id="status" class="status">Connecting...</div>
+                <div class="current-time" id="currentTime"></div>
+                <button data-action="logout" class="icon-btn logout-btn" title="Logout">🚪</button>
+            </div>
+        </div>
+
+        <div id="updateBanner" class="update-banner">
+            🎉 New version available! <button data-action="viewGitHubUpdate" class="update-banner-btn">View Update</button>
+        </div>
+
+        <!-- Sidebar Navigation -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>Menu</h3>
+                <button class="close-sidebar">✕</button>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard.html" class="nav-item" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/inventory.html" class="nav-item" data-page="inventory">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Inventory</span>
+                </a>
+                <a href="/reports.html" class="nav-item" data-page="reports">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Reports</span>
+                </a>
+                <a href="/users.html" class="nav-item" data-page="users">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
+                </a>
+                <a href="/predictions.html" class="nav-item" data-page="predictions">
+                    <span class="nav-icon">🔮</span>
+                    <span class="nav-text">Predictions</span>
+                </a>
+                <a href="/advanced-search.html" class="nav-item active" data-page="search">
+                    <span class="nav-icon">🔍</span>
+                    <span class="nav-text">Advanced Search</span>
+                </a>
+                <a href="/dashboard-builder.html" class="nav-item" data-page="builder">
+                    <span class="nav-icon">🎨</span>
+                    <span class="nav-text">Dashboard Builder</span>
+                </a>
+                <a href="/settings.html" class="nav-item" data-page="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Settings</span>
+                </a>
+            </nav>
+        </div>
+
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- Advanced Search Content -->
+        <div class="search-header">
+            <h2>🔍 Advanced Product Search</h2>
+        </div>
+
+        <div class="search-layout">
+            <!-- Search Box -->
+            <div class="search-bar-container">
+                <input type="text" id="main-search" placeholder="🔍 Search products by name, SKU, or description...">
+                <button data-action="openScanner" data-param="search">📷 Scan</button>
+            </div>
+            <div id="autocomplete-results" class="autocomplete-results"></div>
+
+            <!-- Quick Searches -->
+            <div class="quick-searches" id="quick-searches"></div>
+
+            <!-- Filters Panel -->
+            <div id="filtersPanel" class="filters-panel">
+                <div class="filters-header">
+                    <h4>🏛️ Filters <span id="activeFilterCount" class="filter-count">0</span></h4>
+                    <button data-action="clearAllFilters">✕ Clear All</button>
+                </div>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>Category</label>
+                        <select id="filterCategory">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Supplier</label>
+                        <select id="filterSupplier">
+                            <option value="">All Suppliers</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Stock Status</label>
+                        <select id="filterStock">
+                            <option value="">All Stock Levels</option>
+                            <option value="in-stock">In Stock</option>
+                            <option value="low-stock">Low Stock</option>
+                            <option value="out-of-stock">Out of Stock</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Price Range</label>
+                        <input type="number" id="price-min" placeholder="Min">
+                        <input type="number" id="price-max" placeholder="Max">
+                    </div>
+                </div>
             </div>
 
-            <div class="filter-section">
-                <h4>Saved Searches</h4>
-                <button id="save-current-search" class="btn btn-sm btn-primary" style="width: 100%; margin-bottom: 10px;">💾 Save Current</button>
+            <!-- Saved Searches -->
+            <div class="dashboard-section">
+                <div class="section-header">
+                    <h3>💾 Saved Searches</h3>
+                    <button data-action="saveCurrentSearch">➕ Save Current</button>
+                </div>
                 <div id="saved-searches-list" class="saved-searches-list"></div>
             </div>
 
-            <div class="filter-section">
-                <h4>Category</h4>
-                <div id="category-filters"></div>
-            </div>
-
-            <div class="filter-section">
-                <h4>Stock Status</h4>
-                <div id="stock-status-filters"></div>
-            </div>
-
-            <div class="filter-section">
-                <h4>Price Range</h4>
-                <input type="number" id="price-min" placeholder="Min" class="form-input" style="width: 100%; margin-bottom: 5px;">
-                <input type="number" id="price-max" placeholder="Max" class="form-input" style="width: 100%;">
-            </div>
-
-            <button id="apply-filters" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Apply Filters</button>
-            <button id="clear-filters" class="btn btn-secondary" style="width: 100%; margin-top: 10px;">Clear All</button>
-        </div>
-
-        <div class="search-main">
-            <h1>Advanced Product Search</h1>
-            
-            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <input type="text" id="main-search" class="search-box" placeholder="Search products by name, SKU, or description..." style="flex: 1; margin: 0;">
-                <button id="scan-barcode-btn" class="btn btn-primary" style="white-space: nowrap;">📷 Scan</button>
-            </div>
-            <div id="autocomplete-results" class="autocomplete-results" style="display: none;"></div>
-
-            <div id="bulk-actions" class="bulk-actions">
-                <span id="selected-count">0 items selected</span>
-                <div class="results-actions">
-                    <button id="bulk-export" class="btn btn-sm btn-secondary">📊 Export Selected</button>
-                    <button id="bulk-update" class="btn btn-sm btn-primary">✏️ Bulk Update</button>
-                    <button id="deselect-all" class="btn btn-sm btn-secondary">❌ Deselect All</button>
-                </div>
-            </div>
-
-            <div class="results-header">
-                <div>
+            <!-- Results -->
+            <div class="dashboard-section">
+                <div class="section-header">
                     <h3 id="results-count">Search products...</h3>
+                    <div class="results-actions">
+                        <button data-action="exportCSV">💾 Export CSV</button>
+                        <button data-action="exportJSON">💾 Export JSON</button>
+                    </div>
                 </div>
-                <div class="results-actions">
-                    <button id="export-csv" class="btn btn-sm btn-secondary">📅 Export CSV</button>
-                    <button id="export-json" class="btn btn-sm btn-secondary">📅 Export JSON</button>
-                </div>
-            </div>
 
-            <div id="results-container">
-                <table class="results-table">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="select-all"></th>
-                            <th>Product</th>
-                            <th>SKU</th>
-                            <th>Category</th>
-                            <th>Stock</th>
-                            <th>Price</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="results-body">
-                        <tr>
-                            <td colspan="8" style="text-align: center; padding: 40px; color: #888;">
-                                Enter a search term or apply filters to see results
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                <!-- Bulk Actions -->
+                <div id="bulk-actions" class="bulk-actions">
+                    <span id="selected-count">0 items selected</span>
+                    <div class="results-actions">
+                        <button data-action="bulkExport">📈 Export Selected</button>
+                        <button data-action="bulkUpdate">✏️ Bulk Update</button>
+                        <button data-action="deselectAll">✕ Deselect All</button>
+                    </div>
+                </div>
+
+                <div id="results-container" class="results-container">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all" data-action="selectAllResults"></th>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>Category</th>
+                                <th>Stock</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-body">
+                            <tr>
+                                <td colspan="8" class="empty-state-small">
+                                    Enter a search term or apply filters to see results
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="scannerModal" class="modal" style="display: none;">
+    <!-- Scanner Modal -->
+    <div id="scannerModal" class="modal">
         <div class="modal-content scanner-content">
             <div class="modal-header">
                 <h2>📷 Barcode Scanner</h2>
-                <button class="close-modal" onclick="closeScanner()">✕ Close</button>
+                <button class="close-modal" data-action="closeScanner">✕ Close</button>
             </div>
             <div id="reader"></div>
             <div class="scanner-info">
                 <strong>💡 Tips:</strong>
-                <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+                <ul class="scanner-tips">
                     <li>Allow camera access when prompted</li>
                     <li>Hold barcode steady in camera view</li>
                     <li>Works with UPC, EAN, QR codes</li>
@@ -348,19 +216,29 @@
         </div>
     </div>
 
-    <script src="/js/advanced-search.js"></script>
-    
-    <!-- PWA Scripts -->
+    <!-- Command Palette -->
+    <div id="commandPalette" class="command-palette">
+        <div class="command-palette-content">
+            <input type="text" id="commandInput" placeholder="Type a command..." autocomplete="off">
+            <div id="commandResults" class="command-results"></div>
+        </div>
+    </div>
+
+    <div id="versionFooter" class="version-footer" title="Click to check for updates">
+        <span id="footerVersionText">v0.11.0</span>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/utils.js"></script>
+    <script src="js/event-handlers.js"></script>
+    <script src="js/shared-nav.js"></script>
+    <script src="js/dark-mode.js"></script>
+    <script src="js/keyboard-shortcuts.js"></script>
+    <script src="js/command-palette.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/advanced-search.js"></script>
+    <script src="js/scanner.js"></script>
     <script src="/lib/pwa/offlineStorage.js"></script>
     <script src="/js/pwa-init.js"></script>
-    <script src="/js/pwa-install.js"></script>
-    
-    <!-- Mobile Scripts -->
-    <script src="/js/touch-gestures.js"></script>
-    <script src="/js/mobile-components.js"></script>
-    <script src="/js/mobile-navigation.js"></script>
-    
-    <!-- Mobile Features -->
-    <script src="/js/barcode-scanner.js"></script>
 </body>
 </html>
