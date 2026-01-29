@@ -1,5 +1,5 @@
-// Dashboard Module v0.12.0
-// FIXED: Added cache-busting for both stats AND alerts
+// Dashboard Module v0.12.1
+// FIXED: Works with both tab-based and standalone page structures
 // FIXED PR #21: Removed inline onclick for CSP compliance
 
 let dashboardData = null;
@@ -57,9 +57,6 @@ async function loadExpirationAlerts() {
         
         alertData = await response.json();
         console.log('🚨 Alert data received:', alertData);
-        console.log(`   - Expired: ${alertData.expired?.length || 0}`);
-        console.log(`   - Urgent (7d): ${alertData.urgent?.length || 0}`);
-        console.log(`   - Soon (30d): ${alertData.soon?.length || 0}`);
         renderExpirationAlerts();
     } catch (error) {
         console.error('❌ Error loading alerts:', error);
@@ -85,13 +82,6 @@ function renderDashboard() {
         lowStock: document.getElementById('dash-low-stock')
     };
     
-    console.log('📍 DOM elements found:', {
-        products: !!elements.products,
-        items: !!elements.items,
-        value: !!elements.value,
-        lowStock: !!elements.lowStock
-    });
-    
     // Update stat cards
     if (elements.products) elements.products.textContent = stats.totalProducts || 0;
     if (elements.items) elements.items.textContent = stats.totalItems || 0;
@@ -110,10 +100,7 @@ function renderDashboard() {
 // Render category breakdown
 function renderCategoryBreakdown(categories) {
     const container = document.getElementById('categoryBreakdown');
-    if (!container) {
-        console.warn('⚠️ Category breakdown container not found');
-        return;
-    }
+    if (!container) return;
     
     if (categories.length === 0) {
         container.innerHTML = '<div class="empty-state-small">No categories yet</div>';
@@ -134,10 +121,7 @@ function renderCategoryBreakdown(categories) {
 // Render recent activity
 function renderRecentActivity(products) {
     const container = document.getElementById('recentActivity');
-    if (!container) {
-        console.warn('⚠️ Recent activity container not found');
-        return;
-    }
+    if (!container) return;
     
     if (products.length === 0) {
         container.innerHTML = '<div class="empty-state-small">No recent products</div>';
@@ -158,16 +142,11 @@ function renderRecentActivity(products) {
 // Render expiration alerts
 function renderExpirationAlerts() {
     console.log('🚨 Rendering expiration alerts...');
-    if (!alertData) {
-        console.warn('⚠️ No alert data to render');
-        return;
-    }
+    if (!alertData) return;
     
     const expired = alertData.expired || [];
     const urgent = alertData.urgent || [];
     const soon = alertData.soon || [];
-    
-    console.log(`🚨 Rendering: ${expired.length} expired, ${urgent.length} urgent, ${soon.length} soon`);
     
     // Update counts
     const expiredCount = document.getElementById('alert-expired-count');
@@ -183,16 +162,13 @@ function renderExpirationAlerts() {
     renderAlertList('urgentList', urgent, 'expires');
     renderAlertList('soonList', soon, 'expires');
     
-    console.log(`✓ Alerts rendered - Expired: ${expired.length}, Urgent: ${urgent.length}, Soon: ${soon.length}`);
+    console.log(`✓ Alerts rendered`);
 }
 
 // Render individual alert list - FIXED PR #21: No inline onclick
 function renderAlertList(elementId, items, dateField) {
     const container = document.getElementById(elementId);
-    if (!container) {
-        console.warn(`⚠️ Alert list container '${elementId}' not found`);
-        return;
-    }
+    if (!container) return;
     
     if (items.length === 0) {
         container.innerHTML = '<div class="empty-state-small">✓ All good!</div>';
@@ -200,7 +176,7 @@ function renderAlertList(elementId, items, dateField) {
     }
     
     const html = items.map(item => `
-        <div class="alert-item" data-product-id="${item.product_id}">
+        <div class="alert-item" data-action="viewProductFromAlert" data-product-id="${item.product_id}">
             <div class="alert-item-header">
                 <div class="alert-item-name">${item.product_name}</div>
                 <div class="alert-item-qty">${item.total_quantity} items</div>
@@ -213,35 +189,6 @@ function renderAlertList(elementId, items, dateField) {
     `).join('');
     
     container.innerHTML = html;
-    
-    // FIXED PR #21: Add event delegation instead of inline onclick
-    container.querySelectorAll('.alert-item').forEach(alertItem => {
-        alertItem.addEventListener('click', function() {
-            const productId = parseInt(this.dataset.productId);
-            viewProductFromAlert(productId);
-        });
-    });
-}
-
-// View product from alert
-async function viewProductFromAlert(productId) {
-    try {
-        // Switch to inventory tab
-        switchTab('inventory');
-        
-        // Wait a moment for tab to load
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Open product detail view directly
-        if (typeof viewProductDetail === 'function') {
-            await viewProductDetail(productId);
-        }
-        
-        showNotification('Product loaded in Inventory tab', 'success');
-    } catch (error) {
-        console.error('Error viewing product:', error);
-        showNotification('Failed to load product', 'error');
-    }
 }
 
 // Format currency
@@ -252,7 +199,7 @@ function formatCurrency(value) {
     }).format(value || 0);
 }
 
-// Format date - Shows relative time for expiration dates
+// Format date
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -271,18 +218,16 @@ function formatDate(dateString) {
     }
 }
 
-// Refresh dashboard - FIXED: Added cache refresh parameter
+// Refresh dashboard
 function refreshDashboard() {
     console.log('🔄 Refreshing dashboard...');
     loadDashboardStats();
     loadExpirationAlerts();
     
-    // Refresh activity feed (v0.8.0)
     if (typeof ActivityLog !== 'undefined') {
         ActivityLog.loadRecentActivity();
     }
     
-    // Refresh favorites widget (v0.8.0)
     if (typeof Favorites !== 'undefined') {
         Favorites.loadFavoritesWidget();
     }
@@ -290,27 +235,22 @@ function refreshDashboard() {
     showNotification('Dashboard refreshed', 'success');
 }
 
-// Initialize when dashboard tab is shown
+// Initialize - FIXED: Works on standalone page (no tab check needed)
 if (document.readyState === 'loading') {
-    console.log('⌛ Waiting for DOM to load...');
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('✓ DOM loaded, checking for dashboard tab...');
-        // Check if dashboard tab exists
-        const dashTab = document.getElementById('dashboardTab');
-        if (dashTab) {
-            console.log('✓ Dashboard tab found, initializing...');
+        // Check if we have dashboard elements (standalone page or tab)
+        const hasDashboardElements = document.getElementById('dash-total-products') || 
+                                    document.getElementById('dashboardTab');
+        if (hasDashboardElements) {
+            console.log('✓ Dashboard elements found, initializing...');
             initDashboard();
-        } else {
-            console.error('❌ Dashboard tab not found in DOM!');
         }
     });
 } else {
-    console.log('✓ DOM already loaded, checking for dashboard tab...');
-    const dashTab = document.getElementById('dashboardTab');
-    if (dashTab) {
-        console.log('✓ Dashboard tab found, initializing...');
+    const hasDashboardElements = document.getElementById('dash-total-products') || 
+                                document.getElementById('dashboardTab');
+    if (hasDashboardElements) {
+        console.log('✓ Dashboard elements found, initializing...');
         initDashboard();
-    } else {
-        console.error('❌ Dashboard tab not found in DOM!');
     }
 }
