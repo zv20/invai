@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Dashboard - Grocery Inventory</title>
+    
+    <!-- Core CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/notifications.css">
+    <link rel="stylesheet" href="css/inline-overrides.css">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Mobile Optimizations -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="InvAI">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
+    <!-- Mobile CSS -->
+    <link rel="stylesheet" href="/css/mobile.css">
+    
+    <!-- Authentication Check - MUST load first -->
+    <script src="/js/auth.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <div class="header">
+            <div class="header-left-group">
+                <button class="menu-toggle" title="Menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <h1>🛍️ Grocery Inventory</h1>
+            </div>
+            <div class="header-right">
+                <button id="darkModeToggle" class="icon-btn" title="Toggle theme">🌙</button>
+                <div id="status" class="status">Connecting...</div>
+                <div class="current-time" id="currentTime"></div>
+                <button data-action="logout" class="icon-btn logout-btn" title="Logout">🚪</button>
+            </div>
+        </div>
+
+        <div id="updateBanner" class="update-banner">
+            🎉 New version available! <button data-action="viewGitHubUpdate" class="update-banner-btn">View Update</button>
+        </div>
+
+        <!-- Sidebar Navigation -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>Menu</h3>
+                <button class="close-sidebar">✕</button>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard.html" class="nav-item active" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/inventory.html" class="nav-item" data-page="inventory">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Inventory</span>
+                </a>
+                <a href="/reports.html" class="nav-item" data-page="reports">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Reports</span>
+                </a>
+                <a href="/users.html" class="nav-item" data-page="users">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
+                </a>
+                <a href="/predictions.html" class="nav-item" data-page="predictions">
+                    <span class="nav-icon">🔮</span>
+                    <span class="nav-text">Predictions</span>
+                </a>
+                <a href="/advanced-search.html" class="nav-item" data-page="search">
+                    <span class="nav-icon">🔍</span>
+                    <span class="nav-text">Advanced Search</span>
+                </a>
+                <a href="/dashboard-builder.html" class="nav-item" data-page="builder">
+                    <span class="nav-icon">🎨</span>
+                    <span class="nav-text">Dashboard Builder</span>
+                </a>
+                <a href="/settings.html" class="nav-item" data-page="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Settings</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Overlay for mobile -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- Dashboard Content -->
+        <div class="dashboard-header">
+            <h2>📊 Dashboard</h2>
+            <button class="refresh-button" data-action="refreshDashboard">🔄 Refresh</button>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="dashboard-grid">
+            <div class="stat-card stat-card-primary">
+                <div class="stat-icon">📦</div>
+                <div class="stat-label">Total Products</div>
+                <div class="stat-value" id="dash-total-products">0</div>
+            </div>
+            <div class="stat-card stat-card-success">
+                <div class="stat-icon">📋</div>
+                <div class="stat-label">Total Items</div>
+                <div class="stat-value" id="dash-total-items">0</div>
+            </div>
+            <div class="stat-card stat-card-warning">
+                <div class="stat-icon">💰</div>
+                <div class="stat-label">Total Value</div>
+                <div class="stat-value" id="dash-total-value">$0.00</div>
+            </div>
+            <div class="stat-card stat-card-danger">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-label">Low Stock Items</div>
+                <div class="stat-value" id="dash-low-stock">0</div>
+            </div>
+        </div>
+
+        <!-- Expiration Alerts -->
+        <div class="dashboard-section">
+            <h3>🚨 Expiration Alerts</h3>
+            <div class="alerts-container">
+                <div class="alert-box alert-box-expired">
+                    <div class="alert-header">
+                        <div class="alert-title">❌ Expired</div>
+                        <div class="alert-count" id="alert-expired-count">0</div>
+                    </div>
+                    <div class="alert-list" id="expiredList">
+                        <div class="empty-state-small">✓ All good!</div>
+                    </div>
+                </div>
+                <div class="alert-box alert-box-urgent">
+                    <div class="alert-header">
+                        <div class="alert-title">⚠️ Urgent (7 days)</div>
+                        <div class="alert-count" id="alert-urgent-count">0</div>
+                    </div>
+                    <div class="alert-list" id="urgentList">
+                        <div class="empty-state-small">✓ All good!</div>
+                    </div>
+                </div>
+                <div class="alert-box alert-box-soon">
+                    <div class="alert-header">
+                        <div class="alert-title">⏰ Soon (30 days)</div>
+                        <div class="alert-count" id="alert-soon-count">0</div>
+                    </div>
+                    <div class="alert-list" id="soonList">
+                        <div class="empty-state-small">✓ All good!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid-container">
+            <div class="dashboard-section">
+                <h3>📁 Category Breakdown</h3>
+                <div class="category-breakdown" id="categoryBreakdown">
+                    <div class="empty-state-small">No categories yet</div>
+                </div>
+            </div>
+            <div class="dashboard-section">
+                <h3>⏱️ Recent Products</h3>
+                <div class="activity-list" id="recentActivity">
+                    <div class="empty-state-small">No recent products</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command Palette -->
+    <div id="commandPalette" class="command-palette">
+        <div class="command-palette-content">
+            <input type="text" id="commandInput" placeholder="Type a command..." autocomplete="off">
+            <div id="commandResults" class="command-results"></div>
+        </div>
+    </div>
+
+    <!-- Version Footer -->
+    <div id="versionFooter" class="version-footer" title="Click to check for updates">
+        <span id="footerVersionText">v0.11.0</span>
+    </div>
+
+    <!-- Shared JavaScript -->
+    <script src="js/utils.js"></script>
+    <script src="js/event-handlers.js"></script>
+    <script src="js/shared-nav.js"></script>
+    
+    <!-- Feature modules -->
+    <script src="js/dark-mode.js"></script>
+    <script src="js/activity-log.js"></script>
+    <script src="js/favorites.js"></script>
+    <script src="js/keyboard-shortcuts.js"></script>
+    <script src="js/command-palette.js"></script>
+    <script src="js/charts.js"></script>
+    
+    <!-- Core initialization -->
+    <script src="js/core.js"></script>
+    
+    <!-- Dashboard specific -->
+    <script src="js/dashboard.js"></script>
+    
+    <!-- PWA Scripts -->
+    <script src="/lib/pwa/offlineStorage.js"></script>
+    <script src="/js/pwa-init.js"></script>
+</body>
+</html>

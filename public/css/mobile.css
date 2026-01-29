@@ -1,6 +1,7 @@
 /**
  * Mobile Styles for InvAI
  * Mobile-first responsive design with touch optimizations
+ * v0.11.0 - Unified navigation (no bottom nav bar)
  */
 
 /* ============================================
@@ -8,7 +9,6 @@
    ============================================ */
 :root {
   --mobile-header-height: 56px;
-  --mobile-bottom-nav-height: 56px;
   --mobile-fab-size: 56px;
   --mobile-touch-target: 44px;
   --mobile-padding: 16px;
@@ -21,7 +21,7 @@
    ============================================ */
 @media (max-width: 768px) {
   body {
-    padding-bottom: var(--mobile-bottom-nav-height);
+    /* REMOVED: padding-bottom for bottom nav - using hamburger menu only */
     overscroll-behavior-y: contain; /* Prevent pull-to-refresh on iOS */
   }
 
@@ -138,7 +138,7 @@
    ============================================ */
 .fab {
   position: fixed;
-  bottom: calc(var(--mobile-bottom-nav-height) + 16px);
+  bottom: 16px; /* UPDATED: No longer offset for bottom nav */
   right: 16px;
   width: var(--mobile-fab-size);
   height: var(--mobile-fab-size);
@@ -169,7 +169,7 @@
 /* FAB with menu */
 .fab-menu {
   position: fixed;
-  bottom: calc(var(--mobile-bottom-nav-height) + 16px);
+  bottom: 16px; /* UPDATED: No longer offset for bottom nav */
   right: 16px;
   z-index: 1000;
 }
@@ -214,59 +214,15 @@
 }
 
 /* ============================================
-   Bottom Navigation
+   Bottom Navigation - DISABLED
+   Using hamburger menu only for consistent UX
    ============================================ */
 .bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: var(--mobile-bottom-nav-height);
-  background: #1a1a1a;
-  border-top: 1px solid #333;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  z-index: 999;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
+  display: none !important; /* DISABLED: Using hamburger menu only */
 }
 
 .bottom-nav-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  color: #888;
-  text-decoration: none;
-  font-size: 12px;
-  padding: 8px;
-  transition: color 0.2s;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.bottom-nav-item .icon {
-  font-size: 24px;
-}
-
-.bottom-nav-item.active {
-  color: #4CAF50;
-}
-
-.bottom-nav-item:active {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-/* Hide on desktop */
-@media (min-width: 769px) {
-  .bottom-nav {
-    display: none;
-  }
-  
-  .fab {
-    display: none;
-  }
+  display: none !important; /* DISABLED: Using hamburger menu only */
 }
 
 /* ============================================
